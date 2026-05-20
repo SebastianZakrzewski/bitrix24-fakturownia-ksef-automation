@@ -1,0 +1,16 @@
+---
+description: Docs to read for HTTP API, DTOs, controllers, guards
+globs: **/dto/**,**/*.controller.ts,**/guards/**
+alwaysApply: false
+---
+
+# Docs — DTO / API / controllers
+
+Read before coding:
+
+- `/docs/contracts.md`
+- `/docs/boundaries-workflow.md`
+- `/docs/security-observability-testing.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: HTTP endpoints, request/response DTOs, controllers, guards, API validation, endpoint authorization.

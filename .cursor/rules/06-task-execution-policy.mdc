@@ -1,0 +1,31 @@
+---
+description: Task execution policy — structured tasks, scope clarity, skeleton vs functional work
+alwaysApply: true
+---
+
+# Task Execution Policy
+
+Do not start implementation from broad or ambiguous instructions.
+
+A valid implementation task must include:
+- TASK: clear task name
+- READ: relevant `.cursor/rules` and `/docs` files (use `.cursor/rules/docs-selection/` index; do not read all `/docs` by default)
+- SCOPE: what is allowed
+- FORBIDDEN: what must not be changed or implemented
+- VALIDATION: required commands/tests
+- OUTPUT: expected implementation report
+
+If the user gives a short or ambiguous instruction, do not guess the full scope.
+Ask for clarification or propose a structured task before coding.
+
+For skeleton/setup tasks:
+- create structure only
+- do not fake persisted IDs
+- do not invent business/error codes
+- do not return lifecycle statuses unless explicitly required
+- use neutral stubs or `NotImplementedException` when real behavior requires DB/business logic
+
+For functional tasks:
+- modify only the relevant files/modules
+- preserve accepted contracts/statuses/tables
+- add/update tests for the business behavior and forbidden side effects

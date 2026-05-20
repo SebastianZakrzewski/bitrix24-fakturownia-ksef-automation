@@ -1,0 +1,21 @@
+---
+description: Docs to read for lifecycle, statuses, InvoiceProcess/InvoiceEvent
+globs: src/modules/invoices/types/**,**/invoice-process*,**/invoice-event*,**/domain-lifecycle*
+alwaysApply: false
+---
+
+# Docs — lifecycle / statuses
+
+Read before coding:
+
+- `/docs/domain-lifecycle.md`
+- `/docs/business-process-map.md`
+- `/docs/modules-reliability.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: `InvoiceProcessStatus`, `InvoiceEvent.type`, status transitions, retry eligibility, manual review, async workflow states.
+
+Critical:
+
+- `STALE_TRIGGER_IGNORED` is **event-only** (`InvoiceEvent.type`).
+- `STALE_TRIGGER_IGNORED` must **not** be `InvoiceProcessStatus`.

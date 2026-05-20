@@ -1,0 +1,18 @@
+---
+description: Docs to read for DB, migrations, repositories, persistence
+globs: src/database/**,**/repositories/**,**/persistence/**,test/database/**,**/migrations/**
+alwaysApply: false
+---
+
+# Docs — DB / persistence
+
+Read before coding:
+
+- `/docs/database-schema.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/contracts.md`
+- `/docs/modules-reliability.md`
+- `/docs/security-observability-testing.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: migrations, schema, constraints, indexes, repositories, persistence models, DB integration tests, idempotency persistence.

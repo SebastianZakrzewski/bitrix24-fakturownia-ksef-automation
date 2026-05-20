@@ -1,0 +1,43 @@
+---
+description: SellGenius architecture layer boundaries and responsibilities
+alwaysApply: true
+---
+
+# Architecture Boundaries
+
+Controllers:
+- HTTP/API input/output only; validate DTO shape; call use-cases
+- no business logic, repositories, or integrations
+
+DTOs:
+- request/response shape only; API boundary only
+- not domain or persistence
+
+Commands:
+- use-case input created from validated DTOs
+- internal application input, not DTO, DB model, or integration payload
+
+Use-cases:
+- orchestrate one business process; enforce workflow order
+- validate before side effects; check idempotency before irreversible operations
+- coordinate services, repositories, integrations, mappers
+
+Services:
+- smaller business/domain logic
+- no controller dependency or infrastructure leakage unless documented
+
+Repositories:
+- persistence only; DB reads/writes only
+- no business decisions or external API calls
+
+Integrations:
+- external system communication only
+- no business decisions or persistence logic
+- no lifecycle changes unless delegated by use-case
+
+Mappers:
+- convert between DTO, Command, Domain, Persistence, Integration Payload, LLM Output
+- no side effects, API calls, or DB calls
+
+Domain types:
+- documented business concepts, names, statuses, and enums only

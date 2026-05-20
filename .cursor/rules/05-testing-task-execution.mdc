@@ -1,0 +1,94 @@
+---
+description: SellGenius testing, coding, task note, TODO_DECISION and completion checklist
+alwaysApply: true
+---
+
+# Testing Rules
+
+Every business rule requires tests.
+
+Tests must cover where applicable:
+- happy path; invalid/missing input; duplicate trigger
+- retry behavior; provider/API failure; forbidden side effect
+- status transition; idempotency; recovery/escalation
+
+Tests must map to Given/When/Then from:
+- `/docs/security-observability-testing.md`
+- `/docs/business-process-map.md`
+
+DB integration tests: follow `.cursor/rules/docs-selection/70-testing.mdc` (`npm run test:integration`, Testcontainers).
+
+Task is incomplete if:
+- only compiles or only happy path is tested
+- side effects can happen before validation
+- lifecycle changes lack tests, undocumented behavior is added, or process mapping is bypassed
+
+## Coding Rules
+
+Use TypeScript strict mode.
+
+Forbidden:
+- unjustified `any`; magic strings for statuses/enums
+- hardcoded secrets; undocumented env variables
+- silent catch blocks; broad catch without handling/rethrow
+- business logic in controllers/repositories/integrations
+- speculative abstractions
+- premature queues/CQRS/event sourcing/microservices/workflow engines unless documented
+
+Preserve names from `/docs`.
+
+## Required Task Note Before Coding
+
+Before coding, output:
+
+Task:
+- what will be implemented
+
+Docs read:
+- paths from `.cursor/rules/docs-selection/` for this task (always include `/docs/decision-log.md`)
+
+Business process step:
+- mapped step from `/docs/business-process-map.md`
+
+V1 scope:
+- included
+- excluded
+
+Files planned:
+- files to create/change
+
+Validation:
+- tests/checks to run
+
+Open decisions:
+- `TODO_DECISION` items, if any
+
+Then implement only the scoped task.
+
+## TODO_DECISION Format
+
+Use when a required decision is missing:
+
+TODO_DECISION:
+- Decision needed:
+- Context:
+- Why it blocks safe implementation:
+- Affected module/files:
+- Suggested options:
+- Recommended default, if safe:
+- Owner: Architect/Product Owner
+
+Do not continue the blocked area until resolved.
+
+## Completion Checklist
+
+Before claiming completion, verify:
+
+- V1 only; matches `/docs`; no undocumented concepts; no V2/V3
+- model layers separated; business logic not in controller/repository/integration
+- statuses/lifecycle match docs; validation before side effects; idempotency respected
+- failures handled; tests cover Given/When/Then; forbidden behavior tested
+- no secrets leaked; no unjustified `any`
+- no unresolved `TODO_DECISION` in completed scope
+
+If any item fails, do not claim completion; report issue and required fix.

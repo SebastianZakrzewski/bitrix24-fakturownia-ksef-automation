@@ -1,0 +1,91 @@
+---
+description: SellGenius validation, side effects, lifecycle, idempotency, errors, n8n and database safety
+alwaysApply: true
+---
+
+# Validation, Side Effects, Idempotency
+
+No irreversible/external side effect before validation and idempotency check.
+
+Side effects include email/SMS, invoice creation, KSeF submission, Bitrix update, customer-visible status change, production API call, final DB state write, and payment/charge.
+
+Required order:
+1. Load input/context
+2. Validate required data
+3. Normalize/map data
+4. Check idempotency
+5. Decide action
+6. Persist planned/processing state if documented
+7. Execute side effect
+8. Persist result
+9. Audit/log event
+10. Return/escalate
+
+Forbidden:
+- side effect before validation
+- duplicate external operation on retry
+- lifecycle transition without docs; swallowed integration failure
+- completed state before side effect confirmation
+
+Before external side effects:
+- check idempotency key
+- check workflow/process state
+- check previous provider result if documented
+
+Do not create duplicate external entities.
+
+If idempotency/retry behavior is missing, create `TODO_DECISION` and stop affected implementation.
+
+## Lifecycle and Statuses
+
+Use only statuses and transitions from:
+- `/docs/domain-lifecycle.md`
+- `/docs/boundaries-workflow.md`
+- `/docs/modules-reliability.md` (idempotency, retry, workflow guards)
+
+Forbidden:
+- inventing, renaming, skipping, or magic-string statuses
+- marking failed process as completed
+- treating unclear/partial state as valid unless documented
+
+Every transition must be validated and testable.
+
+## Error Handling
+
+Do not swallow errors.
+
+Expected failures require:
+- internal error type/code where documented
+- log/audit event, safe state transition, recovery path
+- no unintended side effect
+
+For integrations:
+- preserve useful provider error details; normalize provider errors
+- do not leak sensitive data or retry blindly
+- do not mark success unless provider confirms success
+
+## n8n Rules
+
+If n8n is used:
+
+n8n may:
+- orchestrate triggers and coordinate high-level workflow
+
+Backend must own:
+- critical business logic, validation, idempotency, lifecycle, persistence, and side-effect safety
+
+Forbidden:
+- critical rules or idempotency only in n8n
+- relying on n8n retries without backend idempotency
+
+## Database Rules
+
+Database follows `/docs/database-schema.md`.
+
+Do not add undocumented:
+- tables, columns, enum values, relations, indexes, or constraints
+
+Use documented:
+- PK/FK, unique constraints, idempotency keys, audit fields, statuses, timestamps, external provider IDs, and failure/error fields
+
+If schema is insufficient for V1, create `TODO_DECISION` and do not improvise.

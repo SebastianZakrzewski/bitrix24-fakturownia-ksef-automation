@@ -1,0 +1,24 @@
+---
+description: Docs to read for tests — unit fast, DB via test:integration + Testcontainers
+globs: test/**,**/*.spec.ts,**/*.integration.spec.ts
+alwaysApply: false
+---
+
+# Docs — testing
+
+Read before coding:
+
+- `/docs/security-observability-testing.md`
+- `/docs/business-process-map.md`
+- `/docs/modules-reliability.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: unit/integration/API tests, forbidden side-effect tests, security tests, Testcontainers, CI/test scripts.
+
+Rules:
+
+- `npm test` stays fast; must **not** require PostgreSQL.
+- DB integration tests: `npm run test:integration` with Testcontainers PostgreSQL.
+- DB constraint/idempotency tests: **not** SQLite or mocked DB.
+- Docker is the only external prerequisite for integration tests.

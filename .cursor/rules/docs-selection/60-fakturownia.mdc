@@ -1,0 +1,24 @@
+---
+description: Docs to read for Fakturownia integration (validated InvoiceDraft only)
+globs: src/modules/invoices/integrations/fakturownia/**
+alwaysApply: false
+---
+
+# Docs — Fakturownia integration
+
+Read before coding:
+
+- `/docs/contracts.md`
+- `/docs/modules-reliability.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/security-observability-testing.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: `FakturowniaClient`, `FakturowniaService`, `FakturowniaMapper`, `FakturowniaErrorMapper`, `FakturowniaTypes`.
+
+Rules:
+
+- Lives under `modules/invoices/integrations/fakturownia`.
+- Must **not** decide whether invoice creation is allowed.
+- Receives only validated `InvoiceDraft`.
+- **No** Fakturownia call before validation passes.

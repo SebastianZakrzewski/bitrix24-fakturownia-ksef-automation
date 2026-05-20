@@ -1,0 +1,38 @@
+---
+description: SellGenius DTO, command, domain, persistence, integration and LLM model separation
+alwaysApply: true
+---
+
+# Model Separation
+
+Never mix:
+- `DTO`: request/response
+- `Command`: use-case input
+- `Domain Model`: business concept/rules
+- `Persistence Model`: DB representation
+- `Integration Payload`: external API shape
+- `LLM Output`: structured AI result
+
+Forbidden:
+- external payload directly in domain logic; DTO persisted as domain state
+- DB row used as domain model without mapper; persistence model returned from controller
+- LLM output directly triggering side effects
+- one generic `model` type for everything
+
+Every boundary crossing must be explicit and mapped.
+One concept = one name; do not rename or duplicate documented concepts.
+
+## AI / LLM Rules
+
+Use AI only where documented.
+
+LLM output must be:
+- structured, typed, validated, traceable
+- treated as probabilistic unless docs say otherwise
+
+Forbidden:
+- LLM inventing business rules or directly executing side effects
+- free-form LLM output as final business decision
+- replacing deterministic validation with LLM reasoning or hiding uncertainty
+
+If AI lacks schema, guardrails, or validation docs, create `TODO_DECISION`.

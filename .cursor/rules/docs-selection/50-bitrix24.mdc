@@ -1,0 +1,23 @@
+---
+description: Docs to read for Bitrix24 CRM module (data/ops only, no invoice rules)
+globs: src/modules/bitrix24/**
+alwaysApply: false
+---
+
+# Docs — Bitrix24 module
+
+Read before coding:
+
+- `/docs/boundaries-workflow.md`
+- `/docs/contracts.md`
+- `/docs/modules-reliability.md`
+- `/docs/security-observability-testing.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: `Bitrix24Client`, `Bitrix24DealService`, `Bitrix24CompanyService`, `Bitrix24ProductRowService`, `Bitrix24TimelineService`, `Bitrix24DealFieldService`, `Bitrix24Mapper`.
+
+Rules:
+
+- Bitrix24 provides CRM data and CRM operations only.
+- Bitrix24 must **not** decide invoice correctness.
+- Bitrix24 must **not** contain invoice business rules.

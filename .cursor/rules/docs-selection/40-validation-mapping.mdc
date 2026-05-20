@@ -1,0 +1,17 @@
+---
+description: Docs to read for validation, Bitrix mapping, InvoiceDraft builder
+globs: **/invoice-validation*,**/bitrix-invoice-mapper*,**/invoice-draft-builder*,**/invoice-draft*
+alwaysApply: false
+---
+
+# Docs — validation / mapping / InvoiceDraft
+
+Read before coding:
+
+- `/docs/business-process-map.md`
+- `/docs/contracts.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/modules-reliability.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: `InvoiceValidationService`, `BitrixInvoiceMapper`, `InvoiceDraftBuilderService`, `ProductLine`, buyer/company mapping, invoice type mapping, advance/final invoice validation.

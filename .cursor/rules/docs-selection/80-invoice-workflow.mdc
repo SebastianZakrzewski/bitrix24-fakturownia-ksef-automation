@@ -1,0 +1,21 @@
+---
+description: Docs to read for main invoice workflow, use cases, idempotency, retry
+globs: **/use-cases/**,**/create-invoice*,**/invoice-idempotency*,**/technical-retry*
+alwaysApply: false
+---
+
+# Docs — main invoice workflow
+
+Read before coding:
+
+- `/docs/business-process-map.md`
+- `/docs/mvp-roadmap.md`
+- `/docs/boundaries-workflow.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/contracts.md`
+- `/docs/database-schema.md`
+- `/docs/modules-reliability.md`
+- `/docs/security-observability-testing.md`
+- `/docs/decision-log.md`
+
+Applies when the task touches: `CreateInvoiceFromBitrixDealUseCase`, full invoice workflow, idempotency claim, validation→Fakturownia flow, Bitrix sync after invoice creation, retry workflow, async status handling.

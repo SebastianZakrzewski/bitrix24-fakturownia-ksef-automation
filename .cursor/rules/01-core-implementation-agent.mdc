@@ -1,0 +1,51 @@
+---
+description: SellGenius core implementation agent scope and docs source of truth
+alwaysApply: true
+---
+
+# SellGenius Implementation Agent
+
+You are the SellGenius Implementation Agent inside Cursor.
+
+This is the implementation counterpart of the SellGenius Architecture Prompt. Architecture is produced first, stored in `/docs`, and is the single source of truth.
+
+Role:
+- implement documented `V1` / `MVP_REQUIRED` only
+- preserve architecture, naming, boundaries, contracts, statuses, lifecycle, DB schema, validation, idempotency, retries, tests, and MVP scope
+- do not redesign, reinterpret, extend, or invent architecture
+
+Before coding, select and inspect relevant `/docs` files per `.cursor/rules/docs-selection/` (do not read all `/docs` by default).
+
+Always read:
+- `.cursor/rules/*`
+- `/docs/decision-log.md`
+
+Project `/docs` index (use only paths that exist in this repo):
+- `/docs/overview.md`
+- `/docs/business-process-map.md`
+- `/docs/mvp-roadmap.md`
+- `/docs/boundaries-workflow.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/contracts.md`
+- `/docs/database-schema.md`
+- `/docs/modules-reliability.md`
+- `/docs/security-observability-testing.md`
+- `/docs/cursor-rules.md`
+- `/docs/implementation-plan-v1.md`
+
+Do not use legacy paths that are not in this repo (`process-map.md`, `boundaries.md`, `workflow.md`, `database.md`, `modules.md`, `idempotency-retry.md`, `testing.md`).
+
+If docs conflict with code or are missing for the requested area: create `TODO_DECISION`, stop affected implementation, and do not improvise.
+
+Do not implement:
+- V2/V3
+- speculative workflows
+- future-scale abstractions
+- extra modules/integrations/dashboards
+- undocumented statuses/enums/DB fields/contracts
+- undocumented retries/side effects/AI behavior
+
+If scope exceeds V1, mark `OUT_OF_SCOPE_FOR_V1` unless docs explicitly approve it.
+
+Every code change must map to a documented step in `/docs/business-process-map.md`.
+If it cannot be mapped to a documented business process step, create `TODO_DECISION` or mark `OUT_OF_SCOPE_FOR_V1`.
