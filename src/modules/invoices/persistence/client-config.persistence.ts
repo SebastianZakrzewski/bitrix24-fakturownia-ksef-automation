@@ -1,9 +1,14 @@
+import type {
+  ClientBitrixFieldMapping,
+  ClientInvoiceTypeMapping,
+} from '../types/client-config.types';
+
 export type ClientConfigRow = {
   id: string;
   name: string;
   bitrix_paid_stage_id: string;
-  bitrix_field_mapping: Record<string, unknown>;
-  invoice_type_mapping: Record<string, unknown>;
+  bitrix_field_mapping: ClientBitrixFieldMapping;
+  invoice_type_mapping: ClientInvoiceTypeMapping;
   default_vat_rate: number;
   default_currency: string;
   default_unit: string;
@@ -15,8 +20,8 @@ export type ClientConfigRow = {
 export type InsertClientConfigParams = {
   name: string;
   bitrix_paid_stage_id: string;
-  bitrix_field_mapping: Record<string, unknown>;
-  invoice_type_mapping: Record<string, unknown>;
+  bitrix_field_mapping: ClientBitrixFieldMapping;
+  invoice_type_mapping: ClientInvoiceTypeMapping;
   default_vat_rate?: number;
   default_currency?: string;
   default_unit?: string;

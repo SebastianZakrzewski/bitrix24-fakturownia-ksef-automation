@@ -47,4 +47,23 @@ export class InvoiceRecordRepository {
       rethrowDatabaseError(error);
     }
   }
+
+  async findByInvoiceProcessId(
+    invoiceProcessId: string,
+  ): Promise<InvoiceRecordRow | null> {
+    const result = await this.databaseService.query(
+      `
+        SELECT * FROM invoice_records
+        WHERE invoice_process_id = $1
+        LIMIT 1
+      `,
+      [invoiceProcessId],
+    );
+
+    if (result.rowCount === 0) {
+      return null;
+    }
+
+    return mapInvoiceRecordRow(result.rows[0]);
+  }
 }

@@ -1,0 +1,33 @@
+---
+description: Docs to read before Tech Lead audit — combine with area-specific selection rules
+globs:
+  - "**/*"
+alwaysApply: false
+---
+
+# Tech Lead Audit — Docs Selection
+
+Before auditing, read:
+
+- `/docs/decision-log.md` (always)
+- `.cursor/rules/07-tech-lead-audit-policy.mdc` and relevant `audit/*` checklists
+
+## By audited area
+
+Combine paths from category rules; dedupe.
+
+| Audit focus | Also read |
+|-------------|-----------|
+| Full stack / release readiness | `overview.md`, `business-process-map.md`, `boundaries-workflow.md`, `domain-lifecycle.md`, `database-schema.md`, `modules-reliability.md`, `security-observability-testing.md`, `contracts.md`, `implementation-plan-v1.md` |
+| Invoice workflow | `80-invoice-workflow.mdc` list + `boundaries-workflow.md`, `domain-lifecycle.md`, `business-process-map.md` |
+| DB / migrations / repos | `10-db-persistence.mdc` list + `database-schema.md` |
+| Lifecycle / statuses | `20-lifecycle-statuses.mdc` list + `domain-lifecycle.md` |
+| API / DTO / controllers | `30-dto-api-controllers.mdc` list + `contracts.md` |
+| Validation / mapping | `40-validation-mapping.mdc` list |
+| Bitrix24 | `50-bitrix24.mdc` list |
+| Fakturownia | `60-fakturownia.mdc` list |
+| Tests only | `70-testing.mdc` list + `security-observability-testing.md` |
+
+Do not use legacy doc paths listed as forbidden in `01-core-implementation-agent.mdc`.
+
+If docs conflict with code: report as **Medium** (docs/rules contradiction); do not improvise fixes during audit unless asked.

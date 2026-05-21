@@ -120,6 +120,72 @@ type BitrixProductRow = {
 
 These are integration DTOs. `BitrixInvoiceMapper` maps them with `ClientConfig` to internal invoice models.
 
+## ClientConfig Bitrix mapping (Evapremium V1)
+
+Canonical source: `src/modules/invoices/config/evapremium-v1-client-config.ts`.
+
+```ts
+type ClientBitrixFieldMapping = {
+  invoiceDocumentTypeField: string;              // UF_CRM_1776810914892
+  invoiceDocumentTypeFinalValueId: string;       // '1328' = Dopełniająca → FINAL
+  invoiceDocumentTypeCorrectionValueId: string; // '1330' = Korygująca (block V1)
+  paymentFormField: string;                      // UF_CRM_1764595962462
+  paymentFormFullValueId: string;                // '718' = Pełna Płatność
+  paymentFormAdvanceValueId: string;             // '720' = Zaliczka
+  advanceAmountField: string;
+  documentTypeField: string;
+  documentTypeInvoiceValueId: string;            // '722' = Faktura only
+  invoiceLinkField: string;
+  dealTotalField: 'OPPORTUNITY';
+  mainProductName: string;
+  mainProductUnit: string;
+  mainProductPriceStrategy: 'OPPORTUNITY_MINUS_PRODUCT_ROWS';
+  companyAddressSource: 'CRM_ADDRESS_LIST' | 'REQUISITE';
+};
+
+// bitrix_paid_stage_id: 'PREPARATION' (etap „Oplacone”)
+```
+
+Invoice type resolution (Evapremium operator workflow):
+- `ADVANCE`: `paymentForm` = Zaliczka (720), `invoiceDocumentType` empty.
+- `FINAL`: `invoiceDocumentType` = Dopełniająca (1328), then `paymentForm` = Pełna Płatność (718), stage again `PREPARATION`.
+- `FULL`: `paymentForm` = Pełna Płatność (718), `invoiceDocumentType` not Dopełniająca/Korygująca.
+
+### Bitrix trigger timing vs `FINAL` (V1)
+
+V1 trigger contract: Bitrix24 automation on **paid stage change** (`BITRIX24_STAGE_CHANGE` → `bitrix_paid_stage_id` = `PREPARATION`). n8n forwards only `bitrix_deal_id` and trigger metadata; backend loads **current** deal fields from Bitrix24.
+
+Operator order for `FINAL` (before re-entering paid stage):
+1. Set `invoiceDocumentType` = Dopełniająca (`1328`).
+2. Set `paymentForm` = Pełna Płatność (`718`) — was Zaliczka (`720`) after advance invoice.
+3. Move deal to paid stage `PREPARATION` again → webhook fires.
+
+Expected deal state when the webhook is processed for a successful `FINAL` claim:
+- `stageId` = `PREPARATION`
+- `invoiceDocumentType` = `1328` **and** `paymentForm` = `718`
+- `documentType` = Faktura (`722`)
+- prior successful `ADVANCE` process for the same `bitrix_deal_id` in our DB
+
+| Situation at webhook processing | Backend behavior | Creates `InvoiceProcess`? |
+|---|---|---|
+| `stageId` ≠ `PREPARATION` (deal no longer paid) | `STALE_TRIGGER_IGNORED` event only | No |
+| `stageId` = `PREPARATION`, `1328` + `718` (+ other rules pass) | Map `FINAL`, claim `deal_id:FINAL`, continue workflow | Yes (if not duplicate) |
+| `stageId` = `PREPARATION`, `1328` but `paymentForm` still `720` | Do **not** map `FINAL`; validation fails (`MISSING_INVOICE_TYPE` or equivalent). No Fakturownia side effect. | Only if implementation claims before validation — prefer validate before claim |
+| `stageId` = `PREPARATION`, `718` without `1328` | Map `FULL` (first full invoice), not `FINAL` | Per `FULL` rules |
+| Operator fixes CRM (step 2), then paid stage triggers again | Normal new trigger; `FINAL` when `1328` + `718` + `PREPARATION` | Yes |
+
+Rules:
+- **`STALE_TRIGGER_IGNORED`** applies only to **paid-stage mismatch** (trigger assumed paid stage, deal is not on `PREPARATION` anymore). It does **not** apply to incomplete UF combinations (e.g. Dopełniająca without Pełna Płatność).
+- Incomplete `FINAL` prerequisites (e.g. `1328` + `720` on paid stage) are **`VALIDATION_FAILED`** (or rejected before process claim), not `STALE`.
+- `STALE_TRIGGER_IGNORED` and failed validation **do not block** a later successful trigger after the operator completes fields and re-enters paid stage (`domain-lifecycle.md`).
+
+If Bitrix automation is later configured to fire on UF changes (not only stage), the same rules apply: backend always reads current deal state; `FINAL` only when `1328` + `718` + `PREPARATION` (+ DB advance check).
+
+Product rules:
+- Main invoice line is always `mainProductName` (not CRM mat/car UF fields).
+- Additional lines come from Bitrix `productRows` only.
+- Main line gross = `OPPORTUNITY` minus sum of product row gross amounts; if no rows, main line = full `OPPORTUNITY`.
+
 ## Fakturownia integration result
 ```ts
 type FakturowniaCreateInvoiceResult = {

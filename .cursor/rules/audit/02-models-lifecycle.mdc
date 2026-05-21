@@ -1,0 +1,34 @@
+---
+description: Tech Lead audit — model separation and lifecycle (categories 3–4)
+alwaysApply: false
+---
+
+# Audit: Models and Lifecycle
+
+## 3. Model separation
+
+| Type | Role |
+|------|------|
+| DTO | HTTP request/response only |
+| Command | Use-case input after DTO validation/mapping |
+| Domain/Application | Internal business process types |
+| Persistence | DB entity / schema representation |
+| Integration | Provider payload, result, raw response |
+
+Flag:
+
+- Raw Bitrix/Fakturownia payload mixed with domain models
+- Persistence models in controllers
+- DTOs used as domain types
+- Unjustified `any`
+- Missing runtime validation for HTTP input
+
+## 4. Lifecycle and status
+
+Sources: `/docs/domain-lifecycle.md`, `/docs/boundaries-workflow.md`
+
+- Only documented `InvoiceProcessStatus` values
+- No invented or magic-string statuses
+- `STALE_TRIGGER_IGNORED` is **event-only** — never `InvoiceProcessStatus`
+- Transitions match docs; terminal/blocked states must not allow unsafe continuation
+- Do not mark failed process as completed; do not skip documented guards

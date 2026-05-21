@@ -1,0 +1,34 @@
+---
+description: Tech Lead audit — DB, idempotency and side-effect safety (categories 5–6)
+alwaysApply: false
+---
+
+# Audit: DB and Side Effects
+
+## 5. DB and idempotency
+
+Source: `/docs/database-schema.md`. Flag schema drift.
+
+Required constraints (V1):
+
+- `unique(bitrix_deal_id, invoice_type)`
+- `unique(idempotency_key)`
+- `invoice_records`: `unique(invoice_process_id)`, `unique(fakturownia_invoice_id)`
+- `invoice_events.invoice_process_id` nullable; snapshots and retry attempts require real `invoice_process_id`
+- Only one active `client_configs` row
+- Documented CHECK, UNIQUE, FK only — no undocumented tables/columns/enums
+
+## 6. Side-effect safety (Critical if violated)
+
+Required order: validate → idempotency → decide → persist planned state → side effect → persist result.
+
+Flag **Critical**:
+
+- Fakturownia call before validation passes
+- Missing `INVOICE_CREATION_IN_PROGRESS` before Fakturownia
+- `InvoiceRecord` not saved immediately after confirmed Fakturownia success
+- Existing `InvoiceRecord` does not block another `createInvoice`
+- Bitrix sync retry calls Fakturownia
+- `UNKNOWN_AFTER_TIMEOUT` does not block invoice creation retry until manual review
+- Automatic invoice deletion/cancellation in V1
+- Any irreversible/external side effect before validation or idempotency check

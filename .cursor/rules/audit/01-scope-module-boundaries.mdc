@@ -1,0 +1,34 @@
+---
+description: Tech Lead audit — scope compliance and module boundaries (categories 1–2)
+alwaysApply: false
+---
+
+# Audit: Scope and Module Boundaries
+
+## 1. Scope compliance
+
+Flag scope creep. V1 only:
+
+- No V2/V3 features unless documented and approved
+- No undocumented corrections
+- No multi-tenant unless explicitly approved
+- No AI/LLM in V1 invoice **decision** path
+- No direct KSeF integration
+- No panel manual retry unless explicitly approved
+- No manual invoice creation endpoint
+
+## 2. Module boundaries
+
+| Layer | Allowed |
+|-------|---------|
+| `invoices` use-cases/services | Business logic, workflow order |
+| Controllers | Thin HTTP; DTO shape; call use-cases |
+| Repositories | Persist/read only |
+| Integrations | External I/O; map provider payloads/results |
+| n8n | Orchestration only — not critical financial logic |
+
+Flag wrong-layer logic:
+
+- Bitrix24 module must **not** decide invoice correctness
+- Fakturownia integration must **not** decide whether invoice creation is allowed
+- Business logic in controller, repository, or integration

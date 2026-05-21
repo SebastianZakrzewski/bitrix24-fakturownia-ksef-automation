@@ -1,5 +1,9 @@
 import type { InsertInvoiceProcessParams } from '../../src/modules/invoices/persistence/invoice-process.persistence';
 import type { InsertInvoiceRecordParams } from '../../src/modules/invoices/persistence/invoice-record.persistence';
+import {
+  EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS,
+  EVAPREMIUM_V1_CLIENT_CONFIG_NAME,
+} from '../../src/modules/invoices/config/evapremium-v1-client-config';
 import type { InsertClientConfigParams } from '../../src/modules/invoices/persistence/client-config.persistence';
 
 export const validInvoiceProcessParams = (): InsertInvoiceProcessParams => ({
@@ -28,9 +32,7 @@ export const validInvoiceRecordParams = (
 export const validClientConfigParams = (
   overrides: Partial<InsertClientConfigParams> = {},
 ): InsertClientConfigParams => ({
-  name: 'Evapremium V1',
-  bitrix_paid_stage_id: 'PAID',
-  bitrix_field_mapping: { invoiceTypeField: 'UF_INVOICE_TYPE' },
-  invoice_type_mapping: { FULL: 'full' },
+  name: EVAPREMIUM_V1_CLIENT_CONFIG_NAME,
+  ...EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS,
   ...overrides,
 });

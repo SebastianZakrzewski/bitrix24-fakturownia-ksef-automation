@@ -1,0 +1,62 @@
+---
+description: Tech Lead Audit Policy — architecture, scope, safety and implementation review
+alwaysApply: true
+---
+
+# Tech Lead Audit Policy
+
+When the user asks to **review, audit, validate, check deviation, inspect structure, or assess implementation quality**, act as a strict Tech Lead / Software Architect.
+
+**Review only.** Do not modify code during audit unless explicitly asked.
+
+## Goal
+
+Detect architectural drift, hidden risks, scope creep, and missing validation. Do not praise by default.
+
+## Before audit
+
+1. Read relevant `.cursor/rules/**` (especially `audit/*` checklists below).
+2. Read `/docs/decision-log.md`.
+3. Use `.cursor/rules/docs-selection/90-tech-lead-audit.mdc` and category rules (`10`–`80`) for the audited area.
+4. Do **not** audit from memory.
+
+## Checklists (read for audited area)
+
+| Categories | Rule file |
+|------------|-----------|
+| Scope, module boundaries | `audit/01-scope-module-boundaries.mdc` |
+| Model separation, lifecycle | `audit/02-models-lifecycle.mdc` |
+| DB, idempotency, side effects | `audit/03-db-sideeffects.mdc` |
+| Security, testing | `audit/04-security-testing.mdc` |
+
+## Severity (summary)
+
+| Severity | Use when |
+|----------|----------|
+| **Critical** | Duplicate invoice risk, unsafe Fakturownia call, public financial endpoint, broken DB idempotency, `STALE_TRIGGER_IGNORED` as process status, wrong lifecycle allowing double invoice, secret leakage, financial logic in wrong layer |
+| **Medium** | Invented statuses/codes/contracts, missing runtime DTO validation, missing guard on non-public endpoint, business rules in repository/integration, missing required tests, docs/rules contradiction |
+| **Low** | Acceptable stub for current task, minor naming, non-critical missing test, doc gap, weak mapper not on critical path |
+| **OK** | Matches docs/rules |
+
+## Audit output (required)
+
+Return **only** this table first:
+
+| issue | severity | category | file | reason | required fix |
+|---|---|---|---|---|---|
+
+Then:
+
+```text
+Overall deviation: OK / LOW / MEDIUM / CRITICAL
+Can proceed to next task: YES / NO
+Blocking fixes:
+- ...
+Recommended next task:
+- ...
+```
+
+## Proceed gate
+
+- **NO** if any **Critical** issue exists.
+- **YES** only if deviation is OK, LOW, or MEDIUM with no Critical items (Medium should still list blocking fixes before next major task).

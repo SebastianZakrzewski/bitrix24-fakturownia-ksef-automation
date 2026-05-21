@@ -1,0 +1,40 @@
+---
+description: Tech Lead audit — security baseline and testing (categories 7–8)
+alwaysApply: false
+---
+
+# Audit: Security and Testing
+
+## 7. Security baseline
+
+| Area | Expectation |
+|------|-------------|
+| Trigger endpoint | n8n/API key guard |
+| Admin endpoints | Admin key guard |
+| Client panel | Protected |
+| Secrets | Not in DB or logs; no full API tokens logged |
+| PII in logs | No NIP, address, or raw payloads in ordinary logs |
+| CORS | Limited to panel origin |
+| Passwords | Hash only, never plaintext |
+
+Flag public operational/financial endpoints: **Critical** or **Medium** by exposure.
+
+If observability is in scope: rate limiting, request ID, structured logs.
+
+## 8. Testing baseline
+
+Sources: `/docs/security-observability-testing.md`, `.cursor/rules/docs-selection/70-testing.mdc`
+
+Require for touched critical logic:
+
+- Unit, API, and integration tests where applicable
+- Forbidden side effects tested
+- DB constraint/idempotency: Testcontainers PostgreSQL — not SQLite, not mocked DB
+
+Commands (by scope):
+
+- `npm run typecheck`, `npm run build`, `npm run lint`, `npm test`
+- `npm run test:integration` if DB/persistence/idempotency touched
+- `npm run test:e2e` if API behavior touched
+
+Flag **Medium**: missing required tests for critical or forbidden behavior.

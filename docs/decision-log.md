@@ -14,7 +14,10 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | V1 client type is company with NIP | Simpler KSeF/business flow | High |
 | Buyer data from `Deal -> Company` | Single CRM source | High |
 | Missing NIP/company/address blocks invoice | Avoid invalid invoice | Critical |
-| Product lines from deal fields and product rows | Matches client CRM | High |
+| Product lines: main line fixed name + product rows detail | Evapremium: główna pozycja zawsze „Dywaniki Evapremium”; poboczne z `crm.deal.productrows` | High |
+| `client_configs` Bitrix field mapping for Evapremium portal | Verified on deals 27000/27414; `PREPARATION`, UF codes, enum 718/720/722 | High |
+| FINAL via UF typ faktury Dopełniająca (1328) + payment Pełna (718) + stage Oplacone | Operator workflow after advance invoice; field `UF_CRM_1776810914892` | High |
+| `STALE` = stage mismatch only; incomplete FINAL UF (e.g. 1328+720) = validation, next trigger after fix | See `contracts.md` „Bitrix trigger timing vs FINAL” | High |
 | One invalid product line blocks whole invoice | Avoid incorrect invoice amount | Critical |
 | VAT fixed at 23% | V1 simplification | High |
 | Fakturownia handles KSeF | Avoid direct KSeF integration V1 | Critical |

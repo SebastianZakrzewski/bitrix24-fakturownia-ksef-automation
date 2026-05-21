@@ -38,5 +38,8 @@ Forbidden:
 | Fakturownia integration | `60-fakturownia.mdc` |
 | Testing | `70-testing.mdc` |
 | Main invoice workflow / use case | `80-invoice-workflow.mdc` |
+| Tech Lead audit / review / deviation check | `90-tech-lead-audit.mdc` + `.cursor/rules/audit/*` |
 
 Broad or multi-area tasks: combine doc lists from all matching categories (dedupe paths).
+
+**Audit tasks:** read `07-tech-lead-audit-policy.mdc`; review only unless user asks to fix.
