@@ -12,6 +12,8 @@ const envSchema = z
     PANEL_ORIGIN: z.string().url().optional(),
     DATABASE_URL: z.string().min(1).optional(),
     DATABASE_SCHEMA: z.string().min(1).default('fakturownia-ksef-invoices'),
+    BITRIX24_WEBHOOK_URL: z.string().url().optional(),
+    BITRIX24_PORTAL_URL: z.string().url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'test' && !env.DATABASE_URL) {
@@ -19,6 +21,14 @@ const envSchema = z
         code: 'custom',
         message: 'DATABASE_URL is required when NODE_ENV is not test',
         path: ['DATABASE_URL'],
+      });
+    }
+
+    if (env.NODE_ENV !== 'test' && !env.BITRIX24_WEBHOOK_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'BITRIX24_WEBHOOK_URL is required when NODE_ENV is not test',
+        path: ['BITRIX24_WEBHOOK_URL'],
       });
     }
   });

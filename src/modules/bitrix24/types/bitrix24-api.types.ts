@@ -1,0 +1,50 @@
+export type Bitrix24ApiErrorPayload = {
+  error: string;
+  error_description?: string;
+};
+
+export type Bitrix24ApiResponse<T> = {
+  result: T;
+  time?: Record<string, unknown>;
+};
+
+export type Bitrix24DealRaw = {
+  ID: string;
+  STAGE_ID: string;
+  COMPANY_ID?: string;
+  [key: string]: unknown;
+};
+
+export type Bitrix24CompanyRaw = {
+  ID: string;
+  TITLE?: string;
+  ADDRESS?: string;
+  ADDRESS_CITY?: string;
+  ADDRESS_POSTAL_CODE?: string;
+  ADDRESS_COUNTRY?: string;
+  [key: string]: unknown;
+};
+
+export type Bitrix24RequisiteRaw = {
+  ID?: string;
+  ENTITY_TYPE_ID?: string;
+  ENTITY_ID?: string;
+  RQ_INN?: string;
+  RQ_ADDR?: string;
+  RQ_ZIP?: string;
+  RQ_CITY?: string;
+  RQ_COUNTRY?: string;
+  [key: string]: unknown;
+};
+
+export type Bitrix24ProductRowRaw = {
+  ID: string;
+  PRODUCT_NAME?: string;
+  QUANTITY?: string | number;
+  PRICE?: string | number;
+  [key: string]: unknown;
+};
+
+export type Bitrix24RequisiteListResult = Bitrix24RequisiteRaw[];
+
+export type Bitrix24ProductRowsListResult = Bitrix24ProductRowRaw[];

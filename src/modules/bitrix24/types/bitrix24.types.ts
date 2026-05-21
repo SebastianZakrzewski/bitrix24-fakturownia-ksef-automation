@@ -23,3 +23,22 @@ export type BitrixCompanyData = {
   city?: string;
   country?: string;
 };
+
+export type BitrixDealCore = {
+  dealId: string;
+  dealUrl?: string;
+  stageId: string;
+  companyId?: string;
+  customFields: Record<string, unknown>;
+};
+
+export type BitrixTimelineCommentParams = {
+  dealId: string;
+  message: string;
+};
+
+export type BitrixDealFieldUpdateParams = {
+  dealId: string;
+  fieldCode: string;
+  value: string;
+};
