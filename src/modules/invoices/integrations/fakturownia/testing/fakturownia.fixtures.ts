@@ -1,5 +1,6 @@
 import type { InvoiceDraft } from '../../../types/invoice.types';
 import type {
+  FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoiceRaw,
   FakturowniaOrderRaw,
 } from '../fakturownia.types';
@@ -54,6 +55,13 @@ export const invoiceDraftFinalFixture = (): InvoiceDraft => ({
   ...invoiceDraftFullFixture(),
   invoiceType: 'FINAL',
   previousAdvanceInvoiceId: '2432393',
+});
+
+export const fakturowniaInvoiceOrderLinkageFixture = (
+  overrides: Partial<FakturowniaInvoiceOrderLinkage> = {},
+): FakturowniaInvoiceOrderLinkage => ({
+  fakturowniaOrderId: '10042',
+  ...overrides,
 });
 
 export const fakturowniaInvoiceRawSuccessFixture = (

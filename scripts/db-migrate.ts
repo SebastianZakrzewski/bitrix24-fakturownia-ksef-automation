@@ -1,3 +1,4 @@
+import '../src/load-env';
 import { Pool } from 'pg';
 import { resolveDatabaseSchema, withDatabaseSearchPath } from '../src/database/database-schema';
 import { migrate } from '../src/database/migrate';

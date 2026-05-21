@@ -167,6 +167,8 @@ type ClientBitrixFieldMapping = {
 // bitrix_paid_stage_id: 'PREPARATION' (etap „Oplacone”)
 ```
 
+When `companyAddressSource = 'CRM_ADDRESS_LIST'` (Evapremium V1), `Bitrix24CompanyService` loads buyer address from `crm.address.list` (`ENTITY_TYPE_ID=4`, `ENTITY_ID=companyId`). NIP remains from `crm.requisite.list`. When `REQUISITE`, address fields come from requisite `RQ_*` with fallback to `crm.company.get` address columns.
+
 Invoice type resolution (Evapremium operator workflow):
 - `ADVANCE`: `paymentForm` = Zaliczka (720), `invoiceDocumentType` empty.
 - `FINAL`: `invoiceDocumentType` = Dopełniająca (1328), then `paymentForm` = Pełna Płatność (718), stage again `PREPARATION`.

@@ -39,6 +39,16 @@ describe('FakturowniaOrderMapper', () => {
       });
     });
 
+    it('normalizes Bitrix country name Poland to ISO PL in buyer_country', () => {
+      const base = invoiceDraftAdvanceFixture();
+      const draft = {
+        ...base,
+        buyer: { ...base.buyer, country: 'Poland' },
+      };
+
+      expect(mapper.toCreatePayload(draft).buyer_country).toBe('PL');
+    });
+
     it('does not include invoice-type-specific fields', () => {
       const payload = mapper.toCreatePayload(invoiceDraftAdvanceFixture());
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppEnv } from '../../../config/env.validation';
 import { Bitrix24ApiError } from '../errors/bitrix24.errors';
@@ -7,11 +7,10 @@ import type {
   Bitrix24ApiErrorPayload,
   Bitrix24ApiResponse,
 } from '../types/bitrix24-api.types';
-
-export type Bitrix24FetchFn = (
-  input: string,
-  init?: RequestInit,
-) => Promise<Response>;
+import {
+  BITRIX24_HTTP_CLIENT,
+  type Bitrix24FetchFn,
+} from './bitrix24-http-client.token';
 
 @Injectable()
 export class Bitrix24Client {
@@ -20,7 +19,7 @@ export class Bitrix24Client {
 
   constructor(
     configService: ConfigService<AppEnv, true>,
-    fetchFn: Bitrix24FetchFn = fetch,
+    @Inject(BITRIX24_HTTP_CLIENT) fetchFn: Bitrix24FetchFn,
   ) {
     this.webhookBaseUrl = configService.get('BITRIX24_WEBHOOK_URL', {
       infer: true,

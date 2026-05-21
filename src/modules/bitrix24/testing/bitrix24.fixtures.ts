@@ -1,4 +1,5 @@
 import type {
+  Bitrix24AddressRaw,
   Bitrix24CompanyRaw,
   Bitrix24DealRaw,
   Bitrix24ProductRowRaw,
@@ -16,6 +17,19 @@ export const bitrixDealRawFixture = (): Bitrix24DealRaw => ({
 export const bitrixCompanyRawFixture = (): Bitrix24CompanyRaw => ({
   ID: '7',
   TITLE: 'Evapremium Sp. z o.o.',
+});
+
+export const bitrixAddressRawFixture = (): Bitrix24AddressRaw => ({
+  TYPE_ID: '1',
+  ENTITY_TYPE_ID: '8',
+  ENTITY_ID: '1',
+  ANCHOR_TYPE_ID: '4',
+  ANCHOR_ID: '7',
+  ADDRESS_1: 'Filtrowa 34',
+  ADDRESS_2: 'LA1',
+  CITY: 'Bydgoszcz',
+  POSTAL_CODE: '85-467 ',
+  COUNTRY: 'Poland',
 });
 
 export const bitrixRequisiteRawFixture = (): Bitrix24RequisiteRaw => ({

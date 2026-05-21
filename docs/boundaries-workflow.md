@@ -15,7 +15,7 @@
 | Data | Source of truth |
 |---|---|
 | Current sales stage | Bitrix24 |
-| Buyer/company data | Bitrix24 `Company` |
+| Buyer/company data | Bitrix24 `Company`, requisites (NIP) and `crm.address.list` when configured |
 | Product and price data | Bitrix24 |
 | Automation process status | Our DB |
 | Invoice created by this system | Our DB + Fakturownia external reference |

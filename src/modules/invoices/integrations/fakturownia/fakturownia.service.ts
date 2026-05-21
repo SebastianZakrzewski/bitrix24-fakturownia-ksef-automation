@@ -3,7 +3,10 @@ import type { InvoiceDraft } from '../../types/invoice.types';
 import { FakturowniaClient } from './fakturownia.client';
 import { FakturowniaErrorMapper } from './fakturownia-error.mapper';
 import { FakturowniaMapper } from './fakturownia.mapper';
-import type { FakturowniaCreateInvoiceResult } from './fakturownia.types';
+import type {
+  FakturowniaCreateInvoiceResult,
+  FakturowniaInvoiceOrderLinkage,
+} from './fakturownia.types';
 
 @Injectable()
 export class FakturowniaService {
@@ -15,8 +18,9 @@ export class FakturowniaService {
 
   async createInvoice(
     invoiceDraft: InvoiceDraft,
+    orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): Promise<FakturowniaCreateInvoiceResult> {
-    const payload = this.mapper.toCreatePayload(invoiceDraft);
+    const payload = this.mapper.toCreatePayload(invoiceDraft, orderLinkage);
 
     try {
       const raw = await this.client.createInvoice(payload);

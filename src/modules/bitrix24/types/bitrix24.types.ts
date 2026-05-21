@@ -42,3 +42,9 @@ export type BitrixDealFieldUpdateParams = {
   fieldCode: string;
   value: string;
 };
+
+export type BitrixCompanyAddressSource = 'CRM_ADDRESS_LIST' | 'REQUISITE';
+
+export type Bitrix24GetCompanyOptions = {
+  addressSource?: BitrixCompanyAddressSource;
+};

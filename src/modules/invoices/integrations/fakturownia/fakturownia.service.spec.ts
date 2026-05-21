@@ -5,8 +5,10 @@ import { FakturowniaMapper } from './fakturownia.mapper';
 import { FakturowniaService } from './fakturownia.service';
 import {
   fakturowniaClientErrorBodyFixture,
+  fakturowniaInvoiceOrderLinkageFixture,
   fakturowniaInvoiceRawSuccessFixture,
   fakturowniaServerErrorBodyFixture,
+  invoiceDraftAdvanceFixture,
   invoiceDraftFullFixture,
 } from './testing/fakturownia.fixtures';
 
@@ -20,6 +22,24 @@ describe('FakturowniaService', () => {
       mapper,
       errorMapper,
     );
+
+  it('passes order linkage to mapper for ADVANCE invoice', async () => {
+    const raw = fakturowniaInvoiceRawSuccessFixture();
+    const client = {
+      createInvoice: jest.fn().mockResolvedValue(raw),
+    };
+    const orderLinkage = fakturowniaInvoiceOrderLinkageFixture();
+
+    const service = createService(client);
+    await service.createInvoice(invoiceDraftAdvanceFixture(), orderLinkage);
+
+    expect(client.createInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'advance',
+        copy_invoice_from: 10042,
+      }),
+    );
+  });
 
   it('creates invoice and maps successful response', async () => {
     const raw = fakturowniaInvoiceRawSuccessFixture();

@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppEnv } from '../../../../config/env.validation';
 import { FakturowniaApiError } from './fakturownia.errors';
+import {
+  FAKTUROWNIA_HTTP_CLIENT,
+  type FakturowniaFetchFn,
+} from './fakturownia-http-client.token';
 import type {
   FakturowniaCreateInvoiceRequest,
   FakturowniaCreateOrderRequest,
@@ -12,11 +16,6 @@ import type {
   FakturowniaOrderPayload,
   FakturowniaOrderRaw,
 } from './fakturownia.types';
-
-export type FakturowniaFetchFn = (
-  input: string,
-  init?: RequestInit,
-) => Promise<Response>;
 
 export function isFakturowniaHttpFailure(
   error: unknown,
@@ -38,7 +37,7 @@ export class FakturowniaClient {
 
   constructor(
     configService: ConfigService<AppEnv, true>,
-    fetchFn: FakturowniaFetchFn = fetch,
+    @Inject(FAKTUROWNIA_HTTP_CLIENT) fetchFn: FakturowniaFetchFn,
   ) {
     this.baseUrl = configService.get('FAKTUROWNIA_BASE_URL', { infer: true });
     this.apiToken = configService.get('FAKTUROWNIA_API_TOKEN', { infer: true });

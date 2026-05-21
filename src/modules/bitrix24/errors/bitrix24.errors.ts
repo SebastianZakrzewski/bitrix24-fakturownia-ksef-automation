@@ -1,6 +1,7 @@
 export type Bitrix24Operation =
   | 'DEAL_GET'
   | 'COMPANY_GET'
+  | 'COMPANY_ADDRESS_LIST'
   | 'PRODUCT_ROWS_LIST'
   | 'TIMELINE_COMMENT_ADD'
   | 'DEAL_FIELD_UPDATE';

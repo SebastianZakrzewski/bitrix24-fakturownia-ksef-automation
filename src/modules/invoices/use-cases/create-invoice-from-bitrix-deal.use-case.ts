@@ -9,6 +9,10 @@ import type {
 } from '../../bitrix24/types/bitrix24.types';
 import { CreateInvoiceFromBitrixDealCommand } from '../commands/create-invoice-from-bitrix-deal.command';
 import { InvoiceProcessTriggerResponseDto } from '../dto/invoice-process-trigger-response.dto';
+import { InvoiceCreationBlockedError } from '../errors/invoice-process.errors';
+import { FakturowniaApiError } from '../integrations/fakturownia/fakturownia.errors';
+import { FakturowniaService } from '../integrations/fakturownia/fakturownia.service';
+import type { FakturowniaInvoiceOrderLinkage } from '../integrations/fakturownia/fakturownia.types';
 import { BitrixInvoiceMapper } from '../mappers/bitrix-invoice.mapper';
 import type { ClientConfigRow } from '../persistence/client-config.persistence';
 import type { InvoiceProcessRow } from '../persistence/invoice-process.persistence';
@@ -17,11 +21,14 @@ import { ClientConfigRepository } from '../repositories/client-config.repository
 import { InvoiceEventRepository } from '../repositories/invoice-event.repository';
 import { InvoiceProcessRepository } from '../repositories/invoice-process.repository';
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
+import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
+import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from '../services/invoice-idempotency.service';
 import { InvoiceProcessService } from '../services/invoice-process.service';
 import { InvoiceValidationService } from '../services/invoice-validation.service';
 import type { ClientConfigMappings } from '../types/client-config.types';
-import type { InvoiceType, ValidationError } from '../types/invoice.types';
+import type { ValidatedInvoiceMapping } from '../types/invoice-mapping.types';
+import type { InvoiceProcessStatus, InvoiceType, ValidationError } from '../types/invoice.types';
 
 @Injectable()
 export class CreateInvoiceFromBitrixDealUseCase {
@@ -38,6 +45,9 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly invoiceEventRepository: InvoiceEventRepository,
     private readonly bitrixDealSnapshotRepository: BitrixDealSnapshotRepository,
     private readonly invoiceRecordRepository: InvoiceRecordRepository,
+    private readonly invoiceDraftBuilderService: InvoiceDraftBuilderService,
+    private readonly fakturowniaOrderEnsureService: FakturowniaOrderEnsureService,
+    private readonly fakturowniaService: FakturowniaService,
   ) {}
 
   async execute(
@@ -79,7 +89,9 @@ export class CreateInvoiceFromBitrixDealUseCase {
     }
 
     const company = deal.companyId
-      ? await this.bitrix24CompanyService.getCompanyById(deal.companyId)
+      ? await this.bitrix24CompanyService.getCompanyById(deal.companyId, {
+          addressSource: config.bitrix_field_mapping.companyAddressSource,
+        })
       : undefined;
 
     const mapping = this.bitrixInvoiceMapper.map(deal, company, config);
@@ -121,13 +133,12 @@ export class CreateInvoiceFromBitrixDealUseCase {
       );
     }
 
-    return {
-      process_id: process.id,
-      status: process.status,
-      bitrix_deal_id: command.bitrixDealId,
-      invoice_type: invoiceType,
-      message: 'Validation passed. Invoice creation is not implemented in this task.',
-    };
+    return this.handleInvoiceCreation(
+      process,
+      validationResult.data,
+      invoiceType,
+      command.bitrixDealId,
+    );
   }
 
   private toClientConfigMappings(row: ClientConfigRow): ClientConfigMappings {
@@ -170,6 +181,155 @@ export class CreateInvoiceFromBitrixDealUseCase {
     );
 
     return record?.fakturownia_invoice_id;
+  }
+
+  private async handleInvoiceCreation(
+    process: InvoiceProcessRow,
+    validated: ValidatedInvoiceMapping,
+    invoiceType: InvoiceType,
+    bitrixDealId: string,
+  ): Promise<InvoiceProcessTriggerResponseDto> {
+    const draft = this.invoiceDraftBuilderService.build(validated);
+
+    try {
+      await this.invoiceIdempotencyService.assertCanCreateInvoice(process.id);
+    } catch (error) {
+      if (error instanceof InvoiceCreationBlockedError) {
+        return {
+          process_id: process.id,
+          status: process.status,
+          bitrix_deal_id: bitrixDealId,
+          invoice_type: invoiceType,
+          message: error.message,
+        };
+      }
+
+      throw error;
+    }
+
+    this.invoiceProcessService.assertCanTransition(
+      process.status,
+      'INVOICE_CREATION_IN_PROGRESS',
+    );
+
+    await this.invoiceProcessRepository.updateStatus(process.id, {
+      status: 'INVOICE_CREATION_IN_PROGRESS',
+    });
+
+    await this.invoiceEventRepository.insert({
+      invoice_process_id: process.id,
+      bitrix_deal_id: bitrixDealId,
+      event_type: 'INVOICE_CREATION_IN_PROGRESS',
+      message: 'Invoice creation started.',
+    });
+
+    try {
+      let orderLinkage: FakturowniaInvoiceOrderLinkage | undefined;
+
+      if (invoiceType === 'ADVANCE' || invoiceType === 'FINAL') {
+        const orderRow = await this.fakturowniaOrderEnsureService.ensureForDeal({
+          invoiceDraft: draft,
+          invoiceProcessId: process.id,
+        });
+        orderLinkage = { fakturowniaOrderId: orderRow.fakturownia_order_id };
+      }
+
+      const result = await this.fakturowniaService.createInvoice(draft, orderLinkage);
+
+      await this.invoiceRecordRepository.insert({
+        invoice_process_id: process.id,
+        bitrix_deal_id: bitrixDealId,
+        invoice_type: invoiceType,
+        fakturownia_invoice_id: result.fakturowniaInvoiceId,
+        fakturownia_invoice_url: result.fakturowniaInvoiceUrl,
+        total_net: String(result.totalNet),
+        total_gross: String(result.totalGross),
+        vat_rate: draft.vatRate,
+        currency: result.currency,
+      });
+
+      this.invoiceProcessService.assertCanTransition(
+        'INVOICE_CREATION_IN_PROGRESS',
+        'INVOICE_CREATED',
+      );
+
+      await this.invoiceProcessRepository.updateStatus(process.id, {
+        status: 'INVOICE_CREATED',
+      });
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: process.id,
+        bitrix_deal_id: bitrixDealId,
+        event_type: 'INVOICE_CREATED',
+        message: 'Invoice created successfully in Fakturownia.',
+        metadata: {
+          fakturownia_invoice_id: result.fakturowniaInvoiceId,
+          fakturownia_invoice_url: result.fakturowniaInvoiceUrl,
+        },
+      });
+
+      return {
+        process_id: process.id,
+        status: 'INVOICE_CREATED',
+        bitrix_deal_id: bitrixDealId,
+        invoice_type: invoiceType,
+        message: 'Invoice created successfully in Fakturownia.',
+      };
+    } catch (error) {
+      if (error instanceof FakturowniaApiError) {
+        return this.handleFakturowniaError(process.id, bitrixDealId, invoiceType, error);
+      }
+
+      throw error;
+    }
+  }
+
+  private async handleFakturowniaError(
+    processId: string,
+    bitrixDealId: string,
+    invoiceType: InvoiceType,
+    error: FakturowniaApiError,
+  ): Promise<InvoiceProcessTriggerResponseDto> {
+    const status = this.mapFakturowniaErrorToStatus(error.category);
+
+    this.invoiceProcessService.assertCanTransition(
+      'INVOICE_CREATION_IN_PROGRESS',
+      status,
+    );
+
+    await this.invoiceProcessRepository.updateStatus(processId, {
+      status,
+      last_error_message: error.message,
+    });
+
+    await this.invoiceEventRepository.insert({
+      invoice_process_id: processId,
+      bitrix_deal_id: bitrixDealId,
+      event_type: status,
+      message: error.message,
+      metadata: {
+        category: error.category,
+        httpStatus: error.httpStatus,
+      },
+    });
+
+    return {
+      process_id: processId,
+      status,
+      bitrix_deal_id: bitrixDealId,
+      invoice_type: invoiceType,
+      message: error.message,
+    };
+  }
+
+  private mapFakturowniaErrorToStatus(
+    category: FakturowniaApiError['category'],
+  ): InvoiceProcessStatus {
+    if (category === 'CLIENT' || category === 'SERVER') {
+      return 'FAKTUROWNIA_ERROR';
+    }
+
+    return 'UNKNOWN_AFTER_TIMEOUT';
   }
 
   private async handleValidationFailure(

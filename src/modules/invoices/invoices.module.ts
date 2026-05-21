@@ -5,6 +5,7 @@ import { N8nApiKeyGuard } from '../../common/guards/n8n-api-key.guard';
 import { AdminInvoiceProcessesController } from './controllers/admin-invoice-processes.controller';
 import { InvoiceProcessesController } from './controllers/invoice-processes.controller';
 import { FakturowniaClient } from './integrations/fakturownia/fakturownia.client';
+import { FAKTUROWNIA_HTTP_CLIENT } from './integrations/fakturownia/fakturownia-http-client.token';
 import { FakturowniaErrorMapper } from './integrations/fakturownia/fakturownia-error.mapper';
 import { FakturowniaMapper } from './integrations/fakturownia/fakturownia.mapper';
 import { FakturowniaOrderMapper } from './integrations/fakturownia/fakturownia-order.mapper';
@@ -18,6 +19,7 @@ import { InvoiceProcessRepository } from './repositories/invoice-process.reposit
 import { FakturowniaOrderRepository } from './repositories/fakturownia-order.repository';
 import { InvoiceRecordRepository } from './repositories/invoice-record.repository';
 import { TechnicalRetryAttemptRepository } from './repositories/technical-retry-attempt.repository';
+import { FakturowniaOrderEnsureService } from './services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from './services/invoice-comment.service';
 import { InvoiceDraftBuilderService } from './services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from './services/invoice-idempotency.service';
@@ -38,6 +40,7 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     InvoiceValidationService,
     InvoiceDraftBuilderService,
     InvoiceIdempotencyService,
+    FakturowniaOrderEnsureService,
     InvoiceCommentService,
     BitrixInvoiceMapper,
     InvoiceProcessRepository,
@@ -47,6 +50,10 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     BitrixDealSnapshotRepository,
     ClientConfigRepository,
     TechnicalRetryAttemptRepository,
+    {
+      provide: FAKTUROWNIA_HTTP_CLIENT,
+      useValue: fetch,
+    },
     FakturowniaClient,
     FakturowniaService,
     FakturowniaOrderService,

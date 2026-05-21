@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BITRIX24_HTTP_CLIENT } from './client/bitrix24-http-client.token';
 import { Bitrix24Client } from './client/bitrix24.client';
 import { Bitrix24Mapper } from './mappers/bitrix24.mapper';
 import { Bitrix24CompanyService } from './services/bitrix24-company.service';
@@ -9,6 +10,10 @@ import { Bitrix24TimelineService } from './services/bitrix24-timeline.service';
 
 @Module({
   providers: [
+    {
+      provide: BITRIX24_HTTP_CLIENT,
+      useValue: fetch,
+    },
     Bitrix24Client,
     Bitrix24DealService,
     Bitrix24CompanyService,

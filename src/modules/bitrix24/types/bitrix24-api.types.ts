@@ -47,4 +47,23 @@ export type Bitrix24ProductRowRaw = {
 
 export type Bitrix24RequisiteListResult = Bitrix24RequisiteRaw[];
 
+export type Bitrix24AddressRaw = {
+  TYPE_ID?: string;
+  ENTITY_TYPE_ID?: string;
+  ENTITY_ID?: string;
+  ANCHOR_TYPE_ID?: string;
+  ANCHOR_ID?: string;
+  ADDRESS_1?: string;
+  ADDRESS_2?: string;
+  CITY?: string;
+  POSTAL_CODE?: string;
+  REGION?: string;
+  PROVINCE?: string;
+  COUNTRY?: string;
+  COUNTRY_CODE?: string;
+  [key: string]: unknown;
+};
+
+export type Bitrix24AddressListResult = Bitrix24AddressRaw[];
+
 export type Bitrix24ProductRowsListResult = Bitrix24ProductRowRaw[];

@@ -15,6 +15,10 @@ export type FakturowniaPositionPayload = {
   total_price_gross: number;
 };
 
+export type FakturowniaInvoiceOrderLinkage = {
+  fakturowniaOrderId: string;
+};
+
 export type FakturowniaInvoicePayload = {
   kind: 'vat' | 'advance' | 'final';
   currency: 'PLN';
@@ -25,6 +29,7 @@ export type FakturowniaInvoicePayload = {
   buyer_city: string;
   buyer_country: string;
   positions: FakturowniaPositionPayload[];
+  copy_invoice_from?: number;
   advance_creation_mode?: 'amount';
   advance_value?: string;
   invoice_ids?: number[];

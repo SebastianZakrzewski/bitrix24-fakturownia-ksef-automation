@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  Bitrix24AddressRaw,
   Bitrix24CompanyRaw,
   Bitrix24DealRaw,
   Bitrix24ProductRowRaw,
   Bitrix24RequisiteRaw,
 } from '../types/bitrix24-api.types';
 import type {
+  BitrixCompanyAddressSource,
   BitrixCompanyData,
   BitrixDealCore,
   BitrixDealData,
@@ -16,6 +18,11 @@ const DEAL_SYSTEM_KEYS = new Set(['ID', 'STAGE_ID', 'COMPANY_ID']);
 
 export type Bitrix24MapDealOptions = {
   portalBaseUrl?: string;
+};
+
+export type Bitrix24MapCompanyOptions = {
+  addressSource?: BitrixCompanyAddressSource;
+  addressRaw?: Bitrix24AddressRaw;
 };
 
 @Injectable()
@@ -47,23 +54,33 @@ export class Bitrix24Mapper {
   mapCompany(
     companyRaw: Bitrix24CompanyRaw,
     requisiteRaw?: Bitrix24RequisiteRaw,
+    options?: Bitrix24MapCompanyOptions,
   ): BitrixCompanyData {
     const companyId = String(companyRaw.ID);
+    const addressSource = options?.addressSource ?? 'REQUISITE';
+    const addressFromList =
+      addressSource === 'CRM_ADDRESS_LIST'
+        ? this.mapAddressFromCrmList(options?.addressRaw)
+        : undefined;
 
     return {
       companyId,
       name: this.toOptionalString(companyRaw.TITLE),
       nip: this.toOptionalString(requisiteRaw?.RQ_INN),
       street:
+        addressFromList?.street ??
         this.toOptionalString(requisiteRaw?.RQ_ADDR) ??
         this.toOptionalString(companyRaw.ADDRESS),
       postalCode:
+        addressFromList?.postalCode ??
         this.toOptionalString(requisiteRaw?.RQ_ZIP) ??
         this.toOptionalString(companyRaw.ADDRESS_POSTAL_CODE),
       city:
+        addressFromList?.city ??
         this.toOptionalString(requisiteRaw?.RQ_CITY) ??
         this.toOptionalString(companyRaw.ADDRESS_CITY),
       country:
+        addressFromList?.country ??
         this.toOptionalString(requisiteRaw?.RQ_COUNTRY) ??
         this.toOptionalString(companyRaw.ADDRESS_COUNTRY),
     };
@@ -86,6 +103,36 @@ export class Bitrix24Mapper {
       companyId: core.companyId,
       customFields: core.customFields,
       productRows,
+    };
+  }
+
+  private mapAddressFromCrmList(
+    addressRaw?: Bitrix24AddressRaw,
+  ):
+    | Pick<BitrixCompanyData, 'street' | 'postalCode' | 'city' | 'country'>
+    | undefined {
+    if (!addressRaw) {
+      return undefined;
+    }
+
+    const streetParts = [addressRaw.ADDRESS_1, addressRaw.ADDRESS_2]
+      .map((part) => this.toOptionalString(part))
+      .filter((part): part is string => part !== undefined);
+
+    if (streetParts.length === 0) {
+      return {
+        street: undefined,
+        postalCode: this.toOptionalString(addressRaw.POSTAL_CODE)?.trim(),
+        city: this.toOptionalString(addressRaw.CITY),
+        country: this.toOptionalString(addressRaw.COUNTRY),
+      };
+    }
+
+    return {
+      street: streetParts.join(' '),
+      postalCode: this.toOptionalString(addressRaw.POSTAL_CODE)?.trim(),
+      city: this.toOptionalString(addressRaw.CITY),
+      country: this.toOptionalString(addressRaw.COUNTRY),
     };
   }
 

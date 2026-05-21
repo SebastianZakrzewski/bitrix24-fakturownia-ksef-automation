@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { InvoiceDraft } from '../../types/invoice.types';
+import { normalizeFakturowniaBuyerCountry } from './fakturownia-buyer-country.util';
 import { FakturowniaMapperError } from './fakturownia.errors';
 import type {
   FakturowniaCreateOrderResult,
@@ -55,7 +56,7 @@ export class FakturowniaOrderMapper {
       buyer_street: draft.buyer.street,
       buyer_post_code: draft.buyer.postalCode,
       buyer_city: draft.buyer.city,
-      buyer_country: draft.buyer.country,
+      buyer_country: normalizeFakturowniaBuyerCountry(draft.buyer.country),
     };
   }
 

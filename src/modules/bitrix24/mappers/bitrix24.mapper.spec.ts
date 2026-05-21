@@ -1,4 +1,5 @@
 import {
+  bitrixAddressRawFixture,
   bitrixCompanyRawFixture,
   bitrixDealRawFixture,
   bitrixProductRowsRawFixture,
@@ -47,6 +48,49 @@ describe('Bitrix24Mapper', () => {
       city: 'Warszawa',
       country: 'PL',
     });
+  });
+
+  it('maps company address from crm.address.list when addressSource is CRM_ADDRESS_LIST', () => {
+    const company = mapper.mapCompany(
+      bitrixCompanyRawFixture(),
+      bitrixRequisiteRawFixture(),
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: bitrixAddressRawFixture(),
+      },
+    );
+
+    expect(company).toEqual({
+      companyId: '7',
+      name: 'Evapremium Sp. z o.o.',
+      nip: '1234567890',
+      street: 'Filtrowa 34 LA1',
+      postalCode: '85-467',
+      city: 'Bydgoszcz',
+      country: 'Poland',
+    });
+  });
+
+  it('prefers crm.address.list over requisite address fields for CRM_ADDRESS_LIST', () => {
+    const company = mapper.mapCompany(
+      {
+        ...bitrixCompanyRawFixture(),
+        ADDRESS: 'ul. Backup 2',
+        ADDRESS_POSTAL_CODE: '02-002',
+        ADDRESS_CITY: 'Kraków',
+        ADDRESS_COUNTRY: 'PL',
+      },
+      bitrixRequisiteRawFixture(),
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: bitrixAddressRawFixture(),
+      },
+    );
+
+    expect(company.street).toBe('Filtrowa 34 LA1');
+    expect(company.postalCode).toBe('85-467');
+    expect(company.city).toBe('Bydgoszcz');
+    expect(company.country).toBe('Poland');
   });
 
   it('maps company without requisite using company address fields', () => {

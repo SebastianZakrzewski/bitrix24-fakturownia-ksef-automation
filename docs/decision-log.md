@@ -16,6 +16,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Missing NIP/company/address blocks invoice | Avoid invalid invoice | Critical |
 | Product lines: main line fixed name + product rows detail | Evapremium: główna pozycja zawsze „Dywaniki Evapremium”; poboczne z `crm.deal.productrows` | High |
 | `client_configs` Bitrix field mapping for Evapremium portal | Verified on deals 27000/27414; `PREPARATION`, UF codes, enum 718/720/722 | High |
+| Evapremium buyer address from `crm.address.list` when `companyAddressSource=CRM_ADDRESS_LIST` | Company/requisite columns often empty; address.list holds legal address (deal 18690) | High |
 | FINAL via UF typ faktury Dopełniająca (1328) + payment Pełna (718) + stage Oplacone | Operator workflow after advance invoice; field `UF_CRM_1776810914892` | High |
 | `STALE` = stage mismatch only; incomplete FINAL UF (e.g. 1328+720) = validation, next trigger after fix | See `contracts.md` „Bitrix trigger timing vs FINAL” | High |
 | One invalid product line blocks whole invoice | Avoid incorrect invoice amount | Critical |

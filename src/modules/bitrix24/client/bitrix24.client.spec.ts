@@ -1,20 +1,36 @@
 import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
 import type { AppEnv } from '../../../config/env.validation';
 import { Bitrix24ApiError } from '../errors/bitrix24.errors';
+import { BITRIX24_HTTP_CLIENT, type Bitrix24FetchFn } from './bitrix24-http-client.token';
 import { Bitrix24Client } from './bitrix24.client';
 
 describe('Bitrix24Client', () => {
   const webhookUrl = 'https://example.bitrix24.pl/rest/1/token';
 
-  const createClient = (
-    fetchFn: typeof fetch,
+  const createClient = async (
+    fetchFn: Bitrix24FetchFn,
     config: Record<string, unknown> = { BITRIX24_WEBHOOK_URL: webhookUrl },
   ) => {
     const configService = {
       get: (key: string) => config[key],
     } as unknown as ConfigService<AppEnv, true>;
 
-    return new Bitrix24Client(configService, fetchFn);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        {
+          provide: ConfigService,
+          useValue: configService,
+        },
+        {
+          provide: BITRIX24_HTTP_CLIENT,
+          useValue: fetchFn,
+        },
+        Bitrix24Client,
+      ],
+    }).compile();
+
+    return moduleRef.get(Bitrix24Client);
   };
 
   it('returns result from a successful Bitrix envelope', async () => {
@@ -24,7 +40,7 @@ describe('Bitrix24Client', () => {
       json: async () => ({ result: { ID: '42' } }),
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const result = await client.call<{ ID: string }>(
       'DEAL_GET',
       'crm.deal.get',
@@ -51,7 +67,7 @@ describe('Bitrix24Client', () => {
       }),
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
 
     await expect(
       client.call('DEAL_GET', 'crm.deal.get', { id: '42' }),
@@ -70,7 +86,7 @@ describe('Bitrix24Client', () => {
       json: async () => ({ error: 'SERVICE_UNAVAILABLE' }),
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
 
     await expect(client.call('DEAL_GET', 'crm.deal.get')).rejects.toMatchObject({
       operation: 'DEAL_GET',
@@ -80,7 +96,7 @@ describe('Bitrix24Client', () => {
 
   it('throws when webhook URL is not configured', async () => {
     const fetchFn = jest.fn();
-    const client = createClient(fetchFn, {});
+    const client = await createClient(fetchFn, {});
 
     await expect(client.call('DEAL_GET', 'crm.deal.get')).rejects.toThrow(
       'BITRIX24_WEBHOOK_URL is not configured',

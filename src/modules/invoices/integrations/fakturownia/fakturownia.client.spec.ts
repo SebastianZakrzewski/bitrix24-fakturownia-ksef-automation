@@ -1,7 +1,12 @@
 import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
 import type { AppEnv } from '../../../../config/env.validation';
 import { FakturowniaApiError } from './fakturownia.errors';
 import { FakturowniaClient } from './fakturownia.client';
+import {
+  FAKTUROWNIA_HTTP_CLIENT,
+  type FakturowniaFetchFn,
+} from './fakturownia-http-client.token';
 import {
   fakturowniaClientErrorBodyFixture,
   fakturowniaInvoiceRawSuccessFixture,
@@ -16,8 +21,8 @@ describe('FakturowniaClient', () => {
   const baseUrl = 'https://evapremium.fakturownia.pl';
   const apiToken = 'test-api-token';
 
-  const createClient = (
-    fetchFn: typeof fetch,
+  const createClient = async (
+    fetchFn: FakturowniaFetchFn,
     config: Record<string, unknown> = {
       FAKTUROWNIA_BASE_URL: baseUrl,
       FAKTUROWNIA_API_TOKEN: apiToken,
@@ -28,7 +33,21 @@ describe('FakturowniaClient', () => {
       get: (key: string) => config[key],
     } as unknown as ConfigService<AppEnv, true>;
 
-    return new FakturowniaClient(configService, fetchFn);
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        {
+          provide: ConfigService,
+          useValue: configService,
+        },
+        {
+          provide: FAKTUROWNIA_HTTP_CLIENT,
+          useValue: fetchFn,
+        },
+        FakturowniaClient,
+      ],
+    }).compile();
+
+    return moduleRef.get(FakturowniaClient);
   };
 
   it('posts invoice payload to Fakturownia API', async () => {
@@ -39,7 +58,7 @@ describe('FakturowniaClient', () => {
       json: async () => raw,
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
     const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
 
@@ -69,7 +88,7 @@ describe('FakturowniaClient', () => {
       json: async () => fakturowniaClientErrorBodyFixture(),
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
     const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
 
@@ -80,7 +99,7 @@ describe('FakturowniaClient', () => {
   });
 
   it('throws when FAKTUROWNIA_BASE_URL is not configured', async () => {
-    const client = createClient(jest.fn(), {
+    const client = await createClient(jest.fn(), {
       FAKTUROWNIA_API_TOKEN: apiToken,
       FAKTUROWNIA_REQUEST_TIMEOUT_MS: 30000,
     });
@@ -99,7 +118,7 @@ describe('FakturowniaClient', () => {
     timeoutError.name = 'AbortError';
     const fetchFn = jest.fn().mockRejectedValue(timeoutError);
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
     const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
 
@@ -114,7 +133,7 @@ describe('FakturowniaClient', () => {
       json: async () => raw,
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const orderMapper = new FakturowniaOrderMapper();
     const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
 
@@ -140,7 +159,7 @@ describe('FakturowniaClient', () => {
       json: async () => fakturowniaClientErrorBodyFixture(),
     });
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const orderMapper = new FakturowniaOrderMapper();
     const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
 
@@ -151,7 +170,7 @@ describe('FakturowniaClient', () => {
   });
 
   it('throws when FAKTUROWNIA_BASE_URL is not configured for createOrder', async () => {
-    const client = createClient(jest.fn(), {
+    const client = await createClient(jest.fn(), {
       FAKTUROWNIA_API_TOKEN: apiToken,
       FAKTUROWNIA_REQUEST_TIMEOUT_MS: 30000,
     });
@@ -170,7 +189,7 @@ describe('FakturowniaClient', () => {
     timeoutError.name = 'AbortError';
     const fetchFn = jest.fn().mockRejectedValue(timeoutError);
 
-    const client = createClient(fetchFn);
+    const client = await createClient(fetchFn);
     const orderMapper = new FakturowniaOrderMapper();
     const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
 

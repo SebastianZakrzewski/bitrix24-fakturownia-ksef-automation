@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { InvoiceDraft } from '../../types/invoice.types';
+import { normalizeFakturowniaBuyerCountry } from './fakturownia-buyer-country.util';
 import { FakturowniaMapperError } from './fakturownia.errors';
 import type {
   FakturowniaCreateInvoiceResult,
+  FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoicePayload,
   FakturowniaInvoiceRaw,
   FakturowniaPositionPayload,
@@ -20,7 +22,10 @@ const KSEF_SUBMISSION_ERROR = new Set([
 
 @Injectable()
 export class FakturowniaMapper {
-  toCreatePayload(draft: InvoiceDraft): FakturowniaInvoicePayload {
+  toCreatePayload(
+    draft: InvoiceDraft,
+    orderLinkage?: FakturowniaInvoiceOrderLinkage,
+  ): FakturowniaInvoicePayload {
     const positions = this.mapPositions(draft);
     const buyer = this.mapBuyer(draft);
 
@@ -32,23 +37,31 @@ export class FakturowniaMapper {
           ...buyer,
           positions,
         };
-      case 'ADVANCE':
+      case 'ADVANCE': {
+        const linkage = this.requireOrderLinkage('ADVANCE', orderLinkage);
+
         return {
           kind: 'advance',
           currency: 'PLN',
           ...buyer,
           positions,
+          copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           advance_creation_mode: 'amount',
           advance_value: String(draft.advanceAmount),
         };
-      case 'FINAL':
+      }
+      case 'FINAL': {
+        const linkage = this.requireOrderLinkage('FINAL', orderLinkage);
+
         return {
           kind: 'final',
           currency: 'PLN',
           ...buyer,
           positions,
+          copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           invoice_ids: [Number(draft.previousAdvanceInvoiceId)],
         };
+      }
     }
   }
 
@@ -76,6 +89,41 @@ export class FakturowniaMapper {
     };
   }
 
+  private requireOrderLinkage(
+    invoiceType: 'ADVANCE' | 'FINAL',
+    orderLinkage?: FakturowniaInvoiceOrderLinkage,
+  ): FakturowniaInvoiceOrderLinkage {
+    if (!orderLinkage) {
+      throw new FakturowniaMapperError(
+        `Fakturownia order linkage is required for ${invoiceType} invoice payload`,
+      );
+    }
+
+    return orderLinkage;
+  }
+
+  private mapCopyInvoiceFrom(
+    orderLinkage: FakturowniaInvoiceOrderLinkage,
+  ): number {
+    const trimmed = orderLinkage.fakturowniaOrderId.trim();
+
+    if (!trimmed) {
+      throw new FakturowniaMapperError(
+        'Fakturownia order linkage is missing fakturowniaOrderId',
+      );
+    }
+
+    const id = Number(trimmed);
+
+    if (Number.isNaN(id)) {
+      throw new FakturowniaMapperError(
+        'Fakturownia order linkage fakturowniaOrderId is not a valid number',
+      );
+    }
+
+    return id;
+  }
+
   private mapBuyer(
     draft: InvoiceDraft,
   ): Pick<
@@ -93,7 +141,7 @@ export class FakturowniaMapper {
       buyer_street: draft.buyer.street,
       buyer_post_code: draft.buyer.postalCode,
       buyer_city: draft.buyer.city,
-      buyer_country: draft.buyer.country,
+      buyer_country: normalizeFakturowniaBuyerCountry(draft.buyer.country),
     };
   }
 

@@ -89,7 +89,7 @@ Separate module because Bitrix24 is a shared CRM integration for future SellGeni
 |---|---|
 | `Bitrix24Client` | HTTP/API, auth, base URL, request handling |
 | `Bitrix24DealService` | Load deal and custom fields |
-| `Bitrix24CompanyService` | Load linked company |
+| `Bitrix24CompanyService` | Load linked company, requisites (NIP) and optional `crm.address.list` per `companyAddressSource` |
 | `Bitrix24ProductRowService` | Load product rows |
 | `Bitrix24TimelineService` | Add timeline comments |
 | `Bitrix24DealFieldService` | Update invoice link field |
