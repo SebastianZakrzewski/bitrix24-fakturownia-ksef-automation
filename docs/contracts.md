@@ -47,6 +47,27 @@ type InvoiceProcessTriggerResponseDto = {
 
 `process_id` is optional because stale triggers do not create an `InvoiceProcess`.
 
+## InvoiceEvent types (audit trail)
+
+`invoice_events.event_type` is a plain text column. V1 accepted values:
+
+```ts
+type InvoiceEventType =
+  | 'STALE_TRIGGER_IGNORED'
+  | 'VALIDATION_FAILED';
+```
+
+| `event_type` | When recorded | `invoice_process_id` |
+|---|---|---|
+| `STALE_TRIGGER_IGNORED` | Deal no longer on paid stage at webhook processing | null (no process created) |
+| `VALIDATION_FAILED` | Validation failed after process claim; errors stored on process | required (real process) |
+
+Rules:
+
+- `STALE_TRIGGER_IGNORED` is **not** an `InvoiceProcessStatus`.
+- `VALIDATION_FAILED` as event type mirrors the resulting process status for audit; it is **not** a substitute for updating `invoice_processes.status`.
+- Validation failure **before** process claim (e.g. unresolved invoice type) returns `VALIDATION_FAILED` response only — no `invoice_events` row.
+
 ## Client panel list DTO
 ```ts
 type ClientInvoiceProcessListItemDto = {
@@ -186,7 +207,121 @@ Product rules:
 - Additional lines come from Bitrix `productRows` only.
 - Main line gross = `OPPORTUNITY` minus sum of product row gross amounts; if no rows, main line = full `OPPORTUNITY`.
 
-## Fakturownia integration result
+## Fakturownia integration contract
+
+Located in `modules/invoices/integrations/fakturownia`. Integration types are **not** domain types.
+
+Rules:
+- Input is only validated `InvoiceDraft` (see `domain-lifecycle.md`). No raw Bitrix payload.
+- `FakturowniaService` must **not** decide whether invoice creation is allowed.
+- Issue/payment dates are omitted in V1; Fakturownia account defaults apply.
+- API reference: [Fakturownia API](https://github.com/fakturownia/API) (`POST /invoices.json`).
+
+### Environment (client)
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `FAKTUROWNIA_BASE_URL` | yes (except `NODE_ENV=test`) | Account base URL, e.g. `https://evapremium.fakturownia.pl` |
+| `FAKTUROWNIA_API_TOKEN` | yes (except `NODE_ENV=test`) | API token sent as `api_token` in request body |
+| `FAKTUROWNIA_REQUEST_TIMEOUT_MS` | no (default `30000`) | HTTP timeout for create-invoice call |
+
+### Create-invoice request (integration payload)
+
+```ts
+type FakturowniaCreateInvoiceRequest = {
+  api_token: string; // from env; not part of InvoiceDraft mapping
+  invoice: FakturowniaInvoicePayload;
+};
+
+type FakturowniaInvoicePayload = {
+  kind: 'vat' | 'advance' | 'final';
+  currency: 'PLN';
+  buyer_name: string;
+  buyer_tax_no: string;
+  buyer_street: string;
+  buyer_post_code: string;
+  buyer_city: string;
+  buyer_country: string;
+  positions: FakturowniaPositionPayload[];
+  advance_creation_mode?: 'amount';
+  advance_value?: string;
+  invoice_ids?: number[];
+};
+
+type FakturowniaPositionPayload = {
+  name: string;
+  quantity: number;
+  tax: number;
+  total_price_gross: number;
+};
+```
+
+Implementation: `src/modules/invoices/integrations/fakturownia/fakturownia.types.ts`.
+
+### InvoiceDraft → Fakturownia payload mapping
+
+Mapper: `FakturowniaMapper.toCreatePayload(invoiceDraft)`.
+
+| `InvoiceDraft.invoiceType` | Fakturownia `kind` | Additional invoice fields |
+|---|---|---|
+| `FULL` | `vat` | — |
+| `ADVANCE` | `advance` | `advance_creation_mode: 'amount'`, `advance_value: String(advanceAmount)` |
+| `FINAL` | `final` | `invoice_ids: [Number(previousAdvanceInvoiceId)]` |
+
+All types also set `currency: 'PLN'` and shared buyer + positions (below).
+
+**Buyer fields** (`InvoiceDraft.buyer` → invoice root):
+
+| InvoiceDraft | Fakturownia payload |
+|---|---|
+| `buyer.companyName` | `buyer_name` |
+| `buyer.nip` | `buyer_tax_no` |
+| `buyer.street` | `buyer_street` |
+| `buyer.postalCode` | `buyer_post_code` |
+| `buyer.city` | `buyer_city` |
+| `buyer.country` | `buyer_country` |
+
+**Product positions** (`InvoiceDraft.products[]` → `positions[]`):
+
+| InvoiceDraft `ProductLine` | Fakturownia `positions[]` |
+|---|---|
+| `name` | `name` |
+| `quantity` | `quantity` |
+| `vatRate` (always `23`) | `tax` |
+| `totalGross` | `total_price_gross` |
+
+**VAT, currency, unit (V1):**
+
+| Rule | Mapping |
+|---|---|
+| Currency | Always `PLN` on invoice root (`InvoiceDraft.currency`) |
+| VAT | Always `23` per position via `ProductLine.vatRate` → `tax` |
+| Unit | V1 `ProductLine.unit` is always `'szt.'`; **not** sent in Fakturownia payload — provider default unit applies |
+
+**ADVANCE / FINAL linkage (V1 implemented behavior):**
+
+| Field | Source | Notes |
+|---|---|---|
+| `advance_value` | `InvoiceDraft.advanceAmount` | Set only for `ADVANCE`; validated before mapping |
+| `invoice_ids` | `InvoiceDraft.previousAdvanceInvoiceId` | Set only for `FINAL`; value is **Fakturownia invoice ID** from prior successful `ADVANCE` `InvoiceRecord.fakturownia_invoice_id` (resolved in use case before validation) |
+
+V1 does **not** send `copy_invoice_from` (Fakturownia order/proforma linkage). See **Open decisions** in `decision-log.md` — Evapremium account verification pending.
+
+### Raw create-invoice response (provider)
+
+```ts
+type FakturowniaInvoiceRaw = {
+  id: number | string;
+  view_url?: string;
+  price_net?: number | string;
+  price_gross?: number | string;
+  currency?: string;
+  gov_status?: string | null; // KSeF submission status from Fakturownia
+};
+```
+
+### Create-invoice result (integration)
+
 ```ts
 type FakturowniaCreateInvoiceResult = {
   fakturowniaInvoiceId: string;
@@ -199,7 +334,39 @@ type FakturowniaCreateInvoiceResult = {
 };
 ```
 
-This is an integration type in `modules/invoices/integrations/fakturownia`, not a domain type.
+Mapper: `FakturowniaMapper.toCreateResult(raw)`.
+
+| Fakturownia raw field | Result field | Rule |
+|---|---|---|
+| `id` | `fakturowniaInvoiceId` | stringified |
+| `view_url` | `fakturowniaInvoiceUrl` | required on success; mapper error if missing |
+| `price_net` | `totalNet` | parsed number; comma decimals supported |
+| `price_gross` | `totalGross` | parsed number; comma decimals supported |
+| — | `currency` | always `'PLN'` |
+| `gov_status` | `ksefStatus`, `ksefRawStatus` | see KSeF table below; omitted when `gov_status` is `undefined` |
+
+**KSeF status mapping** (`gov_status` → `ksefStatus`; V1 indirect KSeF via Fakturownia only):
+
+| `gov_status` (raw) | `ksefStatus` |
+|---|---|
+| `ok`, `demo_ok` | `SUBMISSION_CONFIRMED` |
+| `send_error`, `server_error`, `demo_send_error`, `demo_server_error`, `not_connected`, `demo_not_connected` | `SUBMISSION_ERROR` |
+| `processing`, `demo_processing`, `null`, any other value | `STATUS_UNKNOWN` |
+
+Reference: [Fakturownia KSeF API](https://github.com/fakturownia/API/blob/master/KSeF.md).
+
+Process-level KSeF handling (`KSEF_SUBMISSION_CONFIRMED`, `KSEF_SUBMISSION_ERROR`, `KSEF_STATUS_UNKNOWN`) is owned by the invoice workflow use case (Task 9+), not the integration layer.
+
+### Integration error categories
+
+`FakturowniaErrorMapper` classifies provider failures at the integration boundary:
+
+| Category | Condition | Use-case status (Task 9+) |
+|---|---|---|
+| `CLIENT` | HTTP 4xx | `FAKTUROWNIA_ERROR` |
+| `SERVER` | HTTP 5xx | `FAKTUROWNIA_ERROR` |
+| `TIMEOUT` | Request timeout / `AbortError` | `UNKNOWN_AFTER_TIMEOUT` |
+| `UNKNOWN` | Other failures (network, config, unclassified HTTP) | `UNKNOWN_AFTER_TIMEOUT` |
 
 ## ValidationError
 ```ts

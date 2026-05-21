@@ -27,6 +27,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Link field failure is warning-only | Comment link is minimum result | Medium |
 | Idempotency key = `bitrix_deal_id + invoice_type` | Blocks duplicates but allows advance/final | Critical |
 | `STALE_TRIGGER_IGNORED` is event only | Does not block future real process | Critical |
+| `VALIDATION_FAILED` audit event uses same string as process status | Persisted in `invoice_events.event_type` when validation fails after process claim; not an `InvoiceProcessStatus` alias in code | Medium |
 | `InvoiceRecord` existence blocks `createInvoice` permanently for process | Prevent duplicate invoice | Critical |
 | No automatic retry for invoice creation | Prevent duplicate invoice | Critical |
 | Timeout/unknown requires manual verification | Unknown if invoice was created | Critical |
@@ -35,6 +36,26 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Technical retry outside panel V1 | Recovery without UI complexity | High |
 | No AI in V1 | Deterministic financial process | Critical |
 | Security/observability/testing baselines accepted | Production safety | Critical |
+| Fakturownia payload mapped from validated `InvoiceDraft` only | Keeps CRM validation separate from provider I/O | Critical |
+| Fakturownia `FULL` → `kind: vat`; buyer + positions on invoice root | Standard VAT invoice via Fakturownia API | High |
+| Fakturownia `ADVANCE` → `kind: advance` + `advance_creation_mode: amount` + `advance_value` | Advance amount from validated Bitrix field | High |
+| Fakturownia `FINAL` → `kind: final` + `invoice_ids` from prior advance Fakturownia ID | Links final invoice to prior advance in provider | High |
+| Fakturownia KSeF via `gov_status` → integration result only | No direct KSeF API in V1; workflow maps result in use case | High |
+| V1 Fakturownia position mapping omits `unit`; provider default applies | `ProductLine.unit` is always `szt.`; not required in provider payload for V1 | Medium |
+| `FAKTUROWNIA_*` env vars for client auth and timeout | Same pattern as Bitrix24 webhook config | Medium |
+
+## Open decisions
+
+| ID | Decision needed | Status | Blocks |
+|---|---|---|---|
+| `OPEN_DECISION_FAKTUROWNIA_ADVANCE_LINKAGE` | Whether Evapremium Fakturownia account accepts V1 `ADVANCE`/`FINAL` payloads **without** `copy_invoice_from` (order/proforma linkage) | **Not verified** against Evapremium production/demo account | Task 9 happy-path smoke test on real account; may require mapper change if provider rejects standalone advance/final |
+| `OPEN_DECISION_FAKTUROWNIA_POSITION_UNIT` | Whether Fakturownia requires explicit position unit (`szt.`) on create-invoice | **Deferred** — V1 omits unit field; verify if invoices show wrong unit | Low; adjust mapper only if provider rejects or displays incorrect unit |
+
+Context for `OPEN_DECISION_FAKTUROWNIA_ADVANCE_LINKAGE`:
+- V1 implementation sends `kind: advance` with `advance_value` + full `positions` and buyer fields, **no** `copy_invoice_from`.
+- Fakturownia API docs often show advance/final created from an existing order via `copy_invoice_from` + `invoice_ids`.
+- `FINAL` uses `invoice_ids: [previousAdvanceInvoiceId]` where `previousAdvanceInvoiceId` is `InvoiceRecord.fakturownia_invoice_id` from prior successful `ADVANCE`.
+- **Owner:** Architect / Product Owner. **Verify before:** Task 9 production wiring or first Evapremium account test.
 
 ## Deferred decisions / V2+
 | Feature | Target |

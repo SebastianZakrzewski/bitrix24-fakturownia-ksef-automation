@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Bitrix24CompanyService } from '../../bitrix24/services/bitrix24-company.service';
 import { Bitrix24DealService } from '../../bitrix24/services/bitrix24-deal.service';
 import { Bitrix24ProductRowService } from '../../bitrix24/services/bitrix24-product-row.service';
@@ -27,7 +29,7 @@ import {
   bitrixDealNoCompany,
   bitrixProductRowInvalidFixture,
 } from '../testing/invoice-mapping.fixtures';
-import type { InvoiceType } from '../types/invoice.types';
+import type { InvoiceProcessStatus, InvoiceType } from '../types/invoice.types';
 import { CreateInvoiceFromBitrixDealUseCase } from './create-invoice-from-bitrix-deal.use-case';
 
 const command = (): CreateInvoiceFromBitrixDealCommand => ({
@@ -153,6 +155,15 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
     expect(invoiceRecordRepository.insert).not.toHaveBeenCalled();
   };
 
+  const assertNoFakturowniaInUseCase = () => {
+    const useCaseSource = readFileSync(
+      join(__dirname, 'create-invoice-from-bitrix-deal.use-case.ts'),
+      'utf8',
+    );
+
+    expect(useCaseSource).not.toMatch(/Fakturownia/);
+  };
+
   const assertValidationFailurePersistence = (
     expectedCode: string,
     invoiceType: InvoiceType,
@@ -177,6 +188,55 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
     );
     assertForbiddenSideEffects();
   };
+
+  describe('forbidden side effects — Fakturownia', () => {
+    it('does not reference Fakturownia in use case implementation', () => {
+      assertNoFakturowniaInUseCase();
+    });
+
+    it('does not call Fakturownia on validation failure paths', async () => {
+      const deal = bitrixDealNoCompany();
+      setupBitrixMocks(deal, undefined);
+      invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+
+      await useCase.execute(command());
+
+      assertNoFakturowniaInUseCase();
+      assertForbiddenSideEffects();
+    });
+  });
+
+  describe('existing process short-circuit', () => {
+    it.each<InvoiceProcessStatus>([
+      'VALIDATION_FAILED',
+      'UNKNOWN_AFTER_TIMEOUT',
+      'COMPLETED',
+    ])(
+      'returns existing status without persistence side effects when process is %s',
+      async (status) => {
+        const deal = bitrixDealForFull();
+        setupBitrixMocks(deal, bitrixCompanyValidFixture());
+        invoiceIdempotencyService.claim.mockResolvedValue(
+          processRow('FULL', { status }),
+        );
+
+        const result = await useCase.execute(command());
+
+        expect(result).toEqual({
+          process_id: 'process-uuid-1',
+          status,
+          bitrix_deal_id: '27000',
+          invoice_type: 'FULL',
+          message: `Invoice process already exists with status ${status}.`,
+        });
+        expect(bitrixDealSnapshotRepository.insert).not.toHaveBeenCalled();
+        expect(invoiceProcessRepository.updateStatus).not.toHaveBeenCalled();
+        expect(invoiceEventRepository.insert).not.toHaveBeenCalled();
+        assertForbiddenSideEffects();
+        assertNoFakturowniaInUseCase();
+      },
+    );
+  });
 
   it('returns VALIDATION_FAILED without process when invoice type cannot be resolved', async () => {
     const deal = bitrixDealMissingInvoiceType();
