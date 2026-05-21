@@ -4,9 +4,13 @@ import type { AppEnv } from '../../../../config/env.validation';
 import { FakturowniaApiError } from './fakturownia.errors';
 import type {
   FakturowniaCreateInvoiceRequest,
+  FakturowniaCreateOrderRequest,
+  FakturowniaDocumentRequest,
   FakturowniaHttpFailure,
   FakturowniaInvoicePayload,
   FakturowniaInvoiceRaw,
+  FakturowniaOrderPayload,
+  FakturowniaOrderRaw,
 } from './fakturownia.types';
 
 export type FakturowniaFetchFn = (
@@ -47,6 +51,32 @@ export class FakturowniaClient {
   async createInvoice(
     payload: FakturowniaInvoicePayload,
   ): Promise<FakturowniaInvoiceRaw> {
+    const requestBody: FakturowniaCreateInvoiceRequest = {
+      api_token: this.getApiToken(),
+      invoice: payload,
+    };
+
+    return this.postInvoiceDocument(requestBody) as Promise<FakturowniaInvoiceRaw>;
+  }
+
+  async createOrder(
+    payload: FakturowniaOrderPayload,
+  ): Promise<FakturowniaOrderRaw> {
+    const requestBody: FakturowniaCreateOrderRequest = {
+      api_token: this.getApiToken(),
+      invoice: payload,
+    };
+
+    return this.postInvoiceDocument(requestBody) as Promise<FakturowniaOrderRaw>;
+  }
+
+  private getApiToken(): string {
+    this.assertConfigured();
+
+    return this.apiToken!;
+  }
+
+  private assertConfigured(): void {
     if (!this.baseUrl) {
       throw new FakturowniaApiError({
         category: 'UNKNOWN',
@@ -60,12 +90,14 @@ export class FakturowniaClient {
         message: 'FAKTUROWNIA_API_TOKEN is not configured',
       });
     }
+  }
 
-    const url = `${this.baseUrl.replace(/\/$/, '')}/invoices.json`;
-    const requestBody: FakturowniaCreateInvoiceRequest = {
-      api_token: this.apiToken,
-      invoice: payload,
-    };
+  private async postInvoiceDocument(
+    requestBody: FakturowniaDocumentRequest,
+  ): Promise<unknown> {
+    this.assertConfigured();
+
+    const url = `${this.baseUrl!.replace(/\/$/, '')}/invoices.json`;
 
     const response = await this.fetchFn(url, {
       method: 'POST',
@@ -87,7 +119,7 @@ export class FakturowniaClient {
       throw failure;
     }
 
-    return body as FakturowniaInvoiceRaw;
+    return body;
   }
 
   private async parseResponseBody(response: Response): Promise<unknown> {

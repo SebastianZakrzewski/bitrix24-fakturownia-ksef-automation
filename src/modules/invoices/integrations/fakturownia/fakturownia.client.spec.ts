@@ -5,9 +5,12 @@ import { FakturowniaClient } from './fakturownia.client';
 import {
   fakturowniaClientErrorBodyFixture,
   fakturowniaInvoiceRawSuccessFixture,
+  fakturowniaOrderRawSuccessFixture,
+  invoiceDraftAdvanceFixture,
   invoiceDraftFullFixture,
 } from './testing/fakturownia.fixtures';
 import { FakturowniaMapper } from './fakturownia.mapper';
+import { FakturowniaOrderMapper } from './fakturownia-order.mapper';
 
 describe('FakturowniaClient', () => {
   const baseUrl = 'https://evapremium.fakturownia.pl';
@@ -101,5 +104,76 @@ describe('FakturowniaClient', () => {
     const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
 
     await expect(client.createInvoice(payload)).rejects.toThrow('The operation was aborted');
+  });
+
+  it('posts order payload to Fakturownia API', async () => {
+    const raw = fakturowniaOrderRawSuccessFixture();
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => raw,
+    });
+
+    const client = createClient(fetchFn);
+    const orderMapper = new FakturowniaOrderMapper();
+    const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
+
+    const result = await client.createOrder(payload);
+
+    expect(result).toEqual(raw);
+    expect(fetchFn).toHaveBeenCalledWith(
+      `${baseUrl}/invoices.json`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          api_token: apiToken,
+          invoice: payload,
+        }),
+      }),
+    );
+  });
+
+  it('throws HTTP failure object on createOrder non-2xx response', async () => {
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => fakturowniaClientErrorBodyFixture(),
+    });
+
+    const client = createClient(fetchFn);
+    const orderMapper = new FakturowniaOrderMapper();
+    const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
+
+    await expect(client.createOrder(payload)).rejects.toEqual({
+      httpStatus: 422,
+      body: fakturowniaClientErrorBodyFixture(),
+    });
+  });
+
+  it('throws when FAKTUROWNIA_BASE_URL is not configured for createOrder', async () => {
+    const client = createClient(jest.fn(), {
+      FAKTUROWNIA_API_TOKEN: apiToken,
+      FAKTUROWNIA_REQUEST_TIMEOUT_MS: 30000,
+    });
+    const orderMapper = new FakturowniaOrderMapper();
+    const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
+
+    await expect(client.createOrder(payload)).rejects.toMatchObject({
+      name: 'FakturowniaApiError',
+      category: 'UNKNOWN',
+      message: 'FAKTUROWNIA_BASE_URL is not configured',
+    } satisfies Partial<FakturowniaApiError>);
+  });
+
+  it('propagates fetch timeout failures on createOrder', async () => {
+    const timeoutError = new Error('The operation was aborted');
+    timeoutError.name = 'AbortError';
+    const fetchFn = jest.fn().mockRejectedValue(timeoutError);
+
+    const client = createClient(fetchFn);
+    const orderMapper = new FakturowniaOrderMapper();
+    const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
+
+    await expect(client.createOrder(payload)).rejects.toThrow('The operation was aborted');
   });
 });

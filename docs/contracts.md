@@ -298,13 +298,22 @@ All types also set `currency: 'PLN'` and shared buyer + positions (below).
 | VAT | Always `23` per position via `ProductLine.vatRate` → `tax` |
 | Unit | V1 `ProductLine.unit` is always `'szt.'`; **not** sent in Fakturownia payload — provider default unit applies |
 
-**ADVANCE / FINAL linkage (V1 implemented behavior):**
+**ADVANCE / FINAL linkage (V1 target behavior):**
+
+**Implemented now (invoice mapper + persistence):**
 
 | Field | Source | Notes |
 |---|---|---|
 | `advance_value` | `InvoiceDraft.advanceAmount` | Set only for `ADVANCE`; validated before mapping |
 | `invoice_ids` | `InvoiceDraft.previousAdvanceInvoiceId` | Set only for `FINAL`; value is **Fakturownia invoice ID** from prior successful `ADVANCE` `InvoiceRecord.fakturownia_invoice_id` (resolved in use case before validation) |
-| `copy_invoice_from` | `fakturownia_orders.fakturownia_order_id` for deal | Set only for `ADVANCE` and `FINAL`; requires persisted `FakturowniaOrder` row (see below). Mapper/use-case wiring is a follow-up task. |
+
+Order persistence: see **FakturowniaOrder persistence contract** below. One `fakturownia_orders` row per `bitrix_deal_id`; required before `ADVANCE`/`FINAL` invoice creation.
+
+**Planned next (mapper + use case):**
+
+| Field | Source | Notes |
+|---|---|---|
+| `copy_invoice_from` | `fakturownia_orders.fakturownia_order_id` for deal | Set only for `ADVANCE` and `FINAL`; requires persisted `FakturowniaOrder` row. Not yet wired in `FakturowniaMapper` or use case. |
 
 V1 **`FULL`** invoices do not require a Fakturownia order. **`ADVANCE`** and **`FINAL`** require an existing `fakturownia_orders` row for the same `bitrix_deal_id` before invoice creation.
 
@@ -338,7 +347,91 @@ Rules:
 - **One row per provider order:** `UNIQUE(fakturownia_order_id)`.
 - **`created_from_invoice_process_id`:** optional FK to `invoice_processes(id)`; records which process created the order when known.
 - Order row must exist before `ADVANCE`/`FINAL` invoice creation; enforced in use case (follow-up task).
-- Fakturownia create-order API and workflow step are out of scope for persistence-only task; see `decision-log.md`.
+
+### Fakturownia create-order contract
+
+Integration: `FakturowniaOrderMapper`, `FakturowniaOrderService`, `FakturowniaClient.createOrder`.
+
+Rules:
+- Input is only validated `InvoiceDraft` (same as invoice integration).
+- `FakturowniaOrderService` must **not** decide whether order creation is allowed or persist to DB.
+- Endpoint: `POST {FAKTUROWNIA_BASE_URL}/invoices.json` (same as invoices; Fakturownia uses `kind: estimate` for Zamówienie).
+- Envelope: `{ api_token, invoice: FakturowniaOrderPayload }` — API key remains `invoice` per Fakturownia docs.
+
+```ts
+type FakturowniaCreateOrderRequest = {
+  api_token: string;
+  invoice: FakturowniaOrderPayload;
+};
+
+type FakturowniaOrderPayload = {
+  kind: 'estimate';
+  currency: 'PLN';
+  oid: string;
+  buyer_name: string;
+  buyer_tax_no: string;
+  buyer_street: string;
+  buyer_post_code: string;
+  buyer_city: string;
+  buyer_country: string;
+  positions: FakturowniaOrderPositionPayload[];
+};
+
+type FakturowniaOrderPositionPayload = {
+  name: string;
+  quantity: number;
+  tax: number;
+  total_price_gross: number;
+};
+```
+
+Implementation: `src/modules/invoices/integrations/fakturownia/fakturownia.types.ts`.
+
+**InvoiceDraft → order payload** (`FakturowniaOrderMapper.toCreatePayload`):
+
+| Source | Target | Notes |
+|---|---|---|
+| — | `kind: 'estimate'` | always |
+| `currency` | `currency: 'PLN'` | |
+| `bitrixDealId` | `oid` | external deal reference |
+| buyer fields | `buyer_*` | same mapping as invoice payload |
+| `products[]` | `positions[]` | name, quantity, tax←vatRate, total_price_gross←totalGross |
+
+**Not mapped:** `invoiceType`, `advanceAmount`, `previousAdvanceInvoiceId`, `unit`, `source`/`sourceId`.
+
+**VAT, currency, unit (V1):** same rules as invoice payload — PLN, VAT 23 per position; unit `szt.` not sent.
+
+**Raw create-order response:**
+
+```ts
+type FakturowniaOrderRaw = {
+  id?: number | string;
+  number?: string | null;
+  oid?: string;
+};
+```
+
+**Create-order result (integration):**
+
+```ts
+type FakturowniaCreateOrderResult = {
+  fakturowniaOrderId: string;
+  fakturowniaOrderNumber?: string;
+};
+```
+
+Mapper: `FakturowniaOrderMapper.toCreateResult(raw)`.
+
+| Raw field | Result field | Rule |
+|---|---|---|
+| `id` | `fakturowniaOrderId` | required; stringified |
+| `number` | `fakturowniaOrderNumber` | optional; omitted if null/empty |
+
+Maps to `InsertFakturowniaOrderParams` at persistence time (Task 9 use case). This integration layer does **not** write to `fakturownia_orders`.
+
+**Integration errors:** same `FakturowniaErrorMapper` categories as invoice (`CLIENT` / `SERVER` / `TIMEOUT` / `UNKNOWN`).
+
+**Not implemented in this integration task:** `copy_invoice_from` on invoice payload; use-case `ensureOrderForDeal`; DB persistence of order row.
 
 ### Raw create-invoice response (provider)
 

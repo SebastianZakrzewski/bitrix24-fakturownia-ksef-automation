@@ -7,6 +7,8 @@ import { InvoiceProcessesController } from './controllers/invoice-processes.cont
 import { FakturowniaClient } from './integrations/fakturownia/fakturownia.client';
 import { FakturowniaErrorMapper } from './integrations/fakturownia/fakturownia-error.mapper';
 import { FakturowniaMapper } from './integrations/fakturownia/fakturownia.mapper';
+import { FakturowniaOrderMapper } from './integrations/fakturownia/fakturownia-order.mapper';
+import { FakturowniaOrderService } from './integrations/fakturownia/fakturownia-order.service';
 import { FakturowniaService } from './integrations/fakturownia/fakturownia.service';
 import { BitrixInvoiceMapper } from './mappers/bitrix-invoice.mapper';
 import { BitrixDealSnapshotRepository } from './repositories/bitrix-deal-snapshot.repository';
@@ -47,7 +49,9 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     TechnicalRetryAttemptRepository,
     FakturowniaClient,
     FakturowniaService,
+    FakturowniaOrderService,
     FakturowniaMapper,
+    FakturowniaOrderMapper,
     FakturowniaErrorMapper,
   ],
 })

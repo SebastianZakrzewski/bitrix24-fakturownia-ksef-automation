@@ -48,3 +48,38 @@ export type FakturowniaHttpFailure = {
   httpStatus: number;
   body?: unknown;
 };
+
+export type FakturowniaOrderPositionPayload = FakturowniaPositionPayload;
+
+export type FakturowniaOrderPayload = {
+  kind: 'estimate';
+  currency: 'PLN';
+  oid: string;
+  buyer_name: string;
+  buyer_tax_no: string;
+  buyer_street: string;
+  buyer_post_code: string;
+  buyer_city: string;
+  buyer_country: string;
+  positions: FakturowniaOrderPositionPayload[];
+};
+
+export type FakturowniaCreateOrderRequest = {
+  api_token: string;
+  invoice: FakturowniaOrderPayload;
+};
+
+export type FakturowniaOrderRaw = {
+  id?: number | string;
+  number?: string | null;
+  oid?: string;
+};
+
+export type FakturowniaCreateOrderResult = {
+  fakturowniaOrderId: string;
+  fakturowniaOrderNumber?: string;
+};
+
+export type FakturowniaDocumentRequest =
+  | FakturowniaCreateInvoiceRequest
+  | FakturowniaCreateOrderRequest;

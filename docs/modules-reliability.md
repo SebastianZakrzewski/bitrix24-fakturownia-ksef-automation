@@ -78,6 +78,7 @@ Responsibilities:
 | `InvoiceRecordRepository` | Store/read created invoices |
 | `InvoiceEventRepository` | Store audit events, including events without process id |
 | `BitrixDealSnapshotRepository` | Store Bitrix snapshots |
+| `FakturowniaOrderRepository` | Store/read Fakturownia orders per `bitrix_deal_id` (one row per deal) |
 | `ClientConfigRepository` | Load active config |
 | `TechnicalRetryAttemptRepository` | Store retry attempts |
 

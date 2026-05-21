@@ -1,5 +1,8 @@
 import type { InvoiceDraft } from '../../../types/invoice.types';
-import type { FakturowniaInvoiceRaw } from '../fakturownia.types';
+import type {
+  FakturowniaInvoiceRaw,
+  FakturowniaOrderRaw,
+} from '../fakturownia.types';
 
 const buyerFixture = () => ({
   companyName: 'Evapremium Sp. z o.o.',
@@ -71,4 +74,13 @@ export const fakturowniaClientErrorBodyFixture = () => ({
 
 export const fakturowniaServerErrorBodyFixture = () => ({
   error: 'Internal server error',
+});
+
+export const fakturowniaOrderRawSuccessFixture = (
+  overrides: Partial<FakturowniaOrderRaw> = {},
+): FakturowniaOrderRaw => ({
+  id: 10042,
+  number: 'ZAM/100/2026',
+  oid: '27000',
+  ...overrides,
 });
