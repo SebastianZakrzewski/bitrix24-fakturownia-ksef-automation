@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Bitrix24Module } from '../bitrix24/bitrix24.module';
 import { AdminApiKeyGuard } from '../../common/guards/admin-api-key.guard';
 import { N8nApiKeyGuard } from '../../common/guards/n8n-api-key.guard';
 import { AdminInvoiceProcessesController } from './controllers/admin-invoice-processes.controller';
@@ -23,6 +24,7 @@ import { TechnicalRetryService } from './services/technical-retry.service';
 import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-from-bitrix-deal.use-case';
 
 @Module({
+  imports: [Bitrix24Module],
   controllers: [InvoiceProcessesController, AdminInvoiceProcessesController],
   providers: [
     N8nApiKeyGuard,

@@ -14,9 +14,9 @@ export class InvoiceProcessesController {
   @Post('bitrix-trigger')
   @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(N8nApiKeyGuard)
-  bitrixTrigger(
+  async bitrixTrigger(
     @Body() dto: BitrixTriggerRequestDto,
-  ): InvoiceProcessTriggerResponseDto {
+  ): Promise<InvoiceProcessTriggerResponseDto> {
     const command = mapBitrixTriggerRequestToCommand(dto);
 
     return this.createInvoiceFromBitrixDealUseCase.execute(command);
