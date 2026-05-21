@@ -13,6 +13,7 @@ import { BitrixDealSnapshotRepository } from './repositories/bitrix-deal-snapsho
 import { ClientConfigRepository } from './repositories/client-config.repository';
 import { InvoiceEventRepository } from './repositories/invoice-event.repository';
 import { InvoiceProcessRepository } from './repositories/invoice-process.repository';
+import { FakturowniaOrderRepository } from './repositories/fakturownia-order.repository';
 import { InvoiceRecordRepository } from './repositories/invoice-record.repository';
 import { TechnicalRetryAttemptRepository } from './repositories/technical-retry-attempt.repository';
 import { InvoiceCommentService } from './services/invoice-comment.service';
@@ -38,6 +39,7 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     InvoiceCommentService,
     BitrixInvoiceMapper,
     InvoiceProcessRepository,
+    FakturowniaOrderRepository,
     InvoiceRecordRepository,
     InvoiceEventRepository,
     BitrixDealSnapshotRepository,

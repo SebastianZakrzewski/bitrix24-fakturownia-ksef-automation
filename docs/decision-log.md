@@ -43,18 +43,20 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Fakturownia KSeF via `gov_status` → integration result only | No direct KSeF API in V1; workflow maps result in use case | High |
 | V1 Fakturownia position mapping omits `unit`; provider default applies | `ProductLine.unit` is always `szt.`; not required in provider payload for V1 | Medium |
 | `FAKTUROWNIA_*` env vars for client auth and timeout | Same pattern as Bitrix24 webhook config | Medium |
+| `ADVANCE` and `FINAL` require Fakturownia order linkage | Fakturownia API expects advance/final from order via `copy_invoice_from`; one `fakturownia_orders` row per `bitrix_deal_id` | Critical |
+| V1 uses `fakturownia_orders` + `copy_invoice_from` at invoice creation | Persisted order ID links ADVANCE/FINAL payloads to provider order | High |
 
 ## Open decisions
 
 | ID | Decision needed | Status | Blocks |
 |---|---|---|---|
-| `OPEN_DECISION_FAKTUROWNIA_ADVANCE_LINKAGE` | Whether Evapremium Fakturownia account accepts V1 `ADVANCE`/`FINAL` payloads **without** `copy_invoice_from` (order/proforma linkage) | **Not verified** against Evapremium production/demo account | Task 9 happy-path smoke test on real account; may require mapper change if provider rejects standalone advance/final |
 | `OPEN_DECISION_FAKTUROWNIA_POSITION_UNIT` | Whether Fakturownia requires explicit position unit (`szt.`) on create-invoice | **Deferred** — V1 omits unit field; verify if invoices show wrong unit | Low; adjust mapper only if provider rejects or displays incorrect unit |
+| `OPEN_DECISION_FAKTUROWNIA_CREATE_ORDER` | Fakturownia create-order API contract (endpoint, payload, workflow step before ADVANCE/FINAL) | **Not implemented** — persistence layer only | Task 9 happy path; order API client + use-case wiring |
 
-Context for `OPEN_DECISION_FAKTUROWNIA_ADVANCE_LINKAGE`:
-- V1 implementation sends `kind: advance` with `advance_value` + full `positions` and buyer fields, **no** `copy_invoice_from`.
-- Fakturownia API docs often show advance/final created from an existing order via `copy_invoice_from` + `invoice_ids`.
-- `FINAL` uses `invoice_ids: [previousAdvanceInvoiceId]` where `previousAdvanceInvoiceId` is `InvoiceRecord.fakturownia_invoice_id` from prior successful `ADVANCE`.
+Context for `OPEN_DECISION_FAKTUROWNIA_CREATE_ORDER`:
+- `fakturownia_orders` table and `FakturowniaOrderRepository` are implemented.
+- Order row must be created via Fakturownia order API before first `ADVANCE`/`FINAL` invoice for a deal.
+- `copy_invoice_from` on invoice payload uses `fakturownia_orders.fakturownia_order_id`.
 - **Owner:** Architect / Product Owner. **Verify before:** Task 9 production wiring or first Evapremium account test.
 
 ## Deferred decisions / V2+

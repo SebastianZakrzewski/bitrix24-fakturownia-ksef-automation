@@ -119,6 +119,7 @@ describe('V1 database schema constraints', () => {
         ${schema}.bitrix_deal_snapshots,
         ${schema}.invoice_records,
         ${schema}.invoice_events,
+        ${schema}.fakturownia_orders,
         ${schema}.invoice_processes,
         ${schema}.client_configs,
         ${schema}.panel_admin_users

@@ -304,8 +304,41 @@ All types also set `currency: 'PLN'` and shared buyer + positions (below).
 |---|---|---|
 | `advance_value` | `InvoiceDraft.advanceAmount` | Set only for `ADVANCE`; validated before mapping |
 | `invoice_ids` | `InvoiceDraft.previousAdvanceInvoiceId` | Set only for `FINAL`; value is **Fakturownia invoice ID** from prior successful `ADVANCE` `InvoiceRecord.fakturownia_invoice_id` (resolved in use case before validation) |
+| `copy_invoice_from` | `fakturownia_orders.fakturownia_order_id` for deal | Set only for `ADVANCE` and `FINAL`; requires persisted `FakturowniaOrder` row (see below). Mapper/use-case wiring is a follow-up task. |
 
-V1 does **not** send `copy_invoice_from` (Fakturownia order/proforma linkage). See **Open decisions** in `decision-log.md` — Evapremium account verification pending.
+V1 **`FULL`** invoices do not require a Fakturownia order. **`ADVANCE`** and **`FINAL`** require an existing `fakturownia_orders` row for the same `bitrix_deal_id` before invoice creation.
+
+### FakturowniaOrder persistence contract
+
+Repository: `FakturowniaOrderRepository`. Persistence types are **not** domain types.
+
+```ts
+type FakturowniaOrderRow = {
+  id: string;
+  bitrix_deal_id: string;
+  fakturownia_order_id: string;
+  fakturownia_order_number: string | null;
+  created_from_invoice_process_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type InsertFakturowniaOrderParams = {
+  bitrix_deal_id: string;
+  fakturownia_order_id: string;
+  fakturownia_order_number?: string;
+  created_from_invoice_process_id?: string;
+};
+```
+
+Implementation: `src/modules/invoices/persistence/fakturownia-order.persistence.ts`.
+
+Rules:
+- **One order per deal:** `UNIQUE(bitrix_deal_id)` — shared by `ADVANCE` and `FINAL` for the same deal.
+- **One row per provider order:** `UNIQUE(fakturownia_order_id)`.
+- **`created_from_invoice_process_id`:** optional FK to `invoice_processes(id)`; records which process created the order when known.
+- Order row must exist before `ADVANCE`/`FINAL` invoice creation; enforced in use case (follow-up task).
+- Fakturownia create-order API and workflow step are out of scope for persistence-only task; see `decision-log.md`.
 
 ### Raw create-invoice response (provider)
 

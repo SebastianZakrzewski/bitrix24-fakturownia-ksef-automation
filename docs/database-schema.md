@@ -81,6 +81,26 @@ bitrix_deal_snapshots
 
 Snapshot exists only for a real `InvoiceProcess`.
 
+## fakturownia_orders
+```sql
+fakturownia_orders
+- id uuid primary key
+- bitrix_deal_id text not null
+- fakturownia_order_id text not null
+- fakturownia_order_number text null
+- created_from_invoice_process_id uuid null references invoice_processes(id)
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+Constraints:
+```sql
+unique(bitrix_deal_id)
+unique(fakturownia_order_id)
+```
+
+One Fakturownia order per Bitrix deal. Required for `ADVANCE` and `FINAL` invoice creation (`FULL` does not require an order row).
+
 ## client_configs
 ```sql
 client_configs
@@ -148,4 +168,5 @@ unique(email)
 - `STALE_TRIGGER_IGNORED` is recorded as event only, not process status.
 - `invoice_processes` stores only real invoice processes.
 - `InvoiceRecord` existence permanently blocks another `createInvoice` call for that process.
+- `fakturownia_orders` enforces one provider order per `bitrix_deal_id`; required before `ADVANCE`/`FINAL` invoice creation.
 - DB constraints are part of business safety, not optional implementation detail.
