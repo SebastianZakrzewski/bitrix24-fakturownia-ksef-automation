@@ -124,6 +124,12 @@ unique(is_active) where is_active = true
 
 V1 supports one active client configuration.
 
+`bitrix_field_mapping` (jsonb) must include shipping keys for Evapremium V1:
+- `shippingCostField`: `UF_CRM_1764865232643` (deal UF „Dostawa”, gross)
+- `shippingProductName`: `Wysyłka`
+
+Canonical shape: `src/modules/invoices/config/evapremium-v1-client-config.ts` and `docs/contracts.md`.
+
 ## technical_retry_attempts
 ```sql
 technical_retry_attempts

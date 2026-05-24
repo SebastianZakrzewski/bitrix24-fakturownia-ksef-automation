@@ -46,6 +46,29 @@ describe('FakturowniaMapper', () => {
       });
     });
 
+    it('maps shipping product line to Fakturownia position', () => {
+      const draft = invoiceDraftFullFixture();
+      draft.products = [
+        ...draft.products,
+        {
+          source: 'DEAL_FIELDS',
+          name: 'Wysyłka',
+          quantity: 1,
+          unit: 'szt.',
+          unitGrossPrice: 19.99,
+          totalGross: 19.99,
+          vatRate: 23,
+        },
+      ];
+
+      expect(mapper.toCreatePayload(draft).positions).toContainEqual({
+        name: 'Wysyłka',
+        quantity: 1,
+        tax: 23,
+        total_price_gross: 19.99,
+      });
+    });
+
     it('maps ADVANCE draft with order linkage and advance amount fields', () => {
       const draft = invoiceDraftAdvanceFixture();
 

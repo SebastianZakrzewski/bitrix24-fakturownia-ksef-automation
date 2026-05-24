@@ -27,6 +27,8 @@ export const EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS: ClientConfigMappings = {
     mainProductName: 'Dywaniki Evapremium',
     mainProductUnit: 'szt.',
     mainProductPriceStrategy: 'OPPORTUNITY_MINUS_PRODUCT_ROWS',
+    shippingCostField: 'UF_CRM_1764865232643',
+    shippingProductName: 'Wysyłka',
     companyAddressSource: 'CRM_ADDRESS_LIST',
   },
 

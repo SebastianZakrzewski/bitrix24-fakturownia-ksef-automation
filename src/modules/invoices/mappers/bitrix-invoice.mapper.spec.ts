@@ -95,6 +95,49 @@ describe('BitrixInvoiceMapper', () => {
     expect(result.products[1]?.source).toBe('DEAL_PRODUCT_ROW');
   });
 
+  it('maps shipping cost as a separate product line and excludes it from main line', () => {
+    const deal = bitrixDealForFull();
+    deal.customFields = {
+      ...deal.customFields,
+      [M.shippingCostField]: '19.99',
+    };
+
+    const result = mapper.map(deal, bitrixCompanyValidFixture(), config);
+
+    const rowTotal = 2 * 1500.5 + 500;
+    const shippingLine = result.products.find((line) => line.name === M.shippingProductName);
+
+    expect(result.products[0]).toMatchObject({
+      source: 'DEAL_FIELDS',
+      name: M.mainProductName,
+      totalGross: 10000 - rowTotal - 19.99,
+    });
+    expect(shippingLine).toEqual({
+      source: 'DEAL_FIELDS',
+      name: M.shippingProductName,
+      quantity: 1,
+      unit: 'szt.',
+      unitGrossPrice: 19.99,
+      totalGross: 19.99,
+      vatRate: 23,
+    });
+    expect(result.products).toHaveLength(4);
+  });
+
+  it('omits shipping line when shipping cost is zero or missing', () => {
+    const deal = bitrixDealForFull();
+    deal.customFields = {
+      ...deal.customFields,
+      [M.shippingCostField]: '0',
+    };
+
+    const result = mapper.map(deal, bitrixCompanyValidFixture(), config);
+
+    expect(result.products.some((line) => line.name === M.shippingProductName)).toBe(
+      false,
+    );
+  });
+
   it('uses full OPPORTUNITY as main line when no product rows', () => {
     const result = mapper.map(
       bitrixDealWithOpportunity(5000, []),

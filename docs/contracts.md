@@ -145,6 +145,8 @@ These are integration DTOs. `BitrixInvoiceMapper` maps them with `ClientConfig` 
 
 Canonical source: `src/modules/invoices/config/evapremium-v1-client-config.ts`.
 
+Runtime loads `bitrix_field_mapping` from active `client_configs` row — it must include `shippingCostField` and `shippingProductName` (same values as canonical config) or shipping will be treated as zero.
+
 ```ts
 type ClientBitrixFieldMapping = {
   invoiceDocumentTypeField: string;              // UF_CRM_1776810914892
@@ -161,6 +163,8 @@ type ClientBitrixFieldMapping = {
   mainProductName: string;
   mainProductUnit: string;
   mainProductPriceStrategy: 'OPPORTUNITY_MINUS_PRODUCT_ROWS';
+  shippingCostField: string;                     // UF_CRM_1764865232643 (Evapremium: „Dostawa”, brutto)
+  shippingProductName: string;                   // 'Wysyłka' — nazwa pozycji na fakturze
   companyAddressSource: 'CRM_ADDRESS_LIST' | 'REQUISITE';
 };
 
@@ -206,8 +210,11 @@ If Bitrix automation is later configured to fire on UF changes (not only stage),
 
 Product rules:
 - Main invoice line is always `mainProductName` (not CRM mat/car UF fields).
-- Additional lines come from Bitrix `productRows` only.
-- Main line gross = `OPPORTUNITY` minus sum of product row gross amounts; if no rows, main line = full `OPPORTUNITY`.
+- Additional lines come from Bitrix `productRows`.
+- Shipping cost comes from `shippingCostField` on the deal; when **> 0**, mapped as a separate `ProductLine` with `shippingProductName` (Evapremium V1: „Wysyłka”).
+- Main line gross = `OPPORTUNITY` minus sum of product row gross amounts minus shipping cost; if no rows, main line = `OPPORTUNITY` minus shipping cost.
+- Shipping is **not** a dedicated Fakturownia API field — it is sent as a normal `positions[]` item (`name`, `quantity`, `tax`, `total_price_gross`).
+- Zero or missing shipping cost omits the shipping line (no validation error).
 
 ## Fakturownia integration contract
 
@@ -291,6 +298,17 @@ All types also set `currency: 'PLN'` and shared buyer + positions (below).
 | `quantity` | `quantity` |
 | `vatRate` (always `23`) | `tax` |
 | `totalGross` | `total_price_gross` |
+
+Example shipping position (Evapremium V1, when `shippingCostField` > 0):
+
+```json
+{
+  "name": "Wysyłka",
+  "quantity": 1,
+  "tax": 23,
+  "total_price_gross": 19.99
+}
+```
 
 **VAT, currency, unit (V1):**
 

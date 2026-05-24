@@ -30,15 +30,17 @@ Given a Bitrix24 deal changes to paid stage `Opłacone`, when Bitrix24 automatio
 | `FINAL` | Final/completion invoice | Requires previous successful `ADVANCE` invoice record created by this system for the same deal |
 
 ## Product mapping
-Product data comes from two places:
+Product data comes from three places:
 
-1. Main/parent product from Bitrix24 custom deal fields.
+1. Main/parent product from Bitrix24 custom deal fields (`OPPORTUNITY` minus other lines).
 2. Subordinate/additional products from Bitrix24 product rows.
+3. Shipping cost from Bitrix24 deal custom field (`shippingCostField` → separate „Wysyłka” line when > 0).
 
-Both sources are mapped into unified `ProductLine[]`.
+All lines are mapped into unified `ProductLine[]`.
 
 Rules:
 - Main product can be missing/invalid if there are valid product rows.
+- Shipping line is optional; omitted when cost is zero or missing.
 - Empty final `products[]` blocks invoice creation.
 - One invalid product line blocks the whole invoice.
 - The system never silently drops invalid lines and invoices only the remaining products.

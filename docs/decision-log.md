@@ -15,6 +15,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Buyer data from `Deal -> Company` | Single CRM source | High |
 | Missing NIP/company/address blocks invoice | Avoid invalid invoice | Critical |
 | Product lines: main line fixed name + product rows detail | Evapremium: główna pozycja zawsze „Dywaniki Evapremium”; poboczne z `crm.deal.productrows` | High |
+| Shipping cost as separate `ProductLine` („Wysyłka”) | Bitrix UF `UF_CRM_1764865232643` (Dostawa); excluded from main line; Fakturownia has no top-level shipping field — sent in `positions[]` | High |
 | `client_configs` Bitrix field mapping for Evapremium portal | Verified on deals 27000/27414; `PREPARATION`, UF codes, enum 718/720/722 | High |
 | Evapremium buyer address from `crm.address.list` when `companyAddressSource=CRM_ADDRESS_LIST` | Company/requisite columns often empty; address.list holds legal address (deal 18690) | High |
 | FINAL via UF typ faktury Dopełniająca (1328) + payment Pełna (718) + stage Oplacone | Operator workflow after advance invoice; field `UF_CRM_1776810914892` | High |

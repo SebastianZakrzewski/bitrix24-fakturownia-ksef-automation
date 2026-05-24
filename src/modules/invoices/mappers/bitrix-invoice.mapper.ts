@@ -92,13 +92,18 @@ export class BitrixInvoiceMapper {
       .map((row) => this.mapProductRow(row))
       .filter((line): line is ProductLine => line !== null);
 
+    const shippingGross = this.parseShippingCost(deal, mapping);
     const opportunity = this.parseOpportunity(deal, mapping);
     const rowsTotalGross = rowLines.reduce((sum, line) => sum + line.totalGross, 0);
     const mainGross =
-      rowLines.length === 0 ? opportunity : opportunity - rowsTotalGross;
+      rowLines.length === 0
+        ? opportunity - shippingGross
+        : opportunity - rowsTotalGross - shippingGross;
+
+    const lines: ProductLine[] = [];
 
     if (mainGross > 0) {
-      const mainLine: ProductLine = {
+      lines.push({
         source: 'DEAL_FIELDS',
         name: mapping.mainProductName,
         quantity: 1,
@@ -106,12 +111,34 @@ export class BitrixInvoiceMapper {
         unitGrossPrice: mainGross,
         totalGross: mainGross,
         vatRate: 23,
-      };
-
-      return [mainLine, ...rowLines];
+      });
     }
 
-    return rowLines;
+    lines.push(...rowLines);
+
+    if (shippingGross > 0) {
+      lines.push({
+        source: 'DEAL_FIELDS',
+        name: mapping.shippingProductName,
+        quantity: 1,
+        unit: 'szt.',
+        unitGrossPrice: shippingGross,
+        totalGross: shippingGross,
+        vatRate: 23,
+      });
+    }
+
+    return lines;
+  }
+
+  private parseShippingCost(
+    deal: BitrixDealData,
+    mapping: ClientBitrixFieldMapping,
+  ): number {
+    const raw = deal.customFields[mapping.shippingCostField];
+    const parsed = this.parseFiniteNumber(raw);
+
+    return parsed !== undefined && parsed > 0 ? parsed : 0;
   }
 
   private mapProductRow(

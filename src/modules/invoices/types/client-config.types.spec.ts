@@ -50,4 +50,11 @@ describe('Evapremium V1 client config mappings', () => {
       EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS.bitrix_field_mapping.mainProductName,
     ).toBe('Dywaniki Evapremium');
   });
+
+  it('maps shipping cost field and invoice line name', () => {
+    const mapping = EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS.bitrix_field_mapping;
+
+    expect(mapping.shippingCostField).toBe('UF_CRM_1764865232643');
+    expect(mapping.shippingProductName).toBe('Wysyłka');
+  });
 });

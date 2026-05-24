@@ -35,10 +35,14 @@ export type ClientBitrixFieldMapping = {
   /** Jednostka produktu głównego (zgodna z default_unit) */
   mainProductUnit: string;
   /**
-   * OPPORTUNITY_MINUS_PRODUCT_ROWS: cena głównej = OPPORTUNITY − suma(product rows);
-   * gdy brak wierszy → całe OPPORTUNITY na główną linię.
+   * OPPORTUNITY_MINUS_PRODUCT_ROWS: cena głównej = OPPORTUNITY − suma(product rows) − koszt dostawy;
+   * gdy brak wierszy → OPPORTUNITY − koszt dostawy na główną linię; dostawa jako osobna pozycja.
    */
   mainProductPriceStrategy: 'OPPORTUNITY_MINUS_PRODUCT_ROWS';
+  /** UF: koszt dostawy / wysyłki (brutto) */
+  shippingCostField: string;
+  /** Nazwa pozycji faktury dla kosztu dostawy */
+  shippingProductName: string;
   /**
    * Skąd czytać adres firmy: requisite RQ_* lub crm.address.list (Evapremium używa address.list).
    */
@@ -81,6 +85,8 @@ export function isClientBitrixFieldMapping(
     typeof mapping.mainProductName === 'string' &&
     typeof mapping.mainProductUnit === 'string' &&
     mapping.mainProductPriceStrategy === 'OPPORTUNITY_MINUS_PRODUCT_ROWS' &&
+    typeof mapping.shippingCostField === 'string' &&
+    typeof mapping.shippingProductName === 'string' &&
     (mapping.companyAddressSource === 'CRM_ADDRESS_LIST' ||
       mapping.companyAddressSource === 'REQUISITE')
   );

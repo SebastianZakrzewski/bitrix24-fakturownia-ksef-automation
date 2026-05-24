@@ -20,6 +20,7 @@ const invoiceDocumentFields = (overrides: {
   invoiceDocumentType?: string;
   advanceAmount?: string | number;
   opportunity?: string | number;
+  shippingCost?: string | number;
 }): Record<string, unknown> => {
   const fields: Record<string, unknown> = {
     [M.documentTypeField]: overrides.documentType ?? M.documentTypeInvoiceValueId,
@@ -36,6 +37,10 @@ const invoiceDocumentFields = (overrides: {
 
   if (overrides.advanceAmount !== undefined) {
     fields[M.advanceAmountField] = overrides.advanceAmount;
+  }
+
+  if (overrides.shippingCost !== undefined) {
+    fields[M.shippingCostField] = overrides.shippingCost;
   }
 
   return fields;
