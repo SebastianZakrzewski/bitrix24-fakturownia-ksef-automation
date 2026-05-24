@@ -67,6 +67,27 @@ export class CreateInvoiceFromBitrixDealUseCase {
     );
     const deal = this.buildBitrixDealData(dealCore, productRows);
 
+    if (deal.stageId !== config.bitrix_paid_stage_id) {
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: null,
+        bitrix_deal_id: command.bitrixDealId,
+        event_type: 'STALE_TRIGGER_IGNORED',
+        message: 'Trigger ignored because deal is no longer on paid stage.',
+        metadata: {
+          current_stage_id: deal.stageId,
+          expected_paid_stage_id: config.bitrix_paid_stage_id,
+          trigger_stage_id: command.triggerStageId,
+          triggered_at: command.triggeredAt,
+        },
+      });
+
+      return {
+        status: 'STALE_TRIGGER_IGNORED',
+        bitrix_deal_id: command.bitrixDealId,
+        message: 'Trigger ignored because deal is no longer on paid stage.',
+      };
+    }
+
     const preliminaryMapping = this.bitrixInvoiceMapper.map(deal, undefined, config);
     const invoiceType = preliminaryMapping.invoiceType;
 

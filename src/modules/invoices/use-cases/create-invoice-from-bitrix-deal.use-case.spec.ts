@@ -197,6 +197,55 @@ const setupBitrixMocks = (
   }
 };
 
+describe('CreateInvoiceFromBitrixDealUseCase — stale trigger handling', () => {
+  let deps: UseCaseDeps;
+  let useCase: CreateInvoiceFromBitrixDealUseCase;
+
+  beforeEach(() => {
+    deps = createDeps();
+    useCase = createUseCase(deps);
+  });
+
+  const assertForbiddenSideEffects = () => {
+    expect(deps.invoiceIdempotencyService.claim).not.toHaveBeenCalled();
+    expect(deps.bitrix24CompanyService.getCompanyById).not.toHaveBeenCalled();
+    expect(deps.bitrixDealSnapshotRepository.insert).not.toHaveBeenCalled();
+    expect(deps.invoiceProcessRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
+    expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
+    expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
+  };
+
+  it('returns STALE_TRIGGER_IGNORED when deal is no longer on paid stage', async () => {
+    const deal = bitrixDealForFull();
+    deal.stageId = 'NEW';
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+
+    const result = await useCase.execute(command());
+
+    expect(result).toEqual({
+      status: 'STALE_TRIGGER_IGNORED',
+      bitrix_deal_id: '27000',
+      message: 'Trigger ignored because deal is no longer on paid stage.',
+    });
+    expect(result.process_id).toBeUndefined();
+    expect(result.invoice_type).toBeUndefined();
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith({
+      invoice_process_id: null,
+      bitrix_deal_id: '27000',
+      event_type: 'STALE_TRIGGER_IGNORED',
+      message: 'Trigger ignored because deal is no longer on paid stage.',
+      metadata: {
+        current_stage_id: 'NEW',
+        expected_paid_stage_id: EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS.bitrix_paid_stage_id,
+        trigger_stage_id: 'PREPARATION',
+        triggered_at: '2026-01-01T00:00:00.000Z',
+      },
+    });
+    assertForbiddenSideEffects();
+  });
+});
+
 describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () => {
   let deps: UseCaseDeps;
   let useCase: CreateInvoiceFromBitrixDealUseCase;
