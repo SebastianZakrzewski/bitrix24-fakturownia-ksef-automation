@@ -61,6 +61,7 @@ export const fakturowniaInvoiceOrderLinkageFixture = (
   overrides: Partial<FakturowniaInvoiceOrderLinkage> = {},
 ): FakturowniaInvoiceOrderLinkage => ({
   fakturowniaOrderId: '10042',
+  fakturowniaOrderNumber: 'ZAM/100/2026',
   ...overrides,
 });
 

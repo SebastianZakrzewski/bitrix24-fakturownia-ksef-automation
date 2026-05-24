@@ -33,12 +33,13 @@ describe('FakturowniaService', () => {
     const service = createService(client);
     await service.createInvoice(invoiceDraftAdvanceFixture(), orderLinkage);
 
-    expect(client.createInvoice).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'advance',
-        copy_invoice_from: 10042,
-      }),
-    );
+    expect(client.createInvoice).toHaveBeenCalledWith({
+      kind: 'advance',
+      copy_invoice_from: 10042,
+      advance_creation_mode: 'amount',
+      advance_value: '3000',
+      position_name: 'Zaliczka na wykonanie zamówienia ZAM/100/2026',
+    });
   });
 
   it('creates invoice and maps successful response', async () => {

@@ -252,7 +252,10 @@ export class CreateInvoiceFromBitrixDealUseCase {
           invoiceDraft: draft,
           invoiceProcessId: process.id,
         });
-        orderLinkage = { fakturowniaOrderId: orderRow.fakturownia_order_id };
+        orderLinkage = {
+          fakturowniaOrderId: orderRow.fakturownia_order_id,
+          fakturowniaOrderNumber: orderRow.fakturownia_order_number,
+        };
       }
 
       const result = await this.fakturowniaService.createInvoice(draft, orderLinkage);

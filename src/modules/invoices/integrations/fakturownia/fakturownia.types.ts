@@ -17,10 +17,11 @@ export type FakturowniaPositionPayload = {
 
 export type FakturowniaInvoiceOrderLinkage = {
   fakturowniaOrderId: string;
+  fakturowniaOrderNumber?: string | null;
 };
 
-export type FakturowniaInvoicePayload = {
-  kind: 'vat' | 'advance' | 'final';
+export type FakturowniaVatInvoicePayload = {
+  kind: 'vat';
   currency: 'PLN';
   buyer_name: string;
   buyer_tax_no: string;
@@ -29,11 +30,26 @@ export type FakturowniaInvoicePayload = {
   buyer_city: string;
   buyer_country: string;
   positions: FakturowniaPositionPayload[];
-  copy_invoice_from?: number;
-  advance_creation_mode?: 'amount';
-  advance_value?: string;
-  invoice_ids?: number[];
 };
+
+export type FakturowniaAdvanceFromOrderPayload = {
+  kind: 'advance';
+  copy_invoice_from: number;
+  advance_creation_mode: 'amount';
+  advance_value: string;
+  position_name: string;
+};
+
+export type FakturowniaFinalFromOrderPayload = {
+  kind: 'final';
+  copy_invoice_from: number;
+  invoice_ids: number[];
+};
+
+export type FakturowniaInvoicePayload =
+  | FakturowniaVatInvoicePayload
+  | FakturowniaAdvanceFromOrderPayload
+  | FakturowniaFinalFromOrderPayload;
 
 export type FakturowniaCreateInvoiceRequest = {
   api_token: string;

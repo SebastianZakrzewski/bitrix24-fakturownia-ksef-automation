@@ -61,7 +61,13 @@ describe('FakturowniaMapper', () => {
         },
       ];
 
-      expect(mapper.toCreatePayload(draft).positions).toContainEqual({
+      const payload = mapper.toCreatePayload(draft);
+      expect(payload.kind).toBe('vat');
+      if (payload.kind !== 'vat') {
+        throw new Error('expected vat payload');
+      }
+
+      expect(payload.positions).toContainEqual({
         name: 'Wysyłka',
         quantity: 1,
         tax: 23,
@@ -69,26 +75,38 @@ describe('FakturowniaMapper', () => {
       });
     });
 
-    it('maps ADVANCE draft with order linkage and advance amount fields', () => {
+    it('maps ADVANCE draft to minimal order-linked payload without buyer or positions', () => {
       const draft = invoiceDraftAdvanceFixture();
 
       expect(mapper.toCreatePayload(draft, orderLinkage)).toEqual({
         kind: 'advance',
-        currency: 'PLN',
-        ...sharedBuyerAndPositions,
         copy_invoice_from: 10042,
         advance_creation_mode: 'amount',
         advance_value: '3000',
+        position_name: 'Zaliczka na wykonanie zamówienia ZAM/100/2026',
       });
     });
 
-    it('maps FINAL draft with order linkage and previous advance invoice id', () => {
+    it('uses order id in ADVANCE position_name when order number is missing', () => {
+      const draft = invoiceDraftAdvanceFixture();
+
+      expect(
+        mapper.toCreatePayload(draft, {
+          fakturowniaOrderId: '10042',
+          fakturowniaOrderNumber: null,
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          position_name: 'Zaliczka na wykonanie zamówienia 10042',
+        }),
+      );
+    });
+
+    it('maps FINAL draft to minimal order-linked payload without buyer or positions', () => {
       const draft = invoiceDraftFinalFixture();
 
       expect(mapper.toCreatePayload(draft, orderLinkage)).toEqual({
         kind: 'final',
-        currency: 'PLN',
-        ...sharedBuyerAndPositions,
         copy_invoice_from: 10042,
         invoice_ids: [2432393],
       });
@@ -129,7 +147,13 @@ describe('FakturowniaMapper', () => {
         buyer: { ...base.buyer, country: 'Poland' },
       };
 
-      expect(mapper.toCreatePayload(draft).buyer_country).toBe('PL');
+      const payload = mapper.toCreatePayload(draft);
+      expect(payload.kind).toBe('vat');
+      if (payload.kind !== 'vat') {
+        throw new Error('expected vat payload');
+      }
+
+      expect(payload.buyer_country).toBe('PL');
     });
 
     it('throws when order linkage fakturowniaOrderId is not numeric', () => {

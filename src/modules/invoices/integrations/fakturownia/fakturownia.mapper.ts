@@ -8,6 +8,7 @@ import type {
   FakturowniaInvoicePayload,
   FakturowniaInvoiceRaw,
   FakturowniaPositionPayload,
+  FakturowniaVatInvoicePayload,
 } from './fakturownia.types';
 
 const KSEF_SUBMISSION_CONFIRMED = new Set(['ok', 'demo_ok']);
@@ -26,28 +27,23 @@ export class FakturowniaMapper {
     draft: InvoiceDraft,
     orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): FakturowniaInvoicePayload {
-    const positions = this.mapPositions(draft);
-    const buyer = this.mapBuyer(draft);
-
     switch (draft.invoiceType) {
       case 'FULL':
         return {
           kind: 'vat',
           currency: 'PLN',
-          ...buyer,
-          positions,
+          ...this.mapBuyer(draft),
+          positions: this.mapPositions(draft),
         };
       case 'ADVANCE': {
         const linkage = this.requireOrderLinkage('ADVANCE', orderLinkage);
 
         return {
           kind: 'advance',
-          currency: 'PLN',
-          ...buyer,
-          positions,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           advance_creation_mode: 'amount',
           advance_value: String(draft.advanceAmount),
+          position_name: this.mapAdvancePositionName(linkage),
         };
       }
       case 'FINAL': {
@@ -55,9 +51,6 @@ export class FakturowniaMapper {
 
         return {
           kind: 'final',
-          currency: 'PLN',
-          ...buyer,
-          positions,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           invoice_ids: [Number(draft.previousAdvanceInvoiceId)],
         };
@@ -102,6 +95,16 @@ export class FakturowniaMapper {
     return orderLinkage;
   }
 
+  private mapAdvancePositionName(
+    orderLinkage: FakturowniaInvoiceOrderLinkage,
+  ): string {
+    const orderReference =
+      orderLinkage.fakturowniaOrderNumber?.trim() ||
+      orderLinkage.fakturowniaOrderId.trim();
+
+    return `Zaliczka na wykonanie zamówienia ${orderReference}`;
+  }
+
   private mapCopyInvoiceFrom(
     orderLinkage: FakturowniaInvoiceOrderLinkage,
   ): number {
@@ -127,7 +130,7 @@ export class FakturowniaMapper {
   private mapBuyer(
     draft: InvoiceDraft,
   ): Pick<
-    FakturowniaInvoicePayload,
+    FakturowniaVatInvoicePayload,
     | 'buyer_name'
     | 'buyer_tax_no'
     | 'buyer_street'
