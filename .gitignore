@@ -4,3 +4,4 @@ coverage
 .env
 .env.local
 npm-debug.log*
+reports/live-tests/

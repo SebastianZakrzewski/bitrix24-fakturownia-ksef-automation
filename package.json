@@ -9,11 +9,14 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "lint": "eslint \"{src,test,scripts}/**/*.ts\"",
     "test": "jest --config jest.config.ts --runInBand --testPathIgnorePatterns=\\.integration\\.spec\\.ts$",
     "test:integration": "jest --config jest.config.ts --runInBand --testPathPatterns=\\.integration\\.spec\\.ts$",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
-    "db:migrate": "ts-node -r tsconfig-paths/register scripts/db-migrate.ts"
+    "db:migrate": "ts-node -r tsconfig-paths/register scripts/db-migrate.ts",
+    "live-test:full": "ts-node scripts/live-tests/run-live-test.ts full",
+    "live-test:advance": "ts-node scripts/live-tests/run-live-test.ts advance",
+    "live-test:final": "ts-node scripts/live-tests/run-live-test.ts final"
   },
   "keywords": [],
   "author": "",
