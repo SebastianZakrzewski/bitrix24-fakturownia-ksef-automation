@@ -32,6 +32,7 @@ const validEnv: LiveTestEnv = {
   TEST_DEAL_PREFIX: '[TEST]',
   ALLOW_BULK_LIVE_TESTS: false,
   ALLOW_DELETE_OR_CANCEL: false,
+  LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION: false,
 };
 
 const readyConfig = {
@@ -97,7 +98,7 @@ describe('runBackendTriggerPreflight', () => {
   ] as const)('%s creates valid backend trigger preflight with ready config', (_label, context) => {
     const contract = contractFromContext(context);
     const config = parseBackendSmokeReadinessConfig(readyConfig);
-    const result = runBackendTriggerPreflight(contract, config, context);
+    const result = runBackendTriggerPreflight(contract, config, context, {});
 
     expect(result.preflightKind).toBe('BACKEND_TRIGGER_PREFLIGHT');
     expect(result.scenarioType).toBe(contract.scenarioType);

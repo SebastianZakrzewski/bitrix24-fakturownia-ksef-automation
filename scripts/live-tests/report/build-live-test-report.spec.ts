@@ -11,6 +11,7 @@ const validEnv: LiveTestEnv = {
   TEST_DEAL_PREFIX: '[TEST]',
   ALLOW_BULK_LIVE_TESTS: false,
   ALLOW_DELETE_OR_CANCEL: false,
+  LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION: false,
 };
 
 describe('buildLiveTestReport', () => {
@@ -35,5 +36,9 @@ describe('buildLiveTestReport', () => {
     expect(report.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
     expect(report.integrations.backendWorkflow).toBe('BACKEND_DRY_RUN_SIMULATED');
     expect(report.backendDryRun.dbWriteExecuted).toBe(false);
+    expect(report.manualVerificationRequired).toBe(false);
+    expect(report.backendTriggerExecution.resultStatus).toBe(
+      'BACKEND_TRIGGER_EXECUTION_BLOCKED',
+    );
   });
 });

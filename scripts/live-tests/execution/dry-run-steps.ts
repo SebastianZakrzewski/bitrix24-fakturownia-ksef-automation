@@ -6,6 +6,7 @@ export const DRY_RUN_STEP_NAMES = {
   SIMULATE_FAKTUROWNIA_ORDER_INVOICE: 'simulate_fakturownia_order_invoice',
   MARK_KSEF: 'mark_ksef',
   MARK_BITRIX_SYNC: 'mark_bitrix_sync',
+  EXECUTE_BACKEND_TRIGGER: 'execute_backend_trigger',
   WRITE_REPORT: 'write_report',
 } as const;
 

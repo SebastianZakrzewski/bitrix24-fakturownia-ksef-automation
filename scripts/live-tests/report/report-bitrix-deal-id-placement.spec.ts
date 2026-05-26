@@ -35,6 +35,7 @@ const validEnv: LiveTestEnv = {
   TEST_DEAL_PREFIX: '[TEST]',
   ALLOW_BULK_LIVE_TESTS: false,
   ALLOW_DELETE_OR_CANCEL: false,
+  LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION: false,
 };
 
 const readyConfig = {

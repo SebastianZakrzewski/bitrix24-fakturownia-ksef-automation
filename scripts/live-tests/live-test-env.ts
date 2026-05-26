@@ -13,6 +13,7 @@ const liveTestEnvSchema = z.object({
   TEST_DEAL_PREFIX: z.string().min(1),
   ALLOW_BULK_LIVE_TESTS: booleanEnvSchema,
   ALLOW_DELETE_OR_CANCEL: booleanEnvSchema,
+  LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION: booleanEnvSchema,
   LIVE_TEST_REPORT_DIR: z.string().min(1).optional(),
 });
 
@@ -31,6 +32,8 @@ export function parseLiveTestEnv(
     TEST_DEAL_PREFIX: config.TEST_DEAL_PREFIX,
     ALLOW_BULK_LIVE_TESTS: config.ALLOW_BULK_LIVE_TESTS,
     ALLOW_DELETE_OR_CANCEL: config.ALLOW_DELETE_OR_CANCEL,
+    LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION:
+      config.LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION,
     LIVE_TEST_REPORT_DIR: config.LIVE_TEST_REPORT_DIR,
   });
 

@@ -139,6 +139,20 @@ export function assertForbiddenDryRunReportStates(report: LiveTestReport): void 
     );
   }
 
+  if (report.manualVerificationRequired) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'manualVerificationRequired must be false in dry-run',
+    );
+  }
+
+  if (report.backendTriggerExecution.resultStatus !== 'BACKEND_TRIGGER_EXECUTION_BLOCKED') {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerExecution must be blocked in dry-run',
+    );
+  }
+
   if (
     !ALLOWED_KSEF_STATUSES.has(report.ksefStatus) ||
     !ALLOWED_KSEF_STATUSES.has(report.integrations.ksef)

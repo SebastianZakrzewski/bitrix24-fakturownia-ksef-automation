@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.8.0-live-smoke-target';
+export const LIVE_TEST_RUNNER_VERSION = '1.9.0-backend-trigger-execution-smoke';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -26,7 +26,7 @@ export type IntegrationStepStatus = z.infer<typeof integrationStepStatusSchema>;
 export const invoiceTypeSchema = z.enum(['FULL', 'ADVANCE', 'FINAL']);
 export type LiveTestInvoiceType = z.infer<typeof invoiceTypeSchema>;
 
-export const liveTestModeSchema = z.literal('DRY_RUN');
+export const liveTestModeSchema = z.enum(['DRY_RUN', 'CONTROLLED_LIVE_TRIGGER_SMOKE']);
 export type LiveTestMode = z.infer<typeof liveTestModeSchema>;
 
 export const scenarioRunStatusSchema = z.enum([
@@ -97,6 +97,63 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  manualVerificationRequired: z.boolean(),
+  backendTriggerExecution: z.object({
+    mode: z.literal('CONTROLLED_LIVE_TRIGGER_EXECUTION'),
+    executionKind: z.literal('BACKEND_TRIGGER_EXECUTION'),
+    scenarioType: invoiceTypeSchema,
+    gate: z.object({
+      executionAllowed: z.boolean(),
+      triggerExecutionAllowed: z.boolean(),
+      blockers: z.array(z.string()),
+      warnings: z.array(z.string()),
+    }),
+    target: z.object({
+      method: z.literal('POST'),
+      path: z.literal('/invoice-processes/bitrix-trigger'),
+      baseUrlConfigured: z.boolean(),
+      authHeaderNameConfigured: z.boolean(),
+      authSecretConfigured: z.boolean(),
+      secretDisplayed: z.literal(false),
+    }),
+    request: z.object({
+      payload: z.object({
+        bitrix_deal_id: z.string(),
+        trigger_source: z.literal('BITRIX24_STAGE_CHANGE'),
+        trigger_stage_id: z.string(),
+        triggered_at: z.string(),
+      }),
+      timeoutMs: z.number().int().positive(),
+    }),
+    response: z
+      .object({
+        statusCode: z.number().int(),
+        ok: z.boolean(),
+        processId: z.string().optional(),
+        triggerStatus: z.string().optional(),
+        message: z.string().optional(),
+      })
+      .optional(),
+    execution: z.object({
+      requestSent: z.boolean(),
+      endpointCalled: z.boolean(),
+      workflowExecuted: z.boolean(),
+      invoiceProcessCreated: z.literal(false),
+      invoiceRecordCreated: z.literal(false),
+      dbWriteExecuted: z.literal(false),
+      bitrixCalled: z.literal(false),
+      fakturowniaCalled: z.literal(false),
+      ksefTested: z.literal(false),
+    }),
+    resultStatus: z.enum([
+      'BACKEND_TRIGGER_EXECUTION_BLOCKED',
+      'BACKEND_TRIGGER_EXECUTION_SENT',
+      'BACKEND_TRIGGER_EXECUTION_FAILED',
+      'BACKEND_TRIGGER_EXECUTION_TIMEOUT',
+    ]),
+    warnings: z.array(z.string()),
+    errors: z.array(z.string()),
+  }),
   backendAvailabilitySmoke: z.object({
     mode: z.literal('CONTROLLED_BACKEND_SMOKE'),
     smokeKind: z.literal('BACKEND_AVAILABILITY'),

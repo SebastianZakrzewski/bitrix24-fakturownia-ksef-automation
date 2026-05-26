@@ -61,9 +61,48 @@ export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
     '',
     `- Status: **${report.productionReadiness}**`,
     `- External side effects executed: **${report.externalSideEffectsExecuted}**`,
+    `- Manual verification required: **${report.manualVerificationRequired}**`,
     `- KSeF status: **${report.ksefStatus}**`,
     `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
     '',
+    '## Backend trigger execution',
+    '',
+    `- Mode: **${report.backendTriggerExecution.mode}**`,
+    `- Execution kind: **${report.backendTriggerExecution.executionKind}**`,
+    `- Result status: **${report.backendTriggerExecution.resultStatus}**`,
+    `- Gate execution allowed: **${report.backendTriggerExecution.gate.executionAllowed}**`,
+    `- Trigger execution allowed: **${report.backendTriggerExecution.gate.triggerExecutionAllowed}**`,
+    `- Target: **${report.backendTriggerExecution.target.method} ${report.backendTriggerExecution.target.path}**`,
+    `- Auth secret displayed: **${report.backendTriggerExecution.target.secretDisplayed}**`,
+    `- Trigger payload deal ID (bitrix_deal_id): **${report.backendTriggerExecution.request.payload.bitrix_deal_id}**`,
+    `- Trigger source: **${report.backendTriggerExecution.request.payload.trigger_source}**`,
+    `- Trigger stage ID: **${report.backendTriggerExecution.request.payload.trigger_stage_id}**`,
+    `- Triggered at: **${report.backendTriggerExecution.request.payload.triggered_at}**`,
+    `- Request sent: **${report.backendTriggerExecution.execution.requestSent}**`,
+    `- Endpoint called: **${report.backendTriggerExecution.execution.endpointCalled}**`,
+    `- Workflow executed: **${report.backendTriggerExecution.execution.workflowExecuted}**`,
+    `- DB write executed (runner): **${report.backendTriggerExecution.execution.dbWriteExecuted}**`,
+    `- Bitrix called (runner): **${report.backendTriggerExecution.execution.bitrixCalled}**`,
+    `- Fakturownia called (runner): **${report.backendTriggerExecution.execution.fakturowniaCalled}**`,
+    report.backendTriggerExecution.response
+      ? `- HTTP status: **${report.backendTriggerExecution.response.statusCode}**`
+      : '',
+    ...(report.backendTriggerExecution.gate.blockers.length > 0
+      ? [
+          '### Trigger execution blockers',
+          '',
+          ...report.backendTriggerExecution.gate.blockers.map((item) => `- ${item}`),
+          '',
+        ]
+      : []),
+    ...(report.backendTriggerExecution.errors.length > 0
+      ? [
+          '### Trigger execution errors',
+          '',
+          ...report.backendTriggerExecution.errors.map((item) => `- ${item}`),
+          '',
+        ]
+      : []),
     '## Backend availability smoke',
     '',
     `- Mode: **${report.backendAvailabilitySmoke.mode}**`,

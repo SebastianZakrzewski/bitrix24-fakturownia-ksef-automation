@@ -9,6 +9,7 @@ export const ISOLATED_LIVE_TEST_ENV_KEYS = [
   'LIVE_TEST_DEAL_LABEL',
   'LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED',
   'LIVE_TEST_EXPECTED_TRIGGER_STAGE_ID',
+  'LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION',
 ] as const;
 
 export function saveAndClearLiveTestEnvKeys(): Record<string, string | undefined> {

@@ -7,6 +7,8 @@ import {
 } from '../smoke-readiness/backend-smoke-readiness-config';
 import { checkBackendSmokeReadiness } from '../smoke-readiness/check-backend-smoke-readiness';
 import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-trigger-preflight';
+import { buildBlockedBackendTriggerExecution } from '../trigger-execution/build-blocked-backend-trigger-execution';
+import { toBackendTriggerExecutionReport } from '../trigger-execution/to-backend-trigger-execution-report';
 import { toBackendTriggerPreflightReport } from '../trigger-preflight/to-backend-trigger-preflight-report';
 import { buildNotConfiguredBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
 import type { BackendSmokeReadinessResult } from '../smoke-readiness/backend-smoke-readiness.types';
@@ -177,6 +179,26 @@ function resolveIntegrationStatuses(
 ): LiveTestReport['integrations'] {
   const skipped = 'SKIPPED_NOT_EXECUTED' as const;
 
+  if (scenarioResult.executionMode === 'CONTROLLED_LIVE_TRIGGER_SMOKE') {
+    const triggerExecution = scenarioResult.backendTriggerExecution;
+    const backendWorkflowStatus: LiveTestReport['integrations']['backendWorkflow'] =
+      triggerExecution?.execution.workflowExecuted
+        ? 'PASSED'
+        : triggerExecution?.execution.requestSent
+          ? 'FAILED'
+          : 'NOT_RUN';
+
+    return {
+      ksef: 'MANUAL_REQUIRED',
+      bitrixSync: 'NOT_TESTED_YET',
+      bitrixDealSetup: skipped,
+      backendWorkflow: backendWorkflowStatus,
+      fakturowniaOrder: skipped,
+      fakturowniaInvoice: skipped,
+      database: skipped,
+    };
+  }
+
   if (scenarioResult.executionMode === 'DRY_RUN') {
     return {
       ksef: 'MANUAL_REQUIRED',
@@ -221,7 +243,11 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     : buildMissingBackendSmokeReadiness(scenario.invoiceType);
 
   const steps = appendWriteReportStep(scenarioResult.steps, reportWritten);
-  const mode = 'DRY_RUN' as const;
+  const mode =
+    scenarioResult.executionMode === 'CONTROLLED_LIVE_TRIGGER_SMOKE'
+      ? 'CONTROLLED_LIVE_TRIGGER_SMOKE'
+      : 'DRY_RUN';
+  const manualVerificationRequired = mode === 'CONTROLLED_LIVE_TRIGGER_SMOKE';
 
   return {
     mode,
@@ -242,6 +268,10 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    manualVerificationRequired,
+    backendTriggerExecution: scenarioResult.backendTriggerExecution
+      ? toBackendTriggerExecutionReport(scenarioResult.backendTriggerExecution)
+      : buildBlockedBackendTriggerExecution(scenario.invoiceType),
     backendAvailabilitySmoke:
       scenarioResult.backendAvailabilitySmoke ??
       buildNotConfiguredBackendAvailabilitySmoke(),
@@ -326,8 +356,10 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
       message: scenarioResult.message,
     },
     summary:
-      scenarioResult.executionMode === 'DRY_RUN'
-        ? `Dry-run live test completed for ${scenario.id} (${scenario.invoiceType}). External side effects were not executed.`
-        : `Live test completed for ${scenario.id} (${scenario.invoiceType}).`,
+      scenarioResult.executionMode === 'CONTROLLED_LIVE_TRIGGER_SMOKE'
+        ? `Controlled live trigger smoke completed for ${scenario.id} (${scenario.invoiceType}). Runner external side effects remain false; manual verification is required.`
+        : scenarioResult.executionMode === 'DRY_RUN'
+          ? `Dry-run live test completed for ${scenario.id} (${scenario.invoiceType}). External side effects were not executed.`
+          : `Live test completed for ${scenario.id} (${scenario.invoiceType}).`,
   };
 }
