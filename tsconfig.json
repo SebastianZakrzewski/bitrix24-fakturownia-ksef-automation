@@ -23,6 +23,7 @@
     "src/**/*.ts",
     "test/**/*.ts",
     "scripts/live-tests/**/*.ts",
+    "scripts/clean-dist.spec.ts",
     "jest.config.ts"
   ],
   "exclude": ["node_modules", "dist"]

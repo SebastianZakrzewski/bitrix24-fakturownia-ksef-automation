@@ -36,7 +36,7 @@ function resolveIntegrationStatuses(
 ): LiveTestReport['integrations'] {
   const skipped = 'SKIPPED_NOT_EXECUTED' as const;
 
-  if (scenarioResult.executionMode === 'dry-run') {
+  if (scenarioResult.executionMode === 'DRY_RUN') {
     return {
       ksef: 'MANUAL_REQUIRED',
       bitrixSync: 'NOT_TESTED_YET',
@@ -70,13 +70,13 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
   } = input;
 
   const steps = appendWriteReportStep(scenarioResult.steps, reportWritten);
-  const executionMode = scenarioResult.executionMode ?? 'dry-run';
+  const mode = 'DRY_RUN' as const;
 
   return {
+    mode,
     meta: {
       scenarioId: scenario.id,
       invoiceType: scenario.invoiceType,
-      executionMode,
       runnerVersion: LIVE_TEST_RUNNER_VERSION,
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
@@ -107,7 +107,7 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
       message: scenarioResult.message,
     },
     summary:
-      scenarioResult.executionMode === 'dry-run'
+      scenarioResult.executionMode === 'DRY_RUN'
         ? `Dry-run live test completed for ${scenario.id} (${scenario.invoiceType}). External side effects were not executed.`
         : `Live test completed for ${scenario.id} (${scenario.invoiceType}).`,
   };

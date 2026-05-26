@@ -35,7 +35,7 @@ function buildMarkdown(report: LiveTestReport): string {
     '# Live Test Report',
     '',
     `**Scenario:** ${report.meta.scenarioId} (${report.meta.invoiceType})`,
-    `**Execution mode:** ${report.meta.executionMode}`,
+    `**Mode:** ${report.mode}`,
     `**Runner:** ${report.meta.runnerVersion}`,
     `**Started:** ${report.meta.startedAt}`,
     `**Finished:** ${report.meta.finishedAt}`,

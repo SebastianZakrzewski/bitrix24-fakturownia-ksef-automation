@@ -62,7 +62,7 @@ export async function executeDryRunScenario(
 
   return {
     status: 'DRY_RUN_COMPLETED',
-    executionMode: 'dry-run',
+    executionMode: 'DRY_RUN',
     externalSideEffectsExecuted: false,
     context,
     steps,

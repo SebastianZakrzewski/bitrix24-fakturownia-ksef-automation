@@ -32,7 +32,7 @@ describe('executeDryRunScenario', () => {
       expect(result.externalSideEffectsExecuted).toBe(false);
       expect(scenarioResult.externalSideEffectsExecuted).toBe(false);
       expect(result.status).toBe('DRY_RUN_COMPLETED');
-      expect(result.executionMode).toBe('dry-run');
+      expect(result.executionMode).toBe('DRY_RUN');
     },
   );
 

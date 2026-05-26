@@ -1,11 +1,12 @@
-import '../../src/load-env';
+import './load-env';
 import { buildLiveTestReport } from './report/build-live-test-report';
 import { writeLiveTestReport } from './report/report-writer';
 import {
   parseLiveTestEnv,
   resolveLiveTestReportDir,
 } from './live-test-env';
-import { listLiveTestScenarioIds, resolveLiveTestScenario } from './scenarios/scenario-registry';
+import { listLiveTestScenarioIds } from './scenarios/scenario-registry';
+import { resolveScenarioFromCliArg } from './scenarios/resolve-scenario-from-cli';
 import { LiveTestGuardError, validateSafetyGuards } from './safety-guards';
 
 async function main(): Promise<void> {
@@ -22,7 +23,7 @@ async function main(): Promise<void> {
 
   let scenario;
   try {
-    scenario = resolveLiveTestScenario(scenarioId);
+    scenario = resolveScenarioFromCliArg(scenarioId);
   } catch (error: unknown) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);

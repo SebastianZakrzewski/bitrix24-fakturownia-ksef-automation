@@ -4,6 +4,7 @@
   "description": "SellGenius V1 invoice automation backend skeleton.",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/clean-dist.cjs",
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",

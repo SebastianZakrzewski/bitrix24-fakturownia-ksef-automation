@@ -25,8 +25,8 @@ export type IntegrationStepStatus = z.infer<typeof integrationStepStatusSchema>;
 export const invoiceTypeSchema = z.enum(['FULL', 'ADVANCE', 'FINAL']);
 export type LiveTestInvoiceType = z.infer<typeof invoiceTypeSchema>;
 
-export const executionModeSchema = z.literal('dry-run');
-export type LiveTestExecutionMode = z.infer<typeof executionModeSchema>;
+export const liveTestModeSchema = z.literal('DRY_RUN');
+export type LiveTestMode = z.infer<typeof liveTestModeSchema>;
 
 export const scenarioRunStatusSchema = z.enum([
   'PLACEHOLDER_SKIPPED',
@@ -54,10 +54,10 @@ export const scenarioStepSchema = z.object({
 });
 
 export const liveTestReportSchema = z.object({
+  mode: liveTestModeSchema,
   meta: z.object({
     scenarioId: z.string(),
     invoiceType: invoiceTypeSchema,
-    executionMode: executionModeSchema,
     runnerVersion: z.string(),
     startedAt: z.string(),
     finishedAt: z.string(),

@@ -66,7 +66,7 @@ describe('writeLiveTestReport', () => {
       expect(parsed.integrations.ksef).toBe('MANUAL_REQUIRED');
       expect(parsed.integrations.bitrixSync).toBe('NOT_TESTED_YET');
       expect(parsed.scenario.status).toBe('DRY_RUN_COMPLETED');
-      expect(parsed.meta.executionMode).toBe('dry-run');
+      expect(parsed.mode).toBe('DRY_RUN');
 
       const stepNames = parsed.scenario.steps.map((step) => step.name);
       expect(stepNames).toContain(DRY_RUN_STEP_NAMES.SIMULATE_BITRIX_DEAL_SETUP);

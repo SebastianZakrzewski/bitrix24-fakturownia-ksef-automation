@@ -7,7 +7,7 @@ import type { SafetyGuardContext } from '../safety-guards';
 
 export type ScenarioRunStatus = 'DRY_RUN_COMPLETED' | 'PLACEHOLDER_SKIPPED' | 'FAILED';
 
-export type LiveTestExecutionMode = 'dry-run';
+export type LiveTestExecutionMode = 'DRY_RUN';
 
 export interface LiveTestScenarioStep {
   name: string;
