@@ -16,7 +16,7 @@ function formatReportTimestamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-');
 }
 
-function buildMarkdown(report: LiveTestReport): string {
+export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
   const safetyRows = report.safety.checks
     .map(
       (check) =>
@@ -135,7 +135,7 @@ export async function writeLiveTestReport(
 
   await mkdir(options.outputDir, { recursive: true });
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  await writeFile(markdownPath, buildMarkdown(report), 'utf8');
+  await writeFile(markdownPath, buildLiveTestReportMarkdown(report), 'utf8');
 
   return { jsonPath, markdownPath };
 }
