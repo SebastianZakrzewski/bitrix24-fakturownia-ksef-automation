@@ -1,5 +1,10 @@
 import { FORBIDDEN_REAL_DATA_MARKERS, hasTestDealPrefix } from '../fixtures/fixture-common';
 import {
+  assertBitrixDealIdOnlyInApprovedReportFields,
+  redactMarkdownForRealDataMarkerCheck,
+  redactReportForRealDataMarkerCheck,
+} from './report-bitrix-deal-id-placement';
+import {
   liveTestReportSchema,
   type LiveTestReport,
 } from '../types/live-test-report.types';
@@ -95,22 +100,6 @@ const FORBIDDEN_MARKDOWN_SNIPPETS = [
   'Real backend workflow ran: **true**',
 ] as const;
 
-function serializeReportForRealDataMarkerCheck(report: LiveTestReport): string {
-  const clone = JSON.parse(JSON.stringify(report)) as LiveTestReport;
-
-  if (clone.backendTriggerPreflight?.liveSmokeTarget?.actualBitrixDealId) {
-    clone.backendTriggerPreflight.liveSmokeTarget.actualBitrixDealId =
-      '[CONFIGURED_BITRIX_DEAL_ID]';
-  }
-
-  if (clone.backendTriggerPreflight?.request?.bitrix_deal_id) {
-    clone.backendTriggerPreflight.request.bitrix_deal_id =
-      '[CONFIGURED_BITRIX_DEAL_ID]';
-  }
-
-  return JSON.stringify(clone);
-}
-
 function assertNoForbiddenMarkersInText(
   text: string,
   code: DryRunReportAssertionCode,
@@ -186,8 +175,15 @@ export function assertForbiddenDryRunReportStates(report: LiveTestReport): void 
     }
   }
 
+  try {
+    assertBitrixDealIdOnlyInApprovedReportFields(report);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new DryRunReportAssertionError('FORBIDDEN_REAL_DATA', message);
+  }
+
   assertNoForbiddenMarkersInText(
-    serializeReportForRealDataMarkerCheck(report),
+    JSON.stringify(redactReportForRealDataMarkerCheck(report)),
     'FORBIDDEN_REAL_DATA',
   );
   assertNoForbiddenMarkersInText(report.summary, 'FORBIDDEN_CREATION_CLAIM');
@@ -933,6 +929,7 @@ export function assertDryRunReport(
 export function assertDryRunMarkdown(
   markdown: string,
   scenarioId: ExpectedDryRunScenarioId,
+  report: LiveTestReport,
 ): void {
   const expected = EXPECTED_DRY_RUN_REPORT_REQUIREMENTS[scenarioId];
 
@@ -968,5 +965,15 @@ export function assertDryRunMarkdown(
     }
   }
 
-  assertNoForbiddenMarkersInText(markdown, 'FORBIDDEN_REAL_DATA');
+  try {
+    assertBitrixDealIdOnlyInApprovedReportFields(report);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new DryRunReportAssertionError('FORBIDDEN_REAL_DATA', message);
+  }
+
+  assertNoForbiddenMarkersInText(
+    redactMarkdownForRealDataMarkerCheck(markdown, report),
+    'FORBIDDEN_REAL_DATA',
+  );
 }

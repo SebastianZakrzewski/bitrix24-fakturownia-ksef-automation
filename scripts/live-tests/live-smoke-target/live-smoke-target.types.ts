@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { invoiceTypeSchema } from '../types/live-test-report.types';
 
+/** Documented example numeric Bitrix deal ID for live-smoke preflight metadata only. */
+export const LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID = '28392';
+
 export const liveSmokeTargetSchema = z.object({
   actualBitrixDealId: z.string().min(1),
   testDealLabel: z.string().min(1),

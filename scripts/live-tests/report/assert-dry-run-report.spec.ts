@@ -88,7 +88,7 @@ describe('assertDryRunReport', () => {
     async ({ id }) => {
       const report = await buildScenarioReport(id);
       const markdown = buildLiveTestReportMarkdown(report);
-      expect(() => assertDryRunMarkdown(markdown, id)).not.toThrow();
+      expect(() => assertDryRunMarkdown(markdown, id, report)).not.toThrow();
     },
   );
 
@@ -256,7 +256,7 @@ describe('assertDryRunReport', () => {
     const report = await buildScenarioReport('full');
     const markdown = `${buildLiveTestReportMarkdown(report)}\n- Status: **READY**`;
 
-    expect(() => assertDryRunMarkdown(markdown, 'full')).toThrow(
+    expect(() => assertDryRunMarkdown(markdown, 'full', report)).toThrow(
       DryRunReportAssertionError,
     );
   });

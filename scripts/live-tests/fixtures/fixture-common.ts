@@ -21,7 +21,7 @@ export const EXPECTED_DRY_RUN_EXTERNAL_STEPS_SKIPPED = [
 /** Patterns that must not appear in local fixtures (real customer/production markers). */
 export const FORBIDDEN_REAL_DATA_MARKERS = [
   /evapremium\s+s\.?a\.?/i,
-  /\b27000\b/,
+  /\b28392\b/,
   /\b27414\b/,
   /\b18690\b/,
   /kmepxyervpeujwvgdqtm/i,

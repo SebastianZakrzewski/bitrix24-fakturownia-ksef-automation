@@ -20,6 +20,7 @@ import { validateLiveSmokeTarget } from '../live-smoke-target/validate-live-smok
 import { buildBitrixTriggerPreflightPayload } from './build-bitrix-trigger-preflight-payload';
 import { runBackendTriggerPreflight } from './run-backend-trigger-preflight';
 import { validateBackendTriggerPreflightPayload } from './validate-backend-trigger-preflight-payload';
+import { LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID } from '../live-smoke-target/live-smoke-target.types';
 import { BACKEND_TRIGGER_PREFLIGHT_PATH } from './backend-trigger-preflight.types';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 
@@ -186,7 +187,7 @@ describe('runBackendTriggerPreflight', () => {
     const validation = validatePreflightPayload(
       contract,
       fullInvoiceDryRunContext,
-      { ...payload, bitrix_deal_id: '27000' },
+      { ...payload, bitrix_deal_id: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID },
     );
 
     expect(validation.valid).toBe(false);

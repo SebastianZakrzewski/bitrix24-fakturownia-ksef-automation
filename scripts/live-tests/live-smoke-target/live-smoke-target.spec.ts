@@ -8,7 +8,10 @@ import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-tri
 import { parseLiveSmokeTargetConfig } from './parse-live-smoke-target-config';
 import { resolveLiveSmokeTarget } from './resolve-live-smoke-target';
 import { validateLiveSmokeTarget } from './validate-live-smoke-target';
-import type { LiveSmokeTarget } from './live-smoke-target.types';
+import {
+  LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+  type LiveSmokeTarget,
+} from './live-smoke-target.types';
 
 const FORBIDDEN_LIVE_SMOKE_IMPORT_PATTERNS = [
   /modules\/invoices\/use-cases/i,
@@ -18,7 +21,7 @@ const FORBIDDEN_LIVE_SMOKE_IMPORT_PATTERNS = [
 
 function baseTarget(overrides: Partial<LiveSmokeTarget> = {}): LiveSmokeTarget {
   return {
-    actualBitrixDealId: '27000',
+    actualBitrixDealId: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
     testDealLabel: '[TEST] Runner FULL smoke test 001',
     expectedScenarioType: 'FULL',
     expectedTriggerStageId: BITRIX_PAID_STAGE_ID,
@@ -117,13 +120,13 @@ describe('resolveLiveSmokeTarget', () => {
     const target = resolveLiveSmokeTarget(
       fullInvoiceDryRunContext,
       parseLiveSmokeTargetConfig({
-        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: '27000',
+        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
         LIVE_TEST_DEAL_LABEL: '[TEST] Runner FULL smoke test 001',
         LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED: 'false',
       }),
     );
 
-    expect(target.actualBitrixDealId).toBe('27000');
+    expect(target.actualBitrixDealId).toBe(LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID);
     expect(target.testDealLabel).toBe('[TEST] Runner FULL smoke test 001');
   });
 });
@@ -134,13 +137,13 @@ describe('trigger preflight with live smoke target', () => {
     const target = resolveLiveSmokeTarget(
       fullInvoiceDryRunContext,
       parseLiveSmokeTargetConfig({
-        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: '27000',
+        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
         LIVE_TEST_DEAL_LABEL: '[TEST] Runner FULL smoke test 001',
       }),
     );
     const payload = buildBitrixTriggerPreflightPayload(contract, target);
 
-    expect(payload.bitrix_deal_id).toBe('27000');
+    expect(payload.bitrix_deal_id).toBe(LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID);
     expect(payload.trigger_stage_id).toBe(BITRIX_PAID_STAGE_ID);
   });
 
@@ -156,17 +159,21 @@ describe('trigger preflight with live smoke target', () => {
       },
       fullInvoiceDryRunContext,
       {
-        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: '27000',
+        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
         LIVE_TEST_DEAL_LABEL: '[TEST] Runner FULL smoke test 001',
         LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED: 'false',
       },
     );
 
-    expect(result.liveSmokeTarget.actualBitrixDealId).toBe('27000');
+    expect(result.liveSmokeTarget.actualBitrixDealId).toBe(
+      LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+    );
     expect(result.liveSmokeTarget.testDealLabel).toContain('[TEST]');
     expect(result.liveSmokeTarget.manualCrmPreparationConfirmed).toBe(false);
     expect(result.liveSmokeTarget.liveExecutionReady).toBe(false);
-    expect(result.request.payload.bitrix_deal_id).toBe('27000');
+    expect(result.request.payload.bitrix_deal_id).toBe(
+      LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+    );
     expect(result.execution.requestSent).toBe(false);
     expect(result.execution.endpointCalled).toBe(false);
     expect(result.execution.workflowExecuted).toBe(false);
