@@ -89,7 +89,7 @@ describe('live-test fixtures', () => {
     expect(parsed.fixture.bitrixDealId).toBe('[TEST]-FULL-001');
     expect(parsed.fixture.advanceAmountPln).toBeUndefined();
     expect(parsed.integrations.bitrixDealSetup).toBe('SKIPPED_NOT_EXECUTED');
-    expect(parsed.integrations.backendWorkflow).toBe('SKIPPED_NOT_EXECUTED');
+    expect(parsed.integrations.backendWorkflow).toBe('BACKEND_DRY_RUN_SIMULATED');
     expect(parsed.integrations.fakturowniaInvoice).toBe('SKIPPED_NOT_EXECUTED');
   });
 

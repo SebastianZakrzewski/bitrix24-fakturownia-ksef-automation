@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.2.0-fixtures';
+export const LIVE_TEST_RUNNER_VERSION = '1.3.0-backend-dry-run';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -17,6 +17,7 @@ export const integrationStepStatusSchema = z.enum([
   'MANUAL_REQUIRED',
   'SKIPPED',
   'SKIPPED_NOT_EXECUTED',
+  'BACKEND_DRY_RUN_SIMULATED',
   'PASSED',
   'FAILED',
 ]);
@@ -96,6 +97,24 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  backendDryRun: z.object({
+    backendMode: liveTestModeSchema,
+    backendWorkflowExecuted: z.literal(false),
+    backendEndpointCalled: z.literal(false),
+    useCaseExecuted: z.literal(false),
+    invoiceProcessCreated: z.literal(false),
+    invoiceRecordCreated: z.literal(false),
+    invoiceEventCreated: z.literal(false),
+    dbWriteExecuted: z.literal(false),
+    validationSimulated: z.literal(true),
+    mappedFromFixture: z.literal(true),
+    resultStatus: z.literal('BACKEND_DRY_RUN_SIMULATED'),
+    scenarioType: invoiceTypeSchema,
+    expectedInvoiceType: invoiceTypeSchema,
+    testContextId: z.string(),
+    bitrixDealId: z.string(),
+    notes: z.array(z.string()),
+  }),
   fixture: fixtureReportSummarySchema,
   integrations: z.object({
     ksef: ksefTestStatusSchema,

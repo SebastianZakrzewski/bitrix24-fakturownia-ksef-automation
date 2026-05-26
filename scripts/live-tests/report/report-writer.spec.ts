@@ -63,6 +63,11 @@ describe('writeLiveTestReport', () => {
       expect(parsed.ksefStatus).toBe('MANUAL_REQUIRED');
       expect(parsed.bitrixSyncStatus).toBe('NOT_TESTED_YET');
       expect(parsed.externalSideEffectsExecuted).toBe(false);
+      expect(parsed.backendDryRun.backendMode).toBe('DRY_RUN');
+      expect(parsed.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
+      expect(parsed.backendDryRun.backendWorkflowExecuted).toBe(false);
+      expect(parsed.backendDryRun.dbWriteExecuted).toBe(false);
+      expect(parsed.integrations.backendWorkflow).toBe('BACKEND_DRY_RUN_SIMULATED');
       expect(parsed.integrations.ksef).toBe('MANUAL_REQUIRED');
       expect(parsed.integrations.bitrixSync).toBe('NOT_TESTED_YET');
       expect(parsed.scenario.status).toBe('DRY_RUN_COMPLETED');
@@ -71,6 +76,8 @@ describe('writeLiveTestReport', () => {
       expect(parsed.fixture.expectedInvoiceType).toBe(scenario.invoiceType);
       expect(parsed.fixture.bitrixDealId).toMatch(/^\[TEST\]-/);
       expect(parsed.fixture.productSummary.length).toBeGreaterThan(0);
+      expect(markdownContent).toContain('## Backend dry-run');
+      expect(markdownContent).toContain('BACKEND_DRY_RUN_SIMULATED');
       expect(markdownContent).toContain('## Fixture summary');
 
       if (scenario.id === 'advance') {
@@ -91,6 +98,11 @@ describe('writeLiveTestReport', () => {
           (step) => step.name === DRY_RUN_STEP_NAMES.SIMULATE_BITRIX_DEAL_SETUP,
         )?.status,
       ).toBe('SKIPPED_NOT_EXECUTED');
+      expect(
+        parsed.scenario.steps.find(
+          (step) => step.name === DRY_RUN_STEP_NAMES.SIMULATE_BACKEND_WORKFLOW,
+        )?.status,
+      ).toBe('BACKEND_DRY_RUN_SIMULATED');
       expect(
         parsed.scenario.steps.find(
           (step) => step.name === DRY_RUN_STEP_NAMES.WRITE_REPORT,

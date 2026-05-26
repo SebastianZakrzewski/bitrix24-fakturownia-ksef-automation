@@ -1,3 +1,4 @@
+import { simulateBackendDryRunWorkflow } from '../adapters/backend-dry-run.adapter';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import type {
   LiveTestScenarioResult,
@@ -21,6 +22,7 @@ export async function executeDryRunScenario(
   input: ExecuteDryRunScenarioInput,
 ): Promise<LiveTestScenarioResult> {
   const { context } = input;
+  const backendDryRun = simulateBackendDryRunWorkflow(context);
 
   const steps: LiveTestScenarioStep[] = [
     step(
@@ -40,8 +42,8 @@ export async function executeDryRunScenario(
     ),
     step(
       DRY_RUN_STEP_NAMES.SIMULATE_BACKEND_WORKFLOW,
-      'SKIPPED_NOT_EXECUTED',
-      'Backend invoice workflow trigger was not executed in dry-run mode.',
+      'BACKEND_DRY_RUN_SIMULATED',
+      'Backend workflow was simulated locally; no endpoint, use case, or DB write occurred.',
     ),
     step(
       DRY_RUN_STEP_NAMES.SIMULATE_FAKTUROWNIA_ORDER_INVOICE,
@@ -65,7 +67,8 @@ export async function executeDryRunScenario(
     executionMode: 'DRY_RUN',
     externalSideEffectsExecuted: false,
     context,
+    backendDryRun,
     steps,
-    message: `Dry-run completed for ${context.scenarioId} (${context.invoiceType}). No external systems were called.`,
+    message: `Dry-run completed for ${context.scenarioId} (${context.invoiceType}). Backend workflow was simulated only; no external systems were called.`,
   };
 }

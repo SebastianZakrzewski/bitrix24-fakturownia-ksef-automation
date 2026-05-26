@@ -58,6 +58,10 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   'MANUAL_REQUIRED',
   'NOT_TESTED_YET',
   'External side effects executed: **false**',
+  '## Backend dry-run',
+  'BACKEND_DRY_RUN_SIMULATED',
+  'Real backend workflow ran: **false**',
+  'DB write executed: **false**',
   '## Fixture summary',
   'SKIPPED_NOT_EXECUTED',
 ] as const;
@@ -70,7 +74,7 @@ const FORBIDDEN_MARKDOWN_SNIPPETS = [
   'deal was created',
   'Bitrix24 executed',
   'Fakturownia executed',
-  'backend workflow executed',
+  'Real backend workflow ran: **true**',
 ] as const;
 
 function assertNoForbiddenMarkersInText(
@@ -333,6 +337,82 @@ function assertScenarioStepStatuses(report: LiveTestReport): void {
   }
 }
 
+function assertBackendDryRunSection(
+  report: LiveTestReport,
+  scenarioId: ExpectedDryRunScenarioId,
+): void {
+  const expected = EXPECTED_DRY_RUN_REPORT_REQUIREMENTS[scenarioId];
+  const backend = report.backendDryRun;
+
+  if (backend.backendMode !== 'DRY_RUN') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendDryRun.backendMode must be DRY_RUN',
+    );
+  }
+
+  if (backend.resultStatus !== 'BACKEND_DRY_RUN_SIMULATED') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendDryRun.resultStatus must be BACKEND_DRY_RUN_SIMULATED',
+    );
+  }
+
+  if (backend.scenarioType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendDryRun.scenarioType must match scenario',
+    );
+  }
+
+  if (backend.expectedInvoiceType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendDryRun.expectedInvoiceType must match scenario',
+    );
+  }
+
+  if (backend.bitrixDealId !== expected.bitrixDealId) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendDryRun.bitrixDealId must match fixture',
+    );
+  }
+
+  const mustBeFalse: Array<keyof typeof backend> = [
+    'backendWorkflowExecuted',
+    'backendEndpointCalled',
+    'useCaseExecuted',
+    'invoiceProcessCreated',
+    'invoiceRecordCreated',
+    'invoiceEventCreated',
+    'dbWriteExecuted',
+  ];
+
+  for (const field of mustBeFalse) {
+    if (backend[field] !== false) {
+      throw new DryRunReportAssertionError(
+        'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+        `backendDryRun.${field} must be false`,
+      );
+    }
+  }
+
+  if (!backend.validationSimulated || !backend.mappedFromFixture) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendDryRun must indicate validationSimulated and mappedFromFixture',
+    );
+  }
+
+  if (backend.notes.length === 0) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendDryRun.notes must document that no real workflow ran',
+    );
+  }
+}
+
 function assertCommonSafetyFields(report: LiveTestReport): void {
   if (report.ksefStatus !== 'MANUAL_REQUIRED') {
     throw new DryRunReportAssertionError(
@@ -377,6 +457,7 @@ export function assertDryRunReport(
   assertTimestamps(report);
   assertCommonSafetyFields(report);
   assertDryRunScenarioRequirements(report, scenarioId);
+  assertBackendDryRunSection(report, scenarioId);
   assertIntegrationStatuses(report);
   assertScenarioStepStatuses(report);
 }

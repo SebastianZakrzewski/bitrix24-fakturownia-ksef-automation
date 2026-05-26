@@ -30,6 +30,8 @@ describe('executeDryRunScenario', () => {
 
       expect(global.fetch).not.toHaveBeenCalled();
       expect(result.externalSideEffectsExecuted).toBe(false);
+      expect(result.backendDryRun?.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
+      expect(result.backendDryRun?.useCaseExecuted).toBe(false);
       expect(scenarioResult.externalSideEffectsExecuted).toBe(false);
       expect(result.status).toBe('DRY_RUN_COMPLETED');
       expect(result.executionMode).toBe('DRY_RUN');
@@ -56,7 +58,7 @@ describe('executeDryRunScenario', () => {
         }),
         expect.objectContaining({
           name: DRY_RUN_STEP_NAMES.SIMULATE_BACKEND_WORKFLOW,
-          status: 'SKIPPED_NOT_EXECUTED',
+          status: 'BACKEND_DRY_RUN_SIMULATED',
         }),
         expect.objectContaining({
           name: DRY_RUN_STEP_NAMES.SIMULATE_FAKTUROWNIA_ORDER_INVOICE,

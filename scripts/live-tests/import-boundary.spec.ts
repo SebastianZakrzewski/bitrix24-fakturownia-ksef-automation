@@ -18,6 +18,8 @@ const FORBIDDEN_IMPORT_PATTERNS: RegExp[] = [
   /\bfrom\s+['"][^'"]*controllers\//i,
   /integrations\/bitrix24/i,
   /integrations\/fakturownia/i,
+  /\bsupabase\b/i,
+  /\bprisma\b/i,
 ];
 
 function listSourceFiles(directory: string): string[] {

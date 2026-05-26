@@ -35,6 +35,8 @@ describe('scenario selection from CLI/npm script only', () => {
       invoiceType: 'FINAL' as const,
       idempotencyKey: '[TEST]-FULL-001:FINAL',
       bitrixDealId: '[TEST]-CRM-99999',
+      previousAdvanceInvoiceId: 'fakturownia-advance-sim-mismatch',
+      priorAdvanceProcessReference: 'process-sim-mismatch',
     };
 
     const advanceScenario = resolveScenarioFromCliArg('advance');

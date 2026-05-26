@@ -42,6 +42,8 @@ export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
     .map((step) => `- ${step}`)
     .join('\n');
 
+  const backendNotes = report.backendDryRun.notes.map((note) => `- ${note}`).join('\n');
+
   return [
     '# Live Test Report',
     '',
@@ -61,6 +63,22 @@ export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
     `- External side effects executed: **${report.externalSideEffectsExecuted}**`,
     `- KSeF status: **${report.ksefStatus}**`,
     `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
+    '',
+    '## Backend dry-run',
+    '',
+    `- Backend mode: **${report.backendDryRun.backendMode}**`,
+    `- Result status: **${report.backendDryRun.resultStatus}**`,
+    `- Real backend workflow ran: **${report.backendDryRun.backendWorkflowExecuted}**`,
+    `- Backend endpoint called: **${report.backendDryRun.backendEndpointCalled}**`,
+    `- Use case executed: **${report.backendDryRun.useCaseExecuted}**`,
+    `- InvoiceProcess created: **${report.backendDryRun.invoiceProcessCreated}**`,
+    `- InvoiceRecord created: **${report.backendDryRun.invoiceRecordCreated}**`,
+    `- InvoiceEvent created: **${report.backendDryRun.invoiceEventCreated}**`,
+    `- DB write executed: **${report.backendDryRun.dbWriteExecuted}**`,
+    `- Validation simulated: **${report.backendDryRun.validationSimulated}**`,
+    `- Mapped from fixture: **${report.backendDryRun.mappedFromFixture}**`,
+    '',
+    backendNotes,
     '',
     '## Fixture summary',
     '',

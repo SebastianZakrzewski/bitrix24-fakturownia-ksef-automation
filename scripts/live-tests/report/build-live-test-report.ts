@@ -1,3 +1,4 @@
+import type { BackendDryRunResult } from '../adapters/backend-dry-run.types';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
 import type {
@@ -15,6 +16,29 @@ export interface BuildLiveTestReportInput {
   startedAt: Date;
   finishedAt: Date;
   reportWritten?: boolean;
+}
+
+function toReportBackendDryRun(
+  result: BackendDryRunResult,
+): LiveTestReport['backendDryRun'] {
+  return {
+    backendMode: result.backendMode,
+    backendWorkflowExecuted: result.backendWorkflowExecuted,
+    backendEndpointCalled: result.backendEndpointCalled,
+    useCaseExecuted: result.useCaseExecuted,
+    invoiceProcessCreated: result.invoiceProcessCreated,
+    invoiceRecordCreated: result.invoiceRecordCreated,
+    invoiceEventCreated: result.invoiceEventCreated,
+    dbWriteExecuted: result.dbWriteExecuted,
+    validationSimulated: result.validationSimulated,
+    mappedFromFixture: result.mappedFromFixture,
+    resultStatus: result.resultStatus,
+    scenarioType: result.scenarioType,
+    expectedInvoiceType: result.expectedInvoiceType,
+    testContextId: result.testContextId,
+    bitrixDealId: result.bitrixDealId,
+    notes: result.notes,
+  };
 }
 
 function appendWriteReportStep(
@@ -42,7 +66,7 @@ function resolveIntegrationStatuses(
       ksef: 'MANUAL_REQUIRED',
       bitrixSync: 'NOT_TESTED_YET',
       bitrixDealSetup: skipped,
-      backendWorkflow: skipped,
+      backendWorkflow: 'BACKEND_DRY_RUN_SIMULATED',
       fakturowniaOrder: skipped,
       fakturowniaInvoice: skipped,
       database: skipped,
@@ -92,6 +116,26 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    backendDryRun: scenarioResult.backendDryRun
+      ? toReportBackendDryRun(scenarioResult.backendDryRun)
+      : {
+      backendMode: 'DRY_RUN',
+      backendWorkflowExecuted: false,
+      backendEndpointCalled: false,
+      useCaseExecuted: false,
+      invoiceProcessCreated: false,
+      invoiceRecordCreated: false,
+      invoiceEventCreated: false,
+      dbWriteExecuted: false,
+      validationSimulated: true,
+      mappedFromFixture: true,
+      resultStatus: 'BACKEND_DRY_RUN_SIMULATED',
+      scenarioType: scenario.invoiceType,
+      expectedInvoiceType: scenario.invoiceType,
+      testContextId: 'missing',
+      bitrixDealId: 'missing',
+      notes: ['Backend dry-run result missing from scenario output.'],
+    },
     fixture: scenarioResult.context
       ? buildFixtureReportSummary(scenarioResult.context)
       : {
