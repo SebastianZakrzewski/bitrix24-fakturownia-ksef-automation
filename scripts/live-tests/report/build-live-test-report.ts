@@ -7,6 +7,8 @@ import {
 } from '../smoke-readiness/backend-smoke-readiness-config';
 import { checkBackendSmokeReadiness } from '../smoke-readiness/check-backend-smoke-readiness';
 import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-trigger-preflight';
+import { manualVerificationRequiredFromSystemEffects } from '../side-effects/derive-backend-trigger-system-effects';
+import { RUNNER_DIRECT_SIDE_EFFECTS } from '../side-effects/live-test-side-effects.types';
 import { buildBlockedBackendTriggerExecution } from '../trigger-execution/build-blocked-backend-trigger-execution';
 import { toBackendTriggerExecutionReport } from '../trigger-execution/to-backend-trigger-execution-report';
 import { toBackendTriggerPreflightReport } from '../trigger-preflight/to-backend-trigger-preflight-report';
@@ -182,9 +184,9 @@ function resolveIntegrationStatuses(
   if (scenarioResult.executionMode === 'CONTROLLED_LIVE_TRIGGER_SMOKE') {
     const triggerExecution = scenarioResult.backendTriggerExecution;
     const backendWorkflowStatus: LiveTestReport['integrations']['backendWorkflow'] =
-      triggerExecution?.execution.workflowExecuted
+      triggerExecution?.systemEffects.backendWorkflowMayHaveExecuted
         ? 'PASSED'
-        : triggerExecution?.execution.requestSent
+        : triggerExecution?.systemEffects.backendWorkflowExecutionAttempted
           ? 'FAILED'
           : 'NOT_RUN';
 
@@ -247,7 +249,15 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     scenarioResult.executionMode === 'CONTROLLED_LIVE_TRIGGER_SMOKE'
       ? 'CONTROLLED_LIVE_TRIGGER_SMOKE'
       : 'DRY_RUN';
-  const manualVerificationRequired = mode === 'CONTROLLED_LIVE_TRIGGER_SMOKE';
+  const backendTriggerExecutionReport = scenarioResult.backendTriggerExecution
+    ? toBackendTriggerExecutionReport(scenarioResult.backendTriggerExecution)
+    : buildBlockedBackendTriggerExecution(scenario.invoiceType);
+  const manualVerificationRequired =
+    mode === 'CONTROLLED_LIVE_TRIGGER_SMOKE'
+      ? manualVerificationRequiredFromSystemEffects(
+          backendTriggerExecutionReport.systemEffects,
+        )
+      : false;
 
   return {
     mode,
@@ -267,11 +277,10 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     productionReadiness: 'NOT_READY',
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
-    externalSideEffectsExecuted: false,
+    runnerDirectSideEffects: RUNNER_DIRECT_SIDE_EFFECTS,
+    runnerDirectExternalSideEffectsExecuted: false,
     manualVerificationRequired,
-    backendTriggerExecution: scenarioResult.backendTriggerExecution
-      ? toBackendTriggerExecutionReport(scenarioResult.backendTriggerExecution)
-      : buildBlockedBackendTriggerExecution(scenario.invoiceType),
+    backendTriggerExecution: backendTriggerExecutionReport,
     backendAvailabilitySmoke:
       scenarioResult.backendAvailabilitySmoke ??
       buildNotConfiguredBackendAvailabilitySmoke(),

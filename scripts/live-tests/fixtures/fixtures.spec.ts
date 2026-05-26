@@ -89,7 +89,7 @@ describe('live-test fixtures', () => {
     expect(parsed.productionReadiness).toBe('NOT_READY');
     expect(parsed.ksefStatus).toBe('MANUAL_REQUIRED');
     expect(parsed.bitrixSyncStatus).toBe('NOT_TESTED_YET');
-    expect(parsed.externalSideEffectsExecuted).toBe(false);
+    expect(parsed.runnerDirectExternalSideEffectsExecuted).toBe(false);
     expect(parsed.fixture.testContextId).toBe('test-context-full-001');
     expect(parsed.fixture.scenarioType).toBe('FULL');
     expect(parsed.fixture.bitrixDealId).toBe('[TEST]-FULL-001');

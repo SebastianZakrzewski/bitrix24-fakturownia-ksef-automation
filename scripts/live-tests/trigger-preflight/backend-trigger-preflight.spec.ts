@@ -327,7 +327,7 @@ describe('backend trigger preflight in live-test reports', () => {
         report.backendTriggerPreflight.liveSmokeTarget.manualCrmPreparationConfirmed,
       ).toBe(false);
       expect(report.productionReadiness).toBe('NOT_READY');
-      expect(report.externalSideEffectsExecuted).toBe(false);
+      expect(report.runnerDirectExternalSideEffectsExecuted).toBe(false);
       expect(json).not.toContain(readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET);
       expect(markdown).not.toContain(readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET);
       expect(markdown).toContain('## Backend trigger preflight');

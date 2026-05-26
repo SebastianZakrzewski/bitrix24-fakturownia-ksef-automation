@@ -216,7 +216,7 @@ describe('report-bitrix-deal-id-placement integration', () => {
       LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
     );
     expect(report.productionReadiness).toBe('NOT_READY');
-    expect(report.externalSideEffectsExecuted).toBe(false);
+    expect(report.runnerDirectExternalSideEffectsExecuted).toBe(false);
 
     expect(() => assertDryRunReport(report, 'full')).not.toThrow();
     expect(() => assertDryRunMarkdown(markdown, 'full', report)).not.toThrow();

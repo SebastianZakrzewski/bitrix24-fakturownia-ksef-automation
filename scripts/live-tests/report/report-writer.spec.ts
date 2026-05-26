@@ -75,7 +75,7 @@ describe('writeLiveTestReport', () => {
       expect(parsed.productionReadiness).toBe('NOT_READY');
       expect(parsed.ksefStatus).toBe('MANUAL_REQUIRED');
       expect(parsed.bitrixSyncStatus).toBe('NOT_TESTED_YET');
-      expect(parsed.externalSideEffectsExecuted).toBe(false);
+      expect(parsed.runnerDirectExternalSideEffectsExecuted).toBe(false);
       expect(parsed.backendAvailabilitySmoke.resultStatus).toBe(
         'BACKEND_HEALTH_NOT_CONFIGURED',
       );
@@ -156,7 +156,13 @@ describe('writeLiveTestReport', () => {
       expect(markdownContent).toContain('NOT_READY');
       expect(markdownContent).toContain('MANUAL_REQUIRED');
       expect(markdownContent).toContain('NOT_TESTED_YET');
-      expect(markdownContent).toContain('External side effects executed: **false**');
+      expect(markdownContent).toContain(
+        'Runner direct external side effects executed: **false**',
+      );
+      expect(markdownContent).toContain('Backend trigger request sent: **false**');
+      expect(markdownContent).toContain(
+        'Backend side effects may have occurred: **false**',
+      );
 
       expect(jsonContent).not.toMatch(/API_TOKEN|WEBHOOK_URL|password/i);
       expect(markdownContent).not.toMatch(/API_TOKEN|WEBHOOK_URL|password/i);

@@ -129,15 +129,27 @@ describe('assertDryRunReport', () => {
     );
   });
 
-  it('fails if externalSideEffectsExecuted becomes true', async () => {
+  it('fails if runnerDirectExternalSideEffectsExecuted becomes true', async () => {
     const report = await buildScenarioReport('advance');
     const invalid = {
       ...report,
-      externalSideEffectsExecuted: true,
+      runnerDirectExternalSideEffectsExecuted: true,
     } as unknown as LiveTestReport;
 
     expect(() => assertForbiddenDryRunReportStates(invalid)).toThrow(
       DryRunReportAssertionError,
+    );
+  });
+
+  it('fails if legacy externalSideEffectsExecuted field is present', async () => {
+    const report = await buildScenarioReport('full');
+    const invalid = {
+      ...report,
+      externalSideEffectsExecuted: false,
+    } as unknown as LiveTestReport;
+
+    expect(() => assertForbiddenDryRunReportStates(invalid)).toThrow(
+      /unscoped externalSideEffectsExecuted/,
     );
   });
 

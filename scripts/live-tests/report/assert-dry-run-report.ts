@@ -63,13 +63,19 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   'NOT_READY',
   'MANUAL_REQUIRED',
   'NOT_TESTED_YET',
-  'External side effects executed: **false**',
+  'Runner direct external side effects executed: **false**',
+  'Runner direct Bitrix call: **false**',
+  'Runner direct Fakturownia call: **false**',
+  'Runner direct DB write: **false**',
+  'Backend trigger request sent: **false**',
+  'Backend workflow execution attempted: **false**',
+  'Backend side effects may have occurred: **false**',
   '## Backend dry-run contract',
   'Contract validation: **PASSED**',
   'Backend endpoint allowed: **false**',
   '## Backend availability smoke',
   'BACKEND_AVAILABILITY',
-  'External side effects executed: **false**',
+  'Runner direct external side effects executed: **false**',
   'Workflow executed: **false**',
   '## Backend smoke-readiness',
   'BACKEND_SMOKE_READINESS',
@@ -92,6 +98,7 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
 
 const FORBIDDEN_MARKDOWN_SNIPPETS = [
   '- Status: **READY**',
+  'Runner direct external side effects executed: **true**',
   'External side effects executed: **true**',
   'invoice was created',
   'order was created',
@@ -132,10 +139,27 @@ export function assertForbiddenDryRunReportStates(report: LiveTestReport): void 
     );
   }
 
-  if (report.externalSideEffectsExecuted !== false) {
+  if (report.runnerDirectExternalSideEffectsExecuted !== false) {
     throw new DryRunReportAssertionError(
       'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
-      'externalSideEffectsExecuted must be false in dry-run',
+      'runnerDirectExternalSideEffectsExecuted must be false in dry-run',
+    );
+  }
+
+  const legacyReport = report as LiveTestReport & {
+    externalSideEffectsExecuted?: boolean;
+  };
+  if ('externalSideEffectsExecuted' in legacyReport) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'Report must not use unscoped externalSideEffectsExecuted field',
+    );
+  }
+
+  if (report.runnerDirectSideEffects.runnerDirectExternalSideEffectsExecuted !== false) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'runnerDirectSideEffects.runnerDirectExternalSideEffectsExecuted must be false',
     );
   }
 
@@ -150,6 +174,20 @@ export function assertForbiddenDryRunReportStates(report: LiveTestReport): void 
     throw new DryRunReportAssertionError(
       'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
       'backendTriggerExecution must be blocked in dry-run',
+    );
+  }
+
+  if (report.backendTriggerExecution.systemEffects.backendTriggerRequestSent) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerRequestSent must be false in dry-run',
+    );
+  }
+
+  if (report.backendTriggerExecution.systemEffects.backendSideEffectsMayHaveOccurred) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendSideEffectsMayHaveOccurred must be false in dry-run',
     );
   }
 
@@ -494,7 +532,7 @@ function assertBackendAvailabilitySmokeSection(report: LiveTestReport): void {
   }
 
   const safetyFlags = [
-    availability.externalSideEffectsExecuted,
+    availability.runnerDirectExternalSideEffectsExecuted,
     availability.workflowExecuted,
     availability.invoiceProcessCreated,
     availability.invoiceRecordCreated,

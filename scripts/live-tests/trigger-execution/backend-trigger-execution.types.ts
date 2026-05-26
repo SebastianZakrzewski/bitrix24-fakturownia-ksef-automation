@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { bitrixTriggerSourceSchema } from '../contracts/backend-dry-run-contract.types';
+import {
+  backendTriggerSystemEffectsSchema,
+  runnerDirectSideEffectsSchema,
+} from '../side-effects/live-test-side-effects.types';
 import { invoiceTypeSchema } from '../types/live-test-report.types';
 
 export const BACKEND_TRIGGER_EXECUTION_METHOD = 'POST' as const;
@@ -72,17 +76,8 @@ export const backendTriggerExecutionResultSchema = z.object({
       message: z.string().optional(),
     })
     .optional(),
-  execution: z.object({
-    requestSent: z.boolean(),
-    endpointCalled: z.boolean(),
-    workflowExecuted: z.boolean(),
-    invoiceProcessCreated: z.literal(false),
-    invoiceRecordCreated: z.literal(false),
-    dbWriteExecuted: z.literal(false),
-    bitrixCalled: z.literal(false),
-    fakturowniaCalled: z.literal(false),
-    ksefTested: z.literal(false),
-  }),
+  runnerDirect: runnerDirectSideEffectsSchema,
+  systemEffects: backendTriggerSystemEffectsSchema,
   resultStatus: backendTriggerExecutionResultStatusSchema,
   warnings: z.array(z.string()),
   errors: z.array(z.string()),

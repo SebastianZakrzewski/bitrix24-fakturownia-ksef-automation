@@ -17,7 +17,7 @@ export interface RunBackendAvailabilitySmokeOptions {
 
 function buildSafetyFlags(): Pick<
   BackendAvailabilitySmokeResult,
-  | 'externalSideEffectsExecuted'
+  | 'runnerDirectExternalSideEffectsExecuted'
   | 'workflowExecuted'
   | 'invoiceProcessCreated'
   | 'invoiceRecordCreated'
@@ -27,7 +27,7 @@ function buildSafetyFlags(): Pick<
   | 'ksefTested'
 > {
   return {
-    externalSideEffectsExecuted: false,
+    runnerDirectExternalSideEffectsExecuted: false,
     workflowExecuted: false,
     invoiceProcessCreated: false,
     invoiceRecordCreated: false,

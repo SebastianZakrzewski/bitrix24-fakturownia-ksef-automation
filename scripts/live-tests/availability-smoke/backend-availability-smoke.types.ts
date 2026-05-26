@@ -45,7 +45,7 @@ export const backendAvailabilitySmokeResultSchema = z.object({
     })
     .optional(),
   resultStatus: backendAvailabilityResultStatusSchema,
-  externalSideEffectsExecuted: z.literal(false),
+  runnerDirectExternalSideEffectsExecuted: z.literal(false),
   workflowExecuted: z.literal(false),
   invoiceProcessCreated: z.literal(false),
   invoiceRecordCreated: z.literal(false),

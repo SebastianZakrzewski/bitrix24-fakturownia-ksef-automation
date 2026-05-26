@@ -1,6 +1,10 @@
 import { z } from 'zod';
+import {
+  backendTriggerSystemEffectsSchema,
+  runnerDirectSideEffectsSchema,
+} from '../side-effects/live-test-side-effects.types';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.9.0-backend-trigger-execution-smoke';
+export const LIVE_TEST_RUNNER_VERSION = '1.10.0-side-effects-semantics';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -96,7 +100,8 @@ export const liveTestReportSchema = z.object({
   productionReadiness: productionReadinessSchema,
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
-  externalSideEffectsExecuted: z.literal(false),
+  runnerDirectSideEffects: runnerDirectSideEffectsSchema,
+  runnerDirectExternalSideEffectsExecuted: z.literal(false),
   manualVerificationRequired: z.boolean(),
   backendTriggerExecution: z.object({
     mode: z.literal('CONTROLLED_LIVE_TRIGGER_EXECUTION'),
@@ -134,17 +139,8 @@ export const liveTestReportSchema = z.object({
         message: z.string().optional(),
       })
       .optional(),
-    execution: z.object({
-      requestSent: z.boolean(),
-      endpointCalled: z.boolean(),
-      workflowExecuted: z.boolean(),
-      invoiceProcessCreated: z.literal(false),
-      invoiceRecordCreated: z.literal(false),
-      dbWriteExecuted: z.literal(false),
-      bitrixCalled: z.literal(false),
-      fakturowniaCalled: z.literal(false),
-      ksefTested: z.literal(false),
-    }),
+    runnerDirect: runnerDirectSideEffectsSchema,
+    systemEffects: backendTriggerSystemEffectsSchema,
     resultStatus: z.enum([
       'BACKEND_TRIGGER_EXECUTION_BLOCKED',
       'BACKEND_TRIGGER_EXECUTION_SENT',
@@ -178,7 +174,7 @@ export const liveTestReportSchema = z.object({
       'BACKEND_HEALTH_NOT_CONFIGURED',
       'BACKEND_HEALTH_TIMEOUT',
     ]),
-    externalSideEffectsExecuted: z.literal(false),
+    runnerDirectExternalSideEffectsExecuted: z.literal(false),
     workflowExecuted: z.literal(false),
     invoiceProcessCreated: z.literal(false),
     invoiceRecordCreated: z.literal(false),

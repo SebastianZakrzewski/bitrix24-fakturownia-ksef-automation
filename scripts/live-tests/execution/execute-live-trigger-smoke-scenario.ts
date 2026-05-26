@@ -68,11 +68,11 @@ export async function executeLiveTriggerSmokeScenario(
   });
 
   const triggerStepStatus: LiveTestScenarioStep['status'] =
-    backendTriggerExecution.resultStatus === 'BACKEND_TRIGGER_EXECUTION_SENT'
+    backendTriggerExecution.systemEffects.backendWorkflowMayHaveExecuted
       ? 'PASSED'
-      : backendTriggerExecution.resultStatus === 'BACKEND_TRIGGER_EXECUTION_BLOCKED'
-        ? 'SKIPPED_NOT_EXECUTED'
-        : 'FAILED';
+      : backendTriggerExecution.systemEffects.backendWorkflowExecutionAttempted
+        ? 'FAILED'
+        : 'SKIPPED_NOT_EXECUTED';
 
   const steps: LiveTestScenarioStep[] = [
     step(
@@ -98,11 +98,9 @@ export async function executeLiveTriggerSmokeScenario(
     step(
       DRY_RUN_STEP_NAMES.EXECUTE_BACKEND_TRIGGER,
       triggerStepStatus,
-      backendTriggerExecution.resultStatus === 'BACKEND_TRIGGER_EXECUTION_SENT'
-        ? 'Exactly one POST was sent to /invoice-processes/bitrix-trigger.'
-        : backendTriggerExecution.resultStatus === 'BACKEND_TRIGGER_EXECUTION_BLOCKED'
-          ? 'Trigger POST blocked by execution gate; no request sent.'
-          : `Trigger POST failed (${backendTriggerExecution.resultStatus}).`,
+      backendTriggerExecution.systemEffects.backendTriggerRequestSent
+        ? 'Backend trigger POST was sent; backend workflow/side effects may have occurred.'
+        : 'Trigger POST blocked by execution gate; no request sent.',
     ),
     step(
       DRY_RUN_STEP_NAMES.SIMULATE_FAKTUROWNIA_ORDER_INVOICE,
@@ -133,7 +131,7 @@ export async function executeLiveTriggerSmokeScenario(
     backendTriggerExecution,
     steps,
     message:
-      backendTriggerExecution.resultStatus === 'BACKEND_TRIGGER_EXECUTION_SENT'
+      backendTriggerExecution.systemEffects.backendTriggerRequestSent
         ? `Controlled trigger smoke completed for ${context.scenarioId}; manual backend verification required.`
         : `Controlled trigger smoke completed for ${context.scenarioId}; trigger POST was not sent.`,
   };

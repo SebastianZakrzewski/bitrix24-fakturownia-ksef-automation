@@ -53,7 +53,7 @@ describe('runBackendAvailabilitySmoke', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result.resultStatus).toBe('BACKEND_HEALTH_NOT_CONFIGURED');
     expect(result.target.endpointCalled).toBe(false);
-    expect(result.externalSideEffectsExecuted).toBe(false);
+    expect(result.runnerDirectExternalSideEffectsExecuted).toBe(false);
     expect(result.workflowExecuted).toBe(false);
   });
 
@@ -138,7 +138,7 @@ describe('runBackendAvailabilitySmoke', () => {
       fetchImpl: createFetchMock(async () => new Response('ok', { status: 200 })),
     });
 
-    expect(result.externalSideEffectsExecuted).toBe(false);
+    expect(result.runnerDirectExternalSideEffectsExecuted).toBe(false);
     expect(result.workflowExecuted).toBe(false);
     expect(result.dbWriteExecuted).toBe(false);
     expect(result.bitrixCalled).toBe(false);

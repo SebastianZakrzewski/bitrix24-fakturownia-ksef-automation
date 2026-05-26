@@ -4,6 +4,8 @@ import { buildBitrixTriggerPreflightPayload } from '../trigger-preflight/build-b
 import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
 import { resolveLiveSmokeTarget } from '../live-smoke-target/resolve-live-smoke-target';
 import { parseLiveSmokeTargetConfig } from '../live-smoke-target/parse-live-smoke-target-config';
+import { deriveBackendTriggerSystemEffects } from '../side-effects/derive-backend-trigger-system-effects';
+import { RUNNER_DIRECT_SIDE_EFFECTS } from '../side-effects/live-test-side-effects.types';
 import {
   parseBackendTriggerExecutionConfig,
   type BackendTriggerExecutionConfig,
@@ -33,6 +35,12 @@ function buildBlockedExecution(
   payload: BitrixTriggerExecutionPayload,
   config: BackendTriggerExecutionConfig,
 ): BackendTriggerExecutionResult {
+  const systemEffects = deriveBackendTriggerSystemEffects({
+    requestSent: false,
+    endpointCalled: false,
+    workflowAccepted: false,
+  });
+
   return backendTriggerExecutionResultSchema.parse({
     mode: 'CONTROLLED_LIVE_TRIGGER_EXECUTION',
     executionKind: 'BACKEND_TRIGGER_EXECUTION',
@@ -55,17 +63,8 @@ function buildBlockedExecution(
       payload,
       timeoutMs: config.timeoutMs,
     },
-    execution: {
-      requestSent: false,
-      endpointCalled: false,
-      workflowExecuted: false,
-      invoiceProcessCreated: false,
-      invoiceRecordCreated: false,
-      dbWriteExecuted: false,
-      bitrixCalled: false,
-      fakturowniaCalled: false,
-      ksefTested: false,
-    },
+    runnerDirect: RUNNER_DIRECT_SIDE_EFFECTS,
+    systemEffects,
     resultStatus: 'BACKEND_TRIGGER_EXECUTION_BLOCKED',
     warnings: [
       ...gate.warnings,
@@ -148,7 +147,12 @@ export async function runBackendTriggerExecutionSmoke(
       fetchImpl: input.fetchImpl,
     });
     const parsedBody = parseTriggerResponseBody(response.bodyText);
-    const workflowExecuted = response.statusCode === 202 && response.ok;
+    const workflowAccepted = response.statusCode === 202 && response.ok;
+    const systemEffects = deriveBackendTriggerSystemEffects({
+      requestSent: true,
+      endpointCalled: true,
+      workflowAccepted,
+    });
 
     return backendTriggerExecutionResultSchema.parse({
       mode: 'CONTROLLED_LIVE_TRIGGER_EXECUTION',
@@ -179,31 +183,29 @@ export async function runBackendTriggerExecutionSmoke(
         triggerStatus: parsedBody.triggerStatus,
         message: parsedBody.message,
       },
-      execution: {
-        requestSent: true,
-        endpointCalled: true,
-        workflowExecuted,
-        invoiceProcessCreated: false,
-        invoiceRecordCreated: false,
-        dbWriteExecuted: false,
-        bitrixCalled: false,
-        fakturowniaCalled: false,
-        ksefTested: false,
-      },
-      resultStatus: workflowExecuted
+      runnerDirect: RUNNER_DIRECT_SIDE_EFFECTS,
+      systemEffects,
+      resultStatus: workflowAccepted
         ? 'BACKEND_TRIGGER_EXECUTION_SENT'
         : 'BACKEND_TRIGGER_EXECUTION_FAILED',
       warnings: [
         ...gate.warnings,
-        'Backend may have started invoice processing; manual verification is required.',
+        systemEffects.backendSideEffectsMayHaveOccurred
+          ? 'Backend workflow and backend side effects may have occurred; manual verification is required.'
+          : 'Backend trigger POST was sent; manual verification may be required.',
       ],
-      errors: workflowExecuted
+      errors: workflowAccepted
         ? []
         : [`Unexpected HTTP status ${response.statusCode}`],
     });
   } catch (error: unknown) {
     const isTimeout = error instanceof BackendTriggerFetchTimeoutError;
     const message = error instanceof Error ? error.message : String(error);
+    const systemEffects = deriveBackendTriggerSystemEffects({
+      requestSent: true,
+      endpointCalled: false,
+      workflowAccepted: false,
+    });
 
     return backendTriggerExecutionResultSchema.parse({
       mode: 'CONTROLLED_LIVE_TRIGGER_EXECUTION',
@@ -227,21 +229,15 @@ export async function runBackendTriggerExecutionSmoke(
         payload,
         timeoutMs: config.timeoutMs,
       },
-      execution: {
-        requestSent: true,
-        endpointCalled: false,
-        workflowExecuted: false,
-        invoiceProcessCreated: false,
-        invoiceRecordCreated: false,
-        dbWriteExecuted: false,
-        bitrixCalled: false,
-        fakturowniaCalled: false,
-        ksefTested: false,
-      },
+      runnerDirect: RUNNER_DIRECT_SIDE_EFFECTS,
+      systemEffects,
       resultStatus: isTimeout
         ? 'BACKEND_TRIGGER_EXECUTION_TIMEOUT'
         : 'BACKEND_TRIGGER_EXECUTION_FAILED',
-      warnings: gate.warnings,
+      warnings: [
+        ...gate.warnings,
+        'Backend trigger POST was sent but response outcome is uncertain; manual verification is required.',
+      ],
       errors: [message],
     });
   }

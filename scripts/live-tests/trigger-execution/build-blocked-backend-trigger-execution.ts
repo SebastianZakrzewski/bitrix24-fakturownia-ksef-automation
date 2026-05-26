@@ -1,3 +1,7 @@
+import { deriveBackendTriggerSystemEffects } from '../side-effects/derive-backend-trigger-system-effects';
+import {
+  RUNNER_DIRECT_SIDE_EFFECTS,
+} from '../side-effects/live-test-side-effects.types';
 import type { LiveTestInvoiceType, LiveTestReport } from '../types/live-test-report.types';
 
 export function buildBlockedBackendTriggerExecution(
@@ -31,17 +35,12 @@ export function buildBlockedBackendTriggerExecution(
       },
       timeoutMs: 30_000,
     },
-    execution: {
+    runnerDirect: RUNNER_DIRECT_SIDE_EFFECTS,
+    systemEffects: deriveBackendTriggerSystemEffects({
       requestSent: false,
       endpointCalled: false,
-      workflowExecuted: false,
-      invoiceProcessCreated: false,
-      invoiceRecordCreated: false,
-      dbWriteExecuted: false,
-      bitrixCalled: false,
-      fakturowniaCalled: false,
-      ksefTested: false,
-    },
+      workflowAccepted: false,
+    }),
     resultStatus: 'BACKEND_TRIGGER_EXECUTION_BLOCKED',
     warnings: [],
     errors: [],
