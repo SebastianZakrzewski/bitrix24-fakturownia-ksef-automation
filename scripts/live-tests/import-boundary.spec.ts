@@ -78,8 +78,14 @@ describe('scripts/live-tests import boundary', () => {
       join(LIVE_TESTS_ROOT, 'run-live-test.ts'),
       'utf8',
     );
+    const envLoaderSource = readFileSync(
+      join(LIVE_TESTS_ROOT, 'load-env.ts'),
+      'utf8',
+    );
 
     expect(runnerSource).toContain("import './load-env'");
     expect(runnerSource).not.toContain('../../src/load-env');
+    expect(envLoaderSource).toContain('override: false');
+    expect(envLoaderSource).not.toMatch(/override:\s*true/);
   });
 });

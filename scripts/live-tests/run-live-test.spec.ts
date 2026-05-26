@@ -1,29 +1,21 @@
-import { spawnSync } from 'child_process';
-import { join } from 'path';
+import { resolveScenarioFromCliArg } from './scenarios/resolve-scenario-from-cli';
 
-describe('run-live-test CLI', () => {
-  const runnerPath = join(process.cwd(), 'scripts/live-tests/run-live-test.ts');
-
-  it('exits with error for unknown scenario argument', () => {
-    const result = spawnSync(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['ts-node', runnerPath, 'not-a-real-scenario'],
-      {
-        cwd: process.cwd(),
-        env: {
-          ...process.env,
-          LIVE_TEST_MODE: 'true',
-          TEST_DEAL_PREFIX: '[TEST]',
-        },
-        encoding: 'utf8',
-        shell: true,
-      },
+/**
+ * Uses the same scenario resolution path as run-live-test.ts CLI entry.
+ * Avoids subprocess spawning so tests pass on Windows paths with spaces.
+ */
+describe('run-live-test scenario rejection', () => {
+  it('rejects unknown scenario argument explicitly', () => {
+    expect(() => resolveScenarioFromCliArg('not-a-real-scenario')).toThrow(
+      'Unknown live-test scenario "not-a-real-scenario". Available: full, advance, final',
     );
+  });
 
-    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-
-    expect(result.status).not.toBe(0);
-    expect(output).toMatch(/Unknown live-test scenario/);
-    expect(output).not.toMatch(/DRY_RUN_COMPLETED/);
+  it('does not default unknown scenario to FULL, ADVANCE, or FINAL', () => {
+    for (const invalidId of ['', 'fullx', 'ADVANCE', 'FINAL ', 'all']) {
+      expect(() => resolveScenarioFromCliArg(invalidId)).toThrow(
+        /Unknown live-test scenario/,
+      );
+    }
   });
 });
