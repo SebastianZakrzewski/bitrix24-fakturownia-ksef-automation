@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.6.0-backend-availability-smoke';
+export const LIVE_TEST_RUNNER_VERSION = '1.7.0-backend-trigger-preflight';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -164,6 +164,49 @@ export const liveTestReportSchema = z.object({
     readinessStatus: z.enum([
       'READY_FOR_CONTROLLED_BACKEND_SMOKE',
       'NOT_READY_FOR_BACKEND_SMOKE',
+    ]),
+    blockers: z.array(z.string()),
+    warnings: z.array(z.string()),
+  }),
+  backendTriggerPreflight: z.object({
+    mode: z.literal('CONTROLLED_BACKEND_PREFLIGHT'),
+    preflightKind: z.literal('BACKEND_TRIGGER_PREFLIGHT'),
+    scenarioType: invoiceTypeSchema,
+    target: z.object({
+      method: z.literal('POST'),
+      path: z.literal('/invoice-processes/bitrix-trigger'),
+      baseUrlConfigured: z.boolean(),
+      authHeaderNameConfigured: z.boolean(),
+      authSecretConfigured: z.boolean(),
+      secretDisplayed: z.literal(false),
+    }),
+    request: z.object({
+      payloadShapeValid: z.boolean(),
+      bitrix_deal_id: z.string(),
+      trigger_source: z.literal('BITRIX24_STAGE_CHANGE'),
+      trigger_stage_id: z.string(),
+      triggered_at: z.string(),
+    }),
+    executionPolicy: z.object({
+      triggerExecutionAllowed: z.literal(false),
+      backendEndpointAllowed: z.literal(false),
+      useCaseExecutionAllowed: z.literal(false),
+      dbWriteAllowed: z.literal(false),
+      externalSideEffectsAllowed: z.literal(false),
+    }),
+    execution: z.object({
+      requestSent: z.literal(false),
+      endpointCalled: z.literal(false),
+      workflowExecuted: z.literal(false),
+      dbWriteExecuted: z.literal(false),
+      bitrixCalled: z.literal(false),
+      fakturowniaCalled: z.literal(false),
+      ksefTested: z.literal(false),
+    }),
+    preflightStatus: z.enum([
+      'BACKEND_TRIGGER_PREFLIGHT_PASSED',
+      'BACKEND_TRIGGER_PREFLIGHT_FAILED',
+      'BACKEND_TRIGGER_PREFLIGHT_NOT_READY',
     ]),
     blockers: z.array(z.string()),
     warnings: z.array(z.string()),

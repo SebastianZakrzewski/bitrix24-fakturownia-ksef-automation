@@ -6,6 +6,12 @@ import {
 import type { BackendHealthFetchImpl } from '../availability-smoke/fetch-backend-health';
 import { runBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
 import type { BackendAvailabilitySmokeResult } from '../availability-smoke/backend-availability-smoke.types';
+import {
+  parseBackendSmokeReadinessConfig,
+  type BackendSmokeReadinessConfig,
+} from '../smoke-readiness/backend-smoke-readiness-config';
+import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-trigger-preflight';
+import type { BackendTriggerPreflightResult } from '../trigger-preflight/backend-trigger-preflight.types';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import type {
   LiveTestScenarioResult,
@@ -16,6 +22,7 @@ import { DRY_RUN_STEP_NAMES } from './dry-run-steps';
 export interface ExecuteDryRunScenarioInput {
   context: LiveTestScenarioContext;
   availabilityConfig?: BackendAvailabilitySmokeConfig;
+  triggerPreflightConfig?: BackendSmokeReadinessConfig;
   fetchImpl?: BackendHealthFetchImpl;
 }
 
@@ -30,13 +37,17 @@ function step(
 export async function executeDryRunScenario(
   input: ExecuteDryRunScenarioInput,
 ): Promise<LiveTestScenarioResult> {
-  const { context, availabilityConfig, fetchImpl } = input;
+  const { context, availabilityConfig, triggerPreflightConfig, fetchImpl } = input;
   const { result: backendDryRun, contract: backendContract } =
     simulateBackendDryRunWorkflow(context);
   const resolvedAvailabilityConfig =
     availabilityConfig ?? parseBackendAvailabilitySmokeConfig(process.env);
   const backendAvailabilitySmoke: BackendAvailabilitySmokeResult =
     await runBackendAvailabilitySmoke(resolvedAvailabilityConfig, { fetchImpl });
+  const resolvedTriggerPreflightConfig =
+    triggerPreflightConfig ?? parseBackendSmokeReadinessConfig(process.env);
+  const backendTriggerPreflight: BackendTriggerPreflightResult =
+    runBackendTriggerPreflight(backendContract, resolvedTriggerPreflightConfig);
 
   const steps: LiveTestScenarioStep[] = [
     step(
@@ -84,6 +95,7 @@ export async function executeDryRunScenario(
     backendDryRun,
     backendContract,
     backendAvailabilitySmoke,
+    backendTriggerPreflight,
     steps,
     message: `Dry-run completed for ${context.scenarioId} (${context.invoiceType}). Backend workflow was simulated only; no external systems were called.`,
   };

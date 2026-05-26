@@ -69,6 +69,10 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   'BACKEND_SMOKE_READINESS',
   'Endpoint called: **false**',
   'Auth secret displayed: **false**',
+  '## Backend trigger preflight',
+  'BACKEND_TRIGGER_PREFLIGHT',
+  'Trigger execution allowed: **false**',
+  'Request sent: **false**',
   '## Backend dry-run',
   'BACKEND_DRY_RUN_SIMULATED',
   'Real backend workflow ran: **false**',
@@ -591,6 +595,125 @@ function configLooksLikeSecretLeak(serializedReport: string): boolean {
   return serializedReport.includes(secret);
 }
 
+function assertBackendTriggerPreflightSection(
+  report: LiveTestReport,
+  scenarioId: ExpectedDryRunScenarioId,
+): void {
+  const expected = EXPECTED_DRY_RUN_REPORT_REQUIREMENTS[scenarioId];
+  const preflight = report.backendTriggerPreflight;
+
+  if (preflight.mode !== 'CONTROLLED_BACKEND_PREFLIGHT') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.mode must be CONTROLLED_BACKEND_PREFLIGHT',
+    );
+  }
+
+  if (preflight.preflightKind !== 'BACKEND_TRIGGER_PREFLIGHT') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.preflightKind must be BACKEND_TRIGGER_PREFLIGHT',
+    );
+  }
+
+  if (preflight.target.method !== 'POST') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.target.method must be POST',
+    );
+  }
+
+  if (preflight.target.path !== '/invoice-processes/bitrix-trigger') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.target.path must be /invoice-processes/bitrix-trigger',
+    );
+  }
+
+  if (preflight.scenarioType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendTriggerPreflight.scenarioType must match scenario',
+    );
+  }
+
+  if (!hasTestDealPrefix(preflight.request.bitrix_deal_id)) {
+    throw new DryRunReportAssertionError(
+      'MISSING_TEST_DEAL_PREFIX',
+      'backendTriggerPreflight.request.bitrix_deal_id must start with [TEST]',
+    );
+  }
+
+  if (preflight.request.trigger_source !== 'BITRIX24_STAGE_CHANGE') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.request.trigger_source must be BITRIX24_STAGE_CHANGE',
+    );
+  }
+
+  if (!preflight.request.trigger_stage_id.trim()) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.request.trigger_stage_id is required',
+    );
+  }
+
+  if (!isIso8601Timestamp(preflight.request.triggered_at)) {
+    throw new DryRunReportAssertionError(
+      'INVALID_TIMESTAMP',
+      'backendTriggerPreflight.request.triggered_at must be ISO-8601',
+    );
+  }
+
+  const policy = preflight.executionPolicy;
+  if (
+    policy.triggerExecutionAllowed !== false ||
+    policy.backendEndpointAllowed !== false ||
+    policy.useCaseExecutionAllowed !== false ||
+    policy.dbWriteAllowed !== false ||
+    policy.externalSideEffectsAllowed !== false
+  ) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerPreflight.executionPolicy must deny all execution',
+    );
+  }
+
+  const execution = preflight.execution;
+  const executionFlags = [
+    execution.requestSent,
+    execution.endpointCalled,
+    execution.workflowExecuted,
+    execution.dbWriteExecuted,
+    execution.bitrixCalled,
+    execution.fakturowniaCalled,
+    execution.ksefTested,
+  ];
+
+  if (executionFlags.some((flag) => flag !== false)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerPreflight.execution flags must remain false',
+    );
+  }
+
+  if (preflight.target.secretDisplayed !== false) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerPreflight.target.secretDisplayed must be false',
+    );
+  }
+
+  const serialized = JSON.stringify(report);
+  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  if (secret && secret.length >= 8 && serialized.includes(secret)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'Report must not contain backend auth secret values',
+    );
+  }
+}
+
 function assertBackendDryRunSection(
   report: LiveTestReport,
   scenarioId: ExpectedDryRunScenarioId,
@@ -714,6 +837,7 @@ export function assertDryRunReport(
   assertBackendContractSection(report, scenarioId);
   assertBackendAvailabilitySmokeSection(report);
   assertBackendSmokeReadinessSection(report, scenarioId);
+  assertBackendTriggerPreflightSection(report, scenarioId);
   assertBackendDryRunSection(report, scenarioId);
   assertIntegrationStatuses(report);
   assertScenarioStepStatuses(report);

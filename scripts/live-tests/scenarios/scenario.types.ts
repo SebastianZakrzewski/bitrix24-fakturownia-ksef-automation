@@ -1,5 +1,6 @@
 import type { BackendDryRunResult } from '../adapters/backend-dry-run.types';
 import type { BackendAvailabilitySmokeResult } from '../availability-smoke/backend-availability-smoke.types';
+import type { BackendTriggerPreflightResult } from '../trigger-preflight/backend-trigger-preflight.types';
 import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import type {
@@ -26,6 +27,7 @@ export interface LiveTestScenarioResult {
   backendDryRun?: BackendDryRunResult;
   backendContract?: BackendDryRunContract;
   backendAvailabilitySmoke?: BackendAvailabilitySmokeResult;
+  backendTriggerPreflight?: BackendTriggerPreflightResult;
   steps: LiveTestScenarioStep[];
   message: string;
 }

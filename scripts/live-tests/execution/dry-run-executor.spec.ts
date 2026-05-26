@@ -42,6 +42,9 @@ describe('executeDryRunScenario', () => {
       expect(result.backendContract?.executionPolicy.backendEndpointAllowed).toBe(
         false,
       );
+      expect(result.backendTriggerPreflight?.execution.requestSent).toBe(false);
+      expect(result.backendTriggerPreflight?.execution.endpointCalled).toBe(false);
+      expect(result.backendTriggerPreflight?.target.method).toBe('POST');
       expect(scenarioResult.externalSideEffectsExecuted).toBe(false);
       expect(result.status).toBe('DRY_RUN_COMPLETED');
       expect(result.executionMode).toBe('DRY_RUN');

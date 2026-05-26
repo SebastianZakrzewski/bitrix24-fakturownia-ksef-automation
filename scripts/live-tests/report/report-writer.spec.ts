@@ -77,6 +77,15 @@ describe('writeLiveTestReport', () => {
       expect(parsed.backendSmokeReadiness.readinessStatus).toBe(
         'NOT_READY_FOR_BACKEND_SMOKE',
       );
+      expect(parsed.backendTriggerPreflight.preflightKind).toBe(
+        'BACKEND_TRIGGER_PREFLIGHT',
+      );
+      expect(parsed.backendTriggerPreflight.execution.requestSent).toBe(false);
+      expect(parsed.backendTriggerPreflight.execution.endpointCalled).toBe(false);
+      expect(parsed.backendTriggerPreflight.target.secretDisplayed).toBe(false);
+      expect(parsed.backendTriggerPreflight.preflightStatus).toBe(
+        'BACKEND_TRIGGER_PREFLIGHT_NOT_READY',
+      );
       expect(parsed.backendContract.contractValidationStatus).toBe('PASSED');
       expect(parsed.backendContract.executionPolicy.backendEndpointAllowed).toBe(
         false,

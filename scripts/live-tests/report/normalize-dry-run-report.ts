@@ -15,6 +15,7 @@ export interface NormalizedDryRunReport {
   backendAvailabilitySmoke: LiveTestReport['backendAvailabilitySmoke'];
   backendSmokeReadiness: LiveTestReport['backendSmokeReadiness'];
   backendContract: LiveTestReport['backendContract'];
+  backendTriggerPreflight: LiveTestReport['backendTriggerPreflight'];
   backendDryRun: LiveTestReport['backendDryRun'];
   fixture: LiveTestReport['fixture'];
   integrations: LiveTestReport['integrations'];
@@ -52,6 +53,7 @@ export function normalizeDryRunReport(report: LiveTestReport): NormalizedDryRunR
     backendAvailabilitySmoke: report.backendAvailabilitySmoke,
     backendSmokeReadiness: report.backendSmokeReadiness,
     backendContract: report.backendContract,
+    backendTriggerPreflight: report.backendTriggerPreflight,
     backendDryRun: report.backendDryRun,
     fixture: report.fixture,
     integrations: report.integrations,

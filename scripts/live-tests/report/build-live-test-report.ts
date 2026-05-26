@@ -6,6 +6,8 @@ import {
   type BackendSmokeReadinessConfig,
 } from '../smoke-readiness/backend-smoke-readiness-config';
 import { checkBackendSmokeReadiness } from '../smoke-readiness/check-backend-smoke-readiness';
+import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-trigger-preflight';
+import { toBackendTriggerPreflightReport } from '../trigger-preflight/to-backend-trigger-preflight-report';
 import { buildNotConfiguredBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
 import type { BackendSmokeReadinessResult } from '../smoke-readiness/backend-smoke-readiness.types';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
@@ -26,6 +28,40 @@ export interface BuildLiveTestReportInput {
   finishedAt: Date;
   reportWritten?: boolean;
   smokeReadinessConfig?: BackendSmokeReadinessConfig;
+}
+
+function buildMissingBackendTriggerPreflight(
+  scenarioType: LiveTestReport['meta']['invoiceType'],
+  config: BackendSmokeReadinessConfig,
+): LiveTestReport['backendTriggerPreflight'] {
+  return toBackendTriggerPreflightReport(
+    runBackendTriggerPreflight(
+      {
+        mode: 'DRY_RUN',
+        scenarioType,
+        expectedInvoiceType: scenarioType,
+        trigger: {
+          bitrix_deal_id: 'missing',
+          trigger_source: 'BITRIX24_STAGE_CHANGE',
+          trigger_stage_id: 'missing',
+          triggered_at: '1970-01-01T00:00:00.000Z',
+        },
+        fixtureContext: {
+          fixtureId: 'missing',
+          bitrixDealId: 'missing',
+          hasSyntheticBuyer: false,
+          hasProducts: false,
+        },
+        executionPolicy: {
+          backendEndpointAllowed: false,
+          useCaseExecutionAllowed: false,
+          dbWriteAllowed: false,
+          externalSideEffectsAllowed: false,
+        },
+      },
+      config,
+    ),
+  );
 }
 
 function buildMissingBackendSmokeReadiness(
@@ -176,6 +212,12 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     backendAvailabilitySmoke:
       scenarioResult.backendAvailabilitySmoke ??
       buildNotConfiguredBackendAvailabilitySmoke(),
+    backendTriggerPreflight: scenarioResult.backendTriggerPreflight
+      ? toBackendTriggerPreflightReport(scenarioResult.backendTriggerPreflight)
+      : buildMissingBackendTriggerPreflight(
+          scenario.invoiceType,
+          resolvedSmokeConfig,
+        ),
     backendSmokeReadiness,
     backendContract: scenarioResult.backendContract
       ? toReportBackendContract(scenarioResult.backendContract)
