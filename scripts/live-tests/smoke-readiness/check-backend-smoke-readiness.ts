@@ -34,7 +34,9 @@ export function checkBackendSmokeReadiness(
 
   const secretConfigured = Boolean(config.authSecret);
   if (!secretConfigured) {
-    blockers.push('LIVE_TEST_BACKEND_AUTH_SECRET is not configured');
+    blockers.push(
+      'LIVE_TEST_BACKEND_AUTH_SECRET or N8N_API_KEY must be configured for backend trigger auth',
+    );
   }
 
   const configuredPath = config.triggerPath ?? BACKEND_SMOKE_TRIGGER_PATH;

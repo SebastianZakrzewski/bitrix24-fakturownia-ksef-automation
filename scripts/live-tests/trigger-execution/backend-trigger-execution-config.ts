@@ -1,3 +1,4 @@
+import { resolveBackendAuthSecret } from '../resolve-backend-auth-secret';
 import { BACKEND_SMOKE_TRIGGER_PATH } from '../smoke-readiness/backend-smoke-readiness.types';
 import { BACKEND_TRIGGER_EXECUTION_PATH } from './backend-trigger-execution.types';
 
@@ -20,7 +21,7 @@ export function parseBackendTriggerExecutionConfig(
     config.LIVE_TEST_BACKEND_TRIGGER_PATH?.trim() || BACKEND_SMOKE_TRIGGER_PATH;
   const authHeaderName =
     config.LIVE_TEST_BACKEND_AUTH_HEADER_NAME?.trim() || DEFAULT_AUTH_HEADER_NAME;
-  const authSecret = config.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const authSecret = resolveBackendAuthSecret(config);
   const timeoutRaw = config.LIVE_TEST_BACKEND_REQUEST_TIMEOUT_MS?.trim();
   const timeoutMs = timeoutRaw ? Number.parseInt(timeoutRaw, 10) : DEFAULT_TIMEOUT_MS;
 

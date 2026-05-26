@@ -293,6 +293,7 @@ async function executeDryRunScenarioWithEnv() {
     context: fullInvoiceDryRunContext,
     availabilityConfig: { healthPath: '/health', timeoutMs: 5000 },
     triggerPreflightConfig: parseBackendSmokeReadinessConfig(readyConfig),
+    triggerPreflightEnv: process.env,
     fetchImpl: jest.fn(),
   });
 }

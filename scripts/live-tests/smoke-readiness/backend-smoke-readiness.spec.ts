@@ -147,7 +147,9 @@ describe('checkBackendSmokeReadiness', () => {
     });
 
     expect(readiness.readinessStatus).toBe('NOT_READY_FOR_BACKEND_SMOKE');
-    expect(readiness.blockers).toContain('LIVE_TEST_BACKEND_AUTH_SECRET is not configured');
+    expect(readiness.blockers).toContain(
+      'LIVE_TEST_BACKEND_AUTH_SECRET or N8N_API_KEY must be configured for backend trigger auth',
+    );
   });
 
   it('configured auth secret is never included in report JSON or Markdown', async () => {

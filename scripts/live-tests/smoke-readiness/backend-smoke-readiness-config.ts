@@ -1,3 +1,4 @@
+import { resolveBackendAuthSecret } from '../resolve-backend-auth-secret';
 import { BACKEND_SMOKE_TRIGGER_PATH } from './backend-smoke-readiness.types';
 
 export interface BackendSmokeReadinessConfig {
@@ -14,7 +15,7 @@ export function parseBackendSmokeReadinessConfig(
   const triggerPath =
     config.LIVE_TEST_BACKEND_TRIGGER_PATH?.trim() || BACKEND_SMOKE_TRIGGER_PATH;
   const authHeaderName = config.LIVE_TEST_BACKEND_AUTH_HEADER_NAME?.trim();
-  const authSecret = config.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const authSecret = resolveBackendAuthSecret(config);
 
   return {
     baseUrl: baseUrl || undefined,

@@ -67,6 +67,25 @@ describe('backend trigger execution gate', () => {
     );
   });
 
+  it('allows when N8N_API_KEY is set but LIVE_TEST_BACKEND_AUTH_SECRET is unset', () => {
+    const env = parseLiveTestEnv({
+      ...readyRawConfig,
+      LIVE_TEST_BACKEND_AUTH_SECRET: undefined,
+      N8N_API_KEY: 'n8n-secret',
+    });
+    const gate = evaluateBackendTriggerExecutionGate(
+      env,
+      fullInvoiceDryRunContext,
+      {
+        ...readyRawConfig,
+        LIVE_TEST_BACKEND_AUTH_SECRET: undefined,
+        N8N_API_KEY: 'n8n-secret',
+      },
+    );
+
+    expect(gate.executionAllowed).toBe(true);
+  });
+
   it('allows only when all documented flags and live smoke target pass', () => {
     const env = parseLiveTestEnv(readyRawConfig);
     const gate = evaluateBackendTriggerExecutionGate(

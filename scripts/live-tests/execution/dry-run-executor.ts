@@ -23,6 +23,8 @@ export interface ExecuteDryRunScenarioInput {
   context: LiveTestScenarioContext;
   availabilityConfig?: BackendAvailabilitySmokeConfig;
   triggerPreflightConfig?: BackendSmokeReadinessConfig;
+  /** Defaults to {} so dry-run does not inherit shell LIVE_TEST_* overrides. */
+  triggerPreflightEnv?: Record<string, string | undefined>;
   fetchImpl?: BackendHealthFetchImpl;
 }
 
@@ -51,6 +53,7 @@ export async function executeDryRunScenario(
       backendContract,
       resolvedTriggerPreflightConfig,
       context,
+      input.triggerPreflightEnv ?? {},
     );
 
   const steps: LiveTestScenarioStep[] = [

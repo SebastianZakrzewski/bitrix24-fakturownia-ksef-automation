@@ -328,8 +328,9 @@ describe('backend trigger preflight in live-test reports', () => {
       ).toBe(false);
       expect(report.productionReadiness).toBe('NOT_READY');
       expect(report.runnerDirectExternalSideEffectsExecuted).toBe(false);
-      expect(json).not.toContain(readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET);
-      expect(markdown).not.toContain(readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET);
+      const secret = readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET;
+      expect(json).not.toContain(secret);
+      expect(markdown).not.toContain(secret);
       expect(markdown).toContain('## Backend trigger preflight');
 
       assertDryRunReport(report, scenarioId);

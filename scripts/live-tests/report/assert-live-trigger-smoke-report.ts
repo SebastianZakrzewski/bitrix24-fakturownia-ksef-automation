@@ -1,4 +1,5 @@
 import { LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID } from '../live-smoke-target/live-smoke-target.types';
+import { resolveBackendAuthSecret } from '../resolve-backend-auth-secret';
 import { assertReportSideEffectSemantics } from '../side-effects/assert-backend-trigger-side-effect-semantics';
 import {
   liveTestReportSchema,
@@ -66,12 +67,12 @@ export function assertLiveTriggerSmokeReport(report: LiveTestReport): void {
     throw new LiveTriggerSmokeReportAssertionError('Auth secret must not be displayed');
   }
 
-  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const secret = resolveBackendAuthSecret(process.env);
   if (secret) {
     const json = JSON.stringify(report);
     if (json.includes(secret)) {
       throw new LiveTriggerSmokeReportAssertionError(
-        'Report must not contain LIVE_TEST_BACKEND_AUTH_SECRET value',
+        'Report must not contain backend auth secret value',
       );
     }
   }

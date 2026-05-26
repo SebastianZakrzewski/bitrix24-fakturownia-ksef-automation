@@ -1,4 +1,5 @@
 import { FORBIDDEN_REAL_DATA_MARKERS, hasTestDealPrefix } from '../fixtures/fixture-common';
+import { resolveBackendAuthSecret } from '../resolve-backend-auth-secret';
 import {
   assertBitrixDealIdOnlyInApprovedMarkdownContexts,
   assertBitrixDealIdOnlyInApprovedReportFields,
@@ -560,7 +561,7 @@ function assertBackendAvailabilitySmokeSection(report: LiveTestReport): void {
   }
 
   const serialized = JSON.stringify(report);
-  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const secret = resolveBackendAuthSecret(process.env);
   if (secret && secret.length >= 8 && serialized.includes(secret)) {
     throw new DryRunReportAssertionError(
       'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
@@ -658,7 +659,7 @@ function assertBackendSmokeReadinessSection(
 }
 
 function configLooksLikeSecretLeak(serializedReport: string): boolean {
-  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const secret = resolveBackendAuthSecret(process.env);
   if (!secret || secret.length < 8) {
     return false;
   }
@@ -841,7 +842,7 @@ function assertBackendTriggerPreflightSection(
   }
 
   const serialized = JSON.stringify(report);
-  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const secret = resolveBackendAuthSecret(process.env);
   if (secret && secret.length >= 8 && serialized.includes(secret)) {
     throw new DryRunReportAssertionError(
       'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
@@ -1032,7 +1033,7 @@ export function assertDryRunMarkdown(
     throw new DryRunReportAssertionError('FORBIDDEN_REAL_DATA', message);
   }
 
-  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  const secret = resolveBackendAuthSecret(process.env);
   if (secret && secret.length >= 8 && markdown.includes(secret)) {
     throw new DryRunReportAssertionError(
       'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
