@@ -5,11 +5,11 @@ import { join } from 'path';
 import { loadLiveTestDotenv } from './load-env';
 
 describe('loadLiveTestDotenv', () => {
-  it('does not use dotenv override', () => {
+  it('loads .env with override true and preserves operator flags', () => {
     const source = readFileSync(join(__dirname, 'load-env.ts'), 'utf8');
 
-    expect(source).toContain('override: false');
-    expect(source).not.toMatch(/override:\s*true/);
+    expect(source).toContain('override: true');
+    expect(source).toContain('OPERATOR_OVERRIDE_ENV_KEYS');
   });
 
   it('keeps explicit process env flags over values from .env', async () => {

@@ -99,7 +99,7 @@ describe('scripts/live-tests import boundary', () => {
 
     expect(runnerSource).toContain("import './load-env'");
     expect(runnerSource).not.toContain('../../src/load-env');
-    expect(envLoaderSource).toContain('override: false');
-    expect(envLoaderSource).not.toMatch(/override:\s*true/);
+    expect(envLoaderSource).toContain('OPERATOR_OVERRIDE_ENV_KEYS');
+    expect(envLoaderSource).toContain('override: true');
   });
 });
