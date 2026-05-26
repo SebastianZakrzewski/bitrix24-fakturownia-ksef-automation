@@ -9,6 +9,10 @@ import { advanceInvoiceDryRunContext } from './advance-invoice.context';
 import { finalInvoiceDryRunContext } from './final-invoice.context';
 import { fullInvoiceDryRunContext } from './full-invoice.context';
 import {
+  restoreLiveTestEnvKeys,
+  saveAndClearLiveTestEnvKeys,
+} from '../isolate-live-test-env';
+import {
   assertSyntheticFixtureData,
   FORBIDDEN_REAL_DATA_MARKERS,
   hasTestDealPrefix,
@@ -95,6 +99,7 @@ describe('live-test fixtures', () => {
   });
 
   it('fixture execution does not call external systems', async () => {
+    const savedEnv = saveAndClearLiveTestEnvKeys();
     const originalFetch = global.fetch;
     global.fetch = jest.fn();
 
@@ -107,8 +112,8 @@ describe('live-test fixtures', () => {
 
       expect(global.fetch).not.toHaveBeenCalled();
     } finally {
+      restoreLiveTestEnvKeys(savedEnv);
       global.fetch = originalFetch;
     }
-
   });
 });

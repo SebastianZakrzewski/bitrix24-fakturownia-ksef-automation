@@ -1,16 +1,8 @@
-import { hasTestDealPrefix } from '../fixtures/fixture-common';
 import { isIso8601Timestamp } from '../report/normalize-dry-run-report';
 import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
+import type { LiveSmokeTarget } from '../live-smoke-target/live-smoke-target.types';
+import type { LiveSmokeTargetValidation } from '../live-smoke-target/live-smoke-target.types';
 import type { BitrixTriggerRequestPayload } from './backend-trigger-preflight.types';
-
-export type BackendTriggerPayloadValidationCode =
-  | 'SCENARIO_TYPE_MISMATCH'
-  | 'TRIGGER_DEAL_ID_INVALID'
-  | 'TRIGGER_SOURCE_INVALID'
-  | 'TRIGGER_STAGE_MISSING'
-  | 'TRIGGER_TIMESTAMP_INVALID'
-  | 'ADVANCE_AMOUNT_MISSING'
-  | 'FINAL_PRIOR_ADVANCE_MISSING';
 
 export interface BackendTriggerPayloadValidationResult {
   valid: boolean;
@@ -19,20 +11,26 @@ export interface BackendTriggerPayloadValidationResult {
 
 export function validateBackendTriggerPreflightPayload(
   contract: BackendDryRunContract,
+  liveSmokeTarget: LiveSmokeTarget,
+  liveSmokeTargetValidation: LiveSmokeTargetValidation,
   payload: BitrixTriggerRequestPayload,
 ): BackendTriggerPayloadValidationResult {
-  const errors: string[] = [];
+  const errors: string[] = [...liveSmokeTargetValidation.errors];
+
+  if (!liveSmokeTargetValidation.valid) {
+    return { valid: false, errors };
+  }
 
   if (contract.scenarioType !== contract.expectedInvoiceType) {
     errors.push('scenarioType must match expectedInvoiceType from contract');
   }
 
-  if (payload.bitrix_deal_id !== contract.trigger.bitrix_deal_id) {
-    errors.push('Preflight payload bitrix_deal_id must match contract trigger');
+  if (payload.bitrix_deal_id !== liveSmokeTarget.actualBitrixDealId) {
+    errors.push('payload.bitrix_deal_id must equal actualBitrixDealId');
   }
 
-  if (!hasTestDealPrefix(payload.bitrix_deal_id)) {
-    errors.push('payload.bitrix_deal_id must start with [TEST]');
+  if (payload.trigger_stage_id !== liveSmokeTarget.expectedTriggerStageId) {
+    errors.push('payload.trigger_stage_id must equal expectedTriggerStageId');
   }
 
   if (payload.trigger_source !== 'BITRIX24_STAGE_CHANGE') {

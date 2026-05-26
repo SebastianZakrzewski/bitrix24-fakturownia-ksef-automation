@@ -1,4 +1,11 @@
 import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
+import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
+import {
+  MANUAL_CRM_PREPARATION_REQUIREMENTS,
+} from '../live-smoke-target/live-smoke-target.types';
+import { parseLiveSmokeTargetConfig } from '../live-smoke-target/parse-live-smoke-target-config';
+import { resolveLiveSmokeTarget } from '../live-smoke-target/resolve-live-smoke-target';
+import { validateLiveSmokeTarget } from '../live-smoke-target/validate-live-smoke-target';
 import type { BackendSmokeReadinessConfig } from '../smoke-readiness/backend-smoke-readiness-config';
 import { BACKEND_SMOKE_TRIGGER_PATH } from '../smoke-readiness/backend-smoke-readiness.types';
 import { buildBitrixTriggerPreflightPayload } from './build-bitrix-trigger-preflight-payload';
@@ -56,12 +63,30 @@ function resolvePreflightStatus(
 export function runBackendTriggerPreflight(
   contract: BackendDryRunContract,
   config: BackendSmokeReadinessConfig,
+  context: LiveTestScenarioContext,
+  env: Record<string, string | undefined> = process.env,
 ): BackendTriggerPreflightResult {
   const blockers: string[] = [];
   const warnings: string[] = [
     'Trigger request was prepared locally but not sent.',
     'POST /invoice-processes/bitrix-trigger was not called.',
   ];
+
+  const liveSmokeTarget = resolveLiveSmokeTarget(
+    context,
+    parseLiveSmokeTargetConfig(env),
+  );
+  const liveSmokeTargetValidation = validateLiveSmokeTarget({
+    target: liveSmokeTarget,
+    scenarioType: contract.scenarioType,
+  });
+
+  if (!liveSmokeTargetValidation.liveExecutionReady) {
+    warnings.push(
+      'Live execution not ready: manual CRM preparation is not confirmed.',
+    );
+    warnings.push(...MANUAL_CRM_PREPARATION_REQUIREMENTS);
+  }
 
   const baseUrlConfigured = Boolean(config.baseUrl);
   const authHeaderNameConfigured = Boolean(config.authHeaderName);
@@ -90,8 +115,13 @@ export function runBackendTriggerPreflight(
   let payloadShapeValid = false;
 
   try {
-    payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, payload);
+    payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validateBackendTriggerPreflightPayload(
+      contract,
+      liveSmokeTarget,
+      liveSmokeTargetValidation,
+      payload,
+    );
     payloadShapeValid = validation.valid;
 
     if (!validation.valid) {
@@ -122,6 +152,18 @@ export function runBackendTriggerPreflight(
     },
     executionPolicy: buildExecutionPolicy(),
     execution: buildSafetyExecution(),
+    liveSmokeTarget: {
+      actualBitrixDealId: liveSmokeTarget.actualBitrixDealId,
+      testDealLabel: liveSmokeTarget.testDealLabel,
+      testDealLabelStartsWithTestPrefix:
+        liveSmokeTargetValidation.testDealLabelStartsWithTestPrefix,
+      manualCrmPreparationConfirmed: liveSmokeTarget.manualCrmPreparationConfirmed,
+      expectedScenarioType: liveSmokeTarget.expectedScenarioType,
+      expectedTriggerStageId: liveSmokeTarget.expectedTriggerStageId,
+      liveSmokeTargetValid: liveSmokeTargetValidation.valid,
+      liveExecutionReady: liveSmokeTargetValidation.liveExecutionReady,
+      manualCrmPreparationRequirements: [...MANUAL_CRM_PREPARATION_REQUIREMENTS],
+    },
     preflightStatus,
     blockers,
     warnings,

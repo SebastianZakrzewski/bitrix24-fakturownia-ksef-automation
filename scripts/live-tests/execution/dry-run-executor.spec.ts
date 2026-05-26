@@ -6,15 +6,23 @@ import { finalInvoiceDryRunContext } from '../fixtures/final-invoice.context';
 import { fullInvoiceDryRunContext } from '../fixtures/full-invoice.context';
 import { DRY_RUN_STEP_NAMES } from './dry-run-steps';
 import { executeDryRunScenario } from './dry-run-executor';
+import {
+  restoreLiveTestEnvKeys,
+  saveAndClearLiveTestEnvKeys,
+} from '../isolate-live-test-env';
 
 describe('executeDryRunScenario', () => {
   const originalFetch = global.fetch;
+  const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
+    Object.assign(savedEnv, saveAndClearLiveTestEnvKeys());
     global.fetch = jest.fn();
   });
 
   afterEach(() => {
+    restoreLiveTestEnvKeys(savedEnv);
+    Object.keys(savedEnv).forEach((key) => delete savedEnv[key]);
     global.fetch = originalFetch;
   });
 

@@ -15,10 +15,13 @@ import { advanceInvoiceScenario } from '../scenarios/advance-invoice.scenario';
 import { finalInvoiceScenario } from '../scenarios/final-invoice.scenario';
 import { fullInvoiceScenario } from '../scenarios/full-invoice.scenario';
 import { parseBackendSmokeReadinessConfig } from '../smoke-readiness/backend-smoke-readiness-config';
+import { resolveLiveSmokeTarget } from '../live-smoke-target/resolve-live-smoke-target';
+import { validateLiveSmokeTarget } from '../live-smoke-target/validate-live-smoke-target';
 import { buildBitrixTriggerPreflightPayload } from './build-bitrix-trigger-preflight-payload';
 import { runBackendTriggerPreflight } from './run-backend-trigger-preflight';
 import { validateBackendTriggerPreflightPayload } from './validate-backend-trigger-preflight-payload';
 import { BACKEND_TRIGGER_PREFLIGHT_PATH } from './backend-trigger-preflight.types';
+import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 
 const validEnv: LiveTestEnv = {
   LIVE_TEST_MODE: true,
@@ -56,6 +59,25 @@ function contractFromContext(
   return mapBackendDryRunContract(context);
 }
 
+function validatePreflightPayload(
+  contract: BackendDryRunContract,
+  context: LiveTestScenarioContext,
+  payload: ReturnType<typeof buildBitrixTriggerPreflightPayload>,
+) {
+  const liveSmokeTarget = resolveLiveSmokeTarget(context, {});
+  const liveSmokeTargetValidation = validateLiveSmokeTarget({
+    target: liveSmokeTarget,
+    scenarioType: contract.scenarioType,
+  });
+
+  return validateBackendTriggerPreflightPayload(
+    contract,
+    liveSmokeTarget,
+    liveSmokeTargetValidation,
+    payload,
+  );
+}
+
 describe('runBackendTriggerPreflight', () => {
   const originalFetch = global.fetch;
 
@@ -74,7 +96,7 @@ describe('runBackendTriggerPreflight', () => {
   ] as const)('%s creates valid backend trigger preflight with ready config', (_label, context) => {
     const contract = contractFromContext(context);
     const config = parseBackendSmokeReadinessConfig(readyConfig);
-    const result = runBackendTriggerPreflight(contract, config);
+    const result = runBackendTriggerPreflight(contract, config, context);
 
     expect(result.preflightKind).toBe('BACKEND_TRIGGER_PREFLIGHT');
     expect(result.scenarioType).toBe(contract.scenarioType);
@@ -82,51 +104,59 @@ describe('runBackendTriggerPreflight', () => {
     expect(result.target.path).toBe(BACKEND_TRIGGER_PREFLIGHT_PATH);
     expect(result.request.payloadShapeValid).toBe(true);
     expect(result.preflightStatus).toBe('BACKEND_TRIGGER_PREFLIGHT_PASSED');
-    expect(result.request.payload.bitrix_deal_id).toMatch(/^\[TEST\]/);
+    expect(result.request.payload.bitrix_deal_id).toBe(context.bitrixDealId);
+    expect(result.liveSmokeTarget.testDealLabelStartsWithTestPrefix).toBe(true);
     expect(result.request.payload.trigger_source).toBe('BITRIX24_STAGE_CHANGE');
   });
 
   it('preflight payload matches BitrixTriggerRequestDto shape', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const payload = buildBitrixTriggerPreflightPayload(contract);
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
 
     expect(payload).toEqual({
-      bitrix_deal_id: contract.trigger.bitrix_deal_id,
+      bitrix_deal_id: liveSmokeTarget.actualBitrixDealId,
       trigger_source: 'BITRIX24_STAGE_CHANGE',
-      trigger_stage_id: contract.trigger.trigger_stage_id,
+      trigger_stage_id: liveSmokeTarget.expectedTriggerStageId,
       triggered_at: contract.trigger.triggered_at,
     });
   });
 
   it('missing trigger_stage_id fails preflight validation', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, {
-      ...payload,
-      trigger_stage_id: '   ',
-    });
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      fullInvoiceDryRunContext,
+      { ...payload, trigger_stage_id: '   ' },
+    );
 
     expect(validation.valid).toBe(false);
   });
 
   it('invalid triggered_at fails preflight validation', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, {
-      ...payload,
-      triggered_at: 'not-a-timestamp',
-    });
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      fullInvoiceDryRunContext,
+      { ...payload, triggered_at: 'not-a-timestamp' },
+    );
 
     expect(validation.valid).toBe(false);
   });
 
   it('wrong trigger_source fails preflight validation', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, {
-      ...payload,
-      trigger_source: 'MANUAL' as typeof payload.trigger_source,
-    });
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      fullInvoiceDryRunContext,
+      { ...payload, trigger_source: 'MANUAL' as typeof payload.trigger_source },
+    );
 
     expect(validation.valid).toBe(false);
   });
@@ -138,26 +168,37 @@ describe('runBackendTriggerPreflight', () => {
       scenarioType: 'ADVANCE',
       expectedInvoiceType: 'FULL',
     };
-    const payload = buildBitrixTriggerPreflightPayload(mismatched);
-    const validation = validateBackendTriggerPreflightPayload(mismatched, payload);
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(mismatched, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      mismatched,
+      fullInvoiceDryRunContext,
+      payload,
+    );
 
     expect(validation.valid).toBe(false);
   });
 
-  it('bitrix_deal_id without [TEST] prefix fails validation', () => {
+  it('payload bitrix_deal_id must match actualBitrixDealId', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, {
-      ...payload,
-      bitrix_deal_id: 'REAL-DEAL-001',
-    });
+    const liveSmokeTarget = resolveLiveSmokeTarget(fullInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      fullInvoiceDryRunContext,
+      { ...payload, bitrix_deal_id: '27000' },
+    );
 
     expect(validation.valid).toBe(false);
   });
 
   it('missing backend config returns NOT_READY without sending requests', () => {
     const contract = contractFromContext(fullInvoiceDryRunContext);
-    const result = runBackendTriggerPreflight(contract, {});
+    const result = runBackendTriggerPreflight(
+      contract,
+      {},
+      fullInvoiceDryRunContext,
+    );
 
     expect(global.fetch).not.toHaveBeenCalled();
     expect(result.preflightStatus).toBe('BACKEND_TRIGGER_PREFLIGHT_NOT_READY');
@@ -169,6 +210,7 @@ describe('runBackendTriggerPreflight', () => {
     const result = runBackendTriggerPreflight(
       contract,
       parseBackendSmokeReadinessConfig(readyConfig),
+      advanceInvoiceDryRunContext,
     );
 
     expect(result.execution.requestSent).toBe(false);
@@ -193,8 +235,13 @@ describe('runBackendTriggerPreflight', () => {
         hasProducts: true,
       },
     };
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, payload);
+    const liveSmokeTarget = resolveLiveSmokeTarget(advanceInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      advanceInvoiceDryRunContext,
+      payload,
+    );
 
     expect(validation.valid).toBe(false);
   });
@@ -209,8 +256,13 @@ describe('runBackendTriggerPreflight', () => {
         hasProducts: true,
       },
     };
-    const payload = buildBitrixTriggerPreflightPayload(contract);
-    const validation = validateBackendTriggerPreflightPayload(contract, payload);
+    const liveSmokeTarget = resolveLiveSmokeTarget(finalInvoiceDryRunContext, {});
+    const payload = buildBitrixTriggerPreflightPayload(contract, liveSmokeTarget);
+    const validation = validatePreflightPayload(
+      contract,
+      finalInvoiceDryRunContext,
+      payload,
+    );
 
     expect(validation.valid).toBe(false);
   });
@@ -266,6 +318,12 @@ describe('backend trigger preflight in live-test reports', () => {
         'BACKEND_TRIGGER_PREFLIGHT',
       );
       expect(report.backendTriggerPreflight.execution.requestSent).toBe(false);
+      expect(report.backendTriggerPreflight.liveSmokeTarget.testDealLabel).toContain(
+        '[TEST]',
+      );
+      expect(
+        report.backendTriggerPreflight.liveSmokeTarget.manualCrmPreparationConfirmed,
+      ).toBe(false);
       expect(report.productionReadiness).toBe('NOT_READY');
       expect(report.externalSideEffectsExecuted).toBe(false);
       expect(json).not.toContain(readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET);

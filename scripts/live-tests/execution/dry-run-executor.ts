@@ -47,7 +47,11 @@ export async function executeDryRunScenario(
   const resolvedTriggerPreflightConfig =
     triggerPreflightConfig ?? parseBackendSmokeReadinessConfig(process.env);
   const backendTriggerPreflight: BackendTriggerPreflightResult =
-    runBackendTriggerPreflight(backendContract, resolvedTriggerPreflightConfig);
+    runBackendTriggerPreflight(
+      backendContract,
+      resolvedTriggerPreflightConfig,
+      context,
+    );
 
   const steps: LiveTestScenarioStep[] = [
     step(

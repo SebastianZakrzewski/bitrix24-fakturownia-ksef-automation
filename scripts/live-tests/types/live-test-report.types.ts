@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.7.0-backend-trigger-preflight';
+export const LIVE_TEST_RUNNER_VERSION = '1.8.0-live-smoke-target';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -202,6 +202,17 @@ export const liveTestReportSchema = z.object({
       bitrixCalled: z.literal(false),
       fakturowniaCalled: z.literal(false),
       ksefTested: z.literal(false),
+    }),
+    liveSmokeTarget: z.object({
+      actualBitrixDealId: z.string(),
+      testDealLabel: z.string(),
+      testDealLabelStartsWithTestPrefix: z.boolean(),
+      manualCrmPreparationConfirmed: z.boolean(),
+      expectedScenarioType: invoiceTypeSchema,
+      expectedTriggerStageId: z.string(),
+      liveSmokeTargetValid: z.boolean(),
+      liveExecutionReady: z.boolean(),
+      manualCrmPreparationRequirements: z.array(z.string()),
     }),
     preflightStatus: z.enum([
       'BACKEND_TRIGGER_PREFLIGHT_PASSED',

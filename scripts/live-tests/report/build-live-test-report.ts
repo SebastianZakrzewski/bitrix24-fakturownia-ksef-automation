@@ -10,7 +10,9 @@ import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-tri
 import { toBackendTriggerPreflightReport } from '../trigger-preflight/to-backend-trigger-preflight-report';
 import { buildNotConfiguredBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
 import type { BackendSmokeReadinessResult } from '../smoke-readiness/backend-smoke-readiness.types';
+import { BITRIX_PAID_STAGE_ID } from '../fixtures/fixture-common';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
+import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
 import type {
   LiveTestScenario,
@@ -30,10 +32,39 @@ export interface BuildLiveTestReportInput {
   smokeReadinessConfig?: BackendSmokeReadinessConfig;
 }
 
+function buildMissingScenarioContext(
+  scenarioType: LiveTestReport['meta']['invoiceType'],
+): LiveTestScenarioContext {
+  return {
+    testContextId: 'missing',
+    scenarioId: 'missing',
+    scenarioType,
+    invoiceType: scenarioType,
+    testDealTitle: '[TEST] missing scenario context',
+    bitrixDealId: '[TEST]-MISSING-001',
+    idempotencyKey: '[TEST]-MISSING-001:FULL',
+    paidStageId: BITRIX_PAID_STAGE_ID,
+    paymentFormValueId: '718',
+    buyer: {
+      companyName: '[TEST] missing',
+      nip: '1111111111',
+      street: 'ul. Testowa 1',
+      postalCode: '00-001',
+      city: 'Warszawa',
+      country: 'PL',
+    },
+    products: [],
+    expectedExternalStepsSkipped: [],
+    description: 'Missing scenario context placeholder for report build.',
+  };
+}
+
 function buildMissingBackendTriggerPreflight(
   scenarioType: LiveTestReport['meta']['invoiceType'],
   config: BackendSmokeReadinessConfig,
 ): LiveTestReport['backendTriggerPreflight'] {
+  const missingContext = buildMissingScenarioContext(scenarioType);
+
   return toBackendTriggerPreflightReport(
     runBackendTriggerPreflight(
       {
@@ -41,14 +72,14 @@ function buildMissingBackendTriggerPreflight(
         scenarioType,
         expectedInvoiceType: scenarioType,
         trigger: {
-          bitrix_deal_id: 'missing',
+          bitrix_deal_id: missingContext.bitrixDealId,
           trigger_source: 'BITRIX24_STAGE_CHANGE',
-          trigger_stage_id: 'missing',
+          trigger_stage_id: missingContext.paidStageId,
           triggered_at: '1970-01-01T00:00:00.000Z',
         },
         fixtureContext: {
           fixtureId: 'missing',
-          bitrixDealId: 'missing',
+          bitrixDealId: missingContext.bitrixDealId,
           hasSyntheticBuyer: false,
           hasProducts: false,
         },
@@ -60,6 +91,8 @@ function buildMissingBackendTriggerPreflight(
         },
       },
       config,
+      missingContext,
+      {},
     ),
   );
 }

@@ -73,6 +73,9 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   'BACKEND_TRIGGER_PREFLIGHT',
   'Trigger execution allowed: **false**',
   'Request sent: **false**',
+  'Actual Bitrix deal ID:',
+  'Test deal label:',
+  'Live execution ready: **false**',
   '## Backend dry-run',
   'BACKEND_DRY_RUN_SIMULATED',
   'Real backend workflow ran: **false**',
@@ -91,6 +94,22 @@ const FORBIDDEN_MARKDOWN_SNIPPETS = [
   'Fakturownia executed',
   'Real backend workflow ran: **true**',
 ] as const;
+
+function serializeReportForRealDataMarkerCheck(report: LiveTestReport): string {
+  const clone = JSON.parse(JSON.stringify(report)) as LiveTestReport;
+
+  if (clone.backendTriggerPreflight?.liveSmokeTarget?.actualBitrixDealId) {
+    clone.backendTriggerPreflight.liveSmokeTarget.actualBitrixDealId =
+      '[CONFIGURED_BITRIX_DEAL_ID]';
+  }
+
+  if (clone.backendTriggerPreflight?.request?.bitrix_deal_id) {
+    clone.backendTriggerPreflight.request.bitrix_deal_id =
+      '[CONFIGURED_BITRIX_DEAL_ID]';
+  }
+
+  return JSON.stringify(clone);
+}
 
 function assertNoForbiddenMarkersInText(
   text: string,
@@ -167,7 +186,10 @@ export function assertForbiddenDryRunReportStates(report: LiveTestReport): void 
     }
   }
 
-  assertNoForbiddenMarkersInText(JSON.stringify(report), 'FORBIDDEN_REAL_DATA');
+  assertNoForbiddenMarkersInText(
+    serializeReportForRealDataMarkerCheck(report),
+    'FORBIDDEN_REAL_DATA',
+  );
   assertNoForbiddenMarkersInText(report.summary, 'FORBIDDEN_CREATION_CLAIM');
 }
 
@@ -637,10 +659,75 @@ function assertBackendTriggerPreflightSection(
     );
   }
 
-  if (!hasTestDealPrefix(preflight.request.bitrix_deal_id)) {
+  const liveTarget = preflight.liveSmokeTarget;
+
+  if (!liveTarget.actualBitrixDealId.trim()) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.liveSmokeTarget.actualBitrixDealId is required',
+    );
+  }
+
+  if (!liveTarget.testDealLabel.trim()) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.liveSmokeTarget.testDealLabel is required',
+    );
+  }
+
+  if (!liveTarget.testDealLabelStartsWithTestPrefix) {
     throw new DryRunReportAssertionError(
       'MISSING_TEST_DEAL_PREFIX',
-      'backendTriggerPreflight.request.bitrix_deal_id must start with [TEST]',
+      'backendTriggerPreflight.liveSmokeTarget.testDealLabel must start with [TEST]',
+    );
+  }
+
+  if (liveTarget.expectedScenarioType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendTriggerPreflight.liveSmokeTarget.expectedScenarioType must match scenario',
+    );
+  }
+
+  if (!liveTarget.expectedTriggerStageId.trim()) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.liveSmokeTarget.expectedTriggerStageId is required',
+    );
+  }
+
+  if (preflight.request.bitrix_deal_id !== liveTarget.actualBitrixDealId) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.request.bitrix_deal_id must equal actualBitrixDealId',
+    );
+  }
+
+  if (preflight.request.trigger_stage_id !== liveTarget.expectedTriggerStageId) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.request.trigger_stage_id must match expectedTriggerStageId',
+    );
+  }
+
+  if (!liveTarget.liveSmokeTargetValid) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight.liveSmokeTarget.liveSmokeTargetValid must be true',
+    );
+  }
+
+  if (liveTarget.liveExecutionReady !== false) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendTriggerPreflight.liveSmokeTarget.liveExecutionReady must be false in dry-run task scope',
+    );
+  }
+
+  if (liveTarget.manualCrmPreparationRequirements.length === 0) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendTriggerPreflight must document manual CRM preparation requirements',
     );
   }
 

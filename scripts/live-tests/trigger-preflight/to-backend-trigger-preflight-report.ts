@@ -33,6 +33,7 @@ export function toBackendTriggerPreflightReport(
       fakturowniaCalled: result.execution.fakturowniaCalled,
       ksefTested: result.execution.ksefTested,
     },
+    liveSmokeTarget: result.liveSmokeTarget,
     preflightStatus: result.preflightStatus,
     blockers: result.blockers,
     warnings: result.warnings,

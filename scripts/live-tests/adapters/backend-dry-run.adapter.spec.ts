@@ -11,6 +11,10 @@ import { advanceInvoiceDryRunContext } from '../fixtures/advance-invoice.context
 import { finalInvoiceDryRunContext } from '../fixtures/final-invoice.context';
 import { fullInvoiceDryRunContext } from '../fixtures/full-invoice.context';
 import {
+  restoreLiveTestEnvKeys,
+  saveAndClearLiveTestEnvKeys,
+} from '../isolate-live-test-env';
+import {
   BackendDryRunAdapterError,
   simulateBackendDryRunWorkflow,
 } from './backend-dry-run.adapter';
@@ -42,12 +46,16 @@ function extractImportLines(content: string): string[] {
 
 describe('simulateBackendDryRunWorkflow', () => {
   const originalFetch = global.fetch;
+  const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
+    Object.assign(savedEnv, saveAndClearLiveTestEnvKeys());
     global.fetch = jest.fn();
   });
 
   afterEach(() => {
+    restoreLiveTestEnvKeys(savedEnv);
+    Object.keys(savedEnv).forEach((key) => delete savedEnv[key]);
     global.fetch = originalFetch;
   });
 

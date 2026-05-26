@@ -10,6 +10,10 @@ import { advanceInvoiceScenario } from '../scenarios/advance-invoice.scenario';
 import { finalInvoiceScenario } from '../scenarios/final-invoice.scenario';
 import { collectSafetyChecks } from '../safety-guards';
 import type { LiveTestEnv } from '../live-test-env';
+import {
+  restoreLiveTestEnvKeys,
+  saveAndClearLiveTestEnvKeys,
+} from '../isolate-live-test-env';
 
 const validEnv: LiveTestEnv = {
   LIVE_TEST_MODE: true,
@@ -25,12 +29,19 @@ const scenarios = [fullInvoiceScenario, advanceInvoiceScenario, finalInvoiceScen
 
 describe('writeLiveTestReport', () => {
   let outputDir: string;
+  const savedEnv: Record<string, string | undefined> = {};
+  const originalFetch = global.fetch;
 
   beforeEach(async () => {
+    Object.assign(savedEnv, saveAndClearLiveTestEnvKeys());
+    global.fetch = jest.fn();
     outputDir = await mkdtemp(join(tmpdir(), 'live-test-report-'));
   });
 
   afterEach(async () => {
+    restoreLiveTestEnvKeys(savedEnv);
+    Object.keys(savedEnv).forEach((key) => delete savedEnv[key]);
+    global.fetch = originalFetch;
     await rm(outputDir, { recursive: true, force: true });
   });
 
