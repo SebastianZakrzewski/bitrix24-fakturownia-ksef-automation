@@ -25,7 +25,11 @@ describe('executeDryRunScenario', () => {
   ] as const)(
     'runs %s dry-run without external calls',
     async (_label, context, scenario) => {
-      const result = await executeDryRunScenario({ context });
+      const result = await executeDryRunScenario({
+        context,
+        availabilityConfig: { healthPath: '/health', timeoutMs: 5000 },
+        fetchImpl: jest.fn(),
+      });
       const scenarioResult = await scenario.run();
 
       expect(global.fetch).not.toHaveBeenCalled();

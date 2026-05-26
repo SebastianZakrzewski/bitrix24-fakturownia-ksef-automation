@@ -6,6 +6,7 @@ import {
   type BackendSmokeReadinessConfig,
 } from '../smoke-readiness/backend-smoke-readiness-config';
 import { checkBackendSmokeReadiness } from '../smoke-readiness/check-backend-smoke-readiness';
+import { buildNotConfiguredBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
 import type { BackendSmokeReadinessResult } from '../smoke-readiness/backend-smoke-readiness.types';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
@@ -172,6 +173,9 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    backendAvailabilitySmoke:
+      scenarioResult.backendAvailabilitySmoke ??
+      buildNotConfiguredBackendAvailabilitySmoke(),
     backendSmokeReadiness,
     backendContract: scenarioResult.backendContract
       ? toReportBackendContract(scenarioResult.backendContract)

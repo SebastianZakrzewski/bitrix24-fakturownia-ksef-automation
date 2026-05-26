@@ -1,4 +1,11 @@
 import { simulateBackendDryRunWorkflow } from '../adapters/backend-dry-run.adapter';
+import {
+  parseBackendAvailabilitySmokeConfig,
+  type BackendAvailabilitySmokeConfig,
+} from '../availability-smoke/backend-availability-smoke-config';
+import type { BackendHealthFetchImpl } from '../availability-smoke/fetch-backend-health';
+import { runBackendAvailabilitySmoke } from '../availability-smoke/run-backend-availability-smoke';
+import type { BackendAvailabilitySmokeResult } from '../availability-smoke/backend-availability-smoke.types';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import type {
   LiveTestScenarioResult,
@@ -8,6 +15,8 @@ import { DRY_RUN_STEP_NAMES } from './dry-run-steps';
 
 export interface ExecuteDryRunScenarioInput {
   context: LiveTestScenarioContext;
+  availabilityConfig?: BackendAvailabilitySmokeConfig;
+  fetchImpl?: BackendHealthFetchImpl;
 }
 
 function step(
@@ -21,9 +30,13 @@ function step(
 export async function executeDryRunScenario(
   input: ExecuteDryRunScenarioInput,
 ): Promise<LiveTestScenarioResult> {
-  const { context } = input;
+  const { context, availabilityConfig, fetchImpl } = input;
   const { result: backendDryRun, contract: backendContract } =
     simulateBackendDryRunWorkflow(context);
+  const resolvedAvailabilityConfig =
+    availabilityConfig ?? parseBackendAvailabilitySmokeConfig(process.env);
+  const backendAvailabilitySmoke: BackendAvailabilitySmokeResult =
+    await runBackendAvailabilitySmoke(resolvedAvailabilityConfig, { fetchImpl });
 
   const steps: LiveTestScenarioStep[] = [
     step(
@@ -70,6 +83,7 @@ export async function executeDryRunScenario(
     context,
     backendDryRun,
     backendContract,
+    backendAvailabilitySmoke,
     steps,
     message: `Dry-run completed for ${context.scenarioId} (${context.invoiceType}). Backend workflow was simulated only; no external systems were called.`,
   };

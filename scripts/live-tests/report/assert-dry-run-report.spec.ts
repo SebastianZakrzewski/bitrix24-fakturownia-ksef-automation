@@ -29,6 +29,12 @@ const validEnv: LiveTestEnv = {
   ALLOW_DELETE_OR_CANCEL: false,
 };
 
+const BACKEND_AVAILABILITY_ENV_KEYS = [
+  'LIVE_TEST_BACKEND_BASE_URL',
+  'LIVE_TEST_BACKEND_HEALTH_PATH',
+  'LIVE_TEST_BACKEND_REQUEST_TIMEOUT_MS',
+] as const;
+
 const scenarios = [
   { id: 'full' as const, scenario: fullInvoiceScenario },
   { id: 'advance' as const, scenario: advanceInvoiceScenario },
@@ -59,6 +65,25 @@ async function buildScenarioReport(
 }
 
 describe('assertDryRunReport', () => {
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of BACKEND_AVAILABILITY_ENV_KEYS) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of BACKEND_AVAILABILITY_ENV_KEYS) {
+      if (savedEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = savedEnv[key];
+      }
+    }
+  });
+
   it.each(scenarios)(
     '$id JSON report matches expected dry-run requirements',
     async ({ id, scenario: _scenario }) => {

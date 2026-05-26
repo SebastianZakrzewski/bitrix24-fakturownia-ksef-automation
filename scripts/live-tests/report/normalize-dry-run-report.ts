@@ -12,6 +12,7 @@ export interface NormalizedDryRunReport {
   ksefStatus: LiveTestReport['ksefStatus'];
   bitrixSyncStatus: LiveTestReport['bitrixSyncStatus'];
   externalSideEffectsExecuted: false;
+  backendAvailabilitySmoke: LiveTestReport['backendAvailabilitySmoke'];
   backendSmokeReadiness: LiveTestReport['backendSmokeReadiness'];
   backendContract: LiveTestReport['backendContract'];
   backendDryRun: LiveTestReport['backendDryRun'];
@@ -48,6 +49,7 @@ export function normalizeDryRunReport(report: LiveTestReport): NormalizedDryRunR
     ksefStatus: report.ksefStatus,
     bitrixSyncStatus: report.bitrixSyncStatus,
     externalSideEffectsExecuted: false,
+    backendAvailabilitySmoke: report.backendAvailabilitySmoke,
     backendSmokeReadiness: report.backendSmokeReadiness,
     backendContract: report.backendContract,
     backendDryRun: report.backendDryRun,

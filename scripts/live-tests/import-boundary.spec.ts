@@ -75,6 +75,18 @@ describe('scripts/live-tests import boundary', () => {
     },
   );
 
+  it('availability smoke uses fetch only in dedicated client without forbidden imports', () => {
+    const fetchHealthSource = readFileSync(
+      join(LIVE_TESTS_ROOT, 'availability-smoke/fetch-backend-health.ts'),
+      'utf8',
+    );
+
+    expect(fetchHealthSource).toContain("method: BACKEND_HEALTH_SMOKE_METHOD");
+    expect(fetchHealthSource).not.toMatch(/method:\s*['"]POST['"]/);
+    expect(fetchHealthSource).toContain('FORBIDDEN_BACKEND_SMOKE_PATH');
+    expect(fetchHealthSource).not.toMatch(/\.\.\/\.\.\/src\//);
+  });
+
   it('uses scripts-local env loader instead of src/load-env', () => {
     const runnerSource = readFileSync(
       join(LIVE_TESTS_ROOT, 'run-live-test.ts'),

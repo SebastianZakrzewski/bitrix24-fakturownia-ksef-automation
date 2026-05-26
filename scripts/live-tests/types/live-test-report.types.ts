@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.5.0-backend-smoke-readiness';
+export const LIVE_TEST_RUNNER_VERSION = '1.6.0-backend-availability-smoke';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -97,6 +97,41 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  backendAvailabilitySmoke: z.object({
+    mode: z.literal('CONTROLLED_BACKEND_SMOKE'),
+    smokeKind: z.literal('BACKEND_AVAILABILITY'),
+    target: z.object({
+      method: z.literal('GET'),
+      path: z.string(),
+      baseUrlConfigured: z.boolean(),
+      endpointCalled: z.boolean(),
+    }),
+    request: z.object({
+      timeoutMs: z.number().int().positive(),
+    }),
+    response: z
+      .object({
+        statusCode: z.number().int(),
+        ok: z.boolean(),
+      })
+      .optional(),
+    resultStatus: z.enum([
+      'BACKEND_HEALTH_PASSED',
+      'BACKEND_HEALTH_FAILED',
+      'BACKEND_HEALTH_NOT_CONFIGURED',
+      'BACKEND_HEALTH_TIMEOUT',
+    ]),
+    externalSideEffectsExecuted: z.literal(false),
+    workflowExecuted: z.literal(false),
+    invoiceProcessCreated: z.literal(false),
+    invoiceRecordCreated: z.literal(false),
+    dbWriteExecuted: z.literal(false),
+    bitrixCalled: z.literal(false),
+    fakturowniaCalled: z.literal(false),
+    ksefTested: z.literal(false),
+    warnings: z.array(z.string()),
+    errors: z.array(z.string()),
+  }),
   backendSmokeReadiness: z.object({
     mode: liveTestModeSchema,
     readinessKind: z.literal('BACKEND_SMOKE_READINESS'),

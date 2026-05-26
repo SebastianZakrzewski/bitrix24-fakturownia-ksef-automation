@@ -64,6 +64,32 @@ export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
     `- KSeF status: **${report.ksefStatus}**`,
     `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
     '',
+    '## Backend availability smoke',
+    '',
+    `- Mode: **${report.backendAvailabilitySmoke.mode}**`,
+    `- Smoke kind: **${report.backendAvailabilitySmoke.smokeKind}**`,
+    `- Target: **${report.backendAvailabilitySmoke.target.method} ${report.backendAvailabilitySmoke.target.path}**`,
+    `- Base URL configured: **${report.backendAvailabilitySmoke.target.baseUrlConfigured}**`,
+    `- Endpoint called: **${report.backendAvailabilitySmoke.target.endpointCalled}**`,
+    `- Result status: **${report.backendAvailabilitySmoke.resultStatus}**`,
+    report.backendAvailabilitySmoke.response
+      ? `- HTTP status: **${report.backendAvailabilitySmoke.response.statusCode}**`
+      : '',
+    `- Workflow executed: **${report.backendAvailabilitySmoke.workflowExecuted}**`,
+    `- DB write executed: **${report.backendAvailabilitySmoke.dbWriteExecuted}**`,
+    `- Bitrix called: **${report.backendAvailabilitySmoke.bitrixCalled}**`,
+    `- Fakturownia called: **${report.backendAvailabilitySmoke.fakturowniaCalled}**`,
+    `- KSeF tested: **${report.backendAvailabilitySmoke.ksefTested}**`,
+    `- External side effects executed: **${report.backendAvailabilitySmoke.externalSideEffectsExecuted}**`,
+    '',
+    ...(report.backendAvailabilitySmoke.errors.length > 0
+      ? [
+          '### Availability errors',
+          '',
+          ...report.backendAvailabilitySmoke.errors.map((item) => `- ${item}`),
+          '',
+        ]
+      : []),
     '## Backend smoke-readiness',
     '',
     `- Readiness kind: **${report.backendSmokeReadiness.readinessKind}**`,

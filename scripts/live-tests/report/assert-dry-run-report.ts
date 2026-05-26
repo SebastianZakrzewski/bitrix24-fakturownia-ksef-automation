@@ -61,6 +61,10 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   '## Backend dry-run contract',
   'Contract validation: **PASSED**',
   'Backend endpoint allowed: **false**',
+  '## Backend availability smoke',
+  'BACKEND_AVAILABILITY',
+  'External side effects executed: **false**',
+  'Workflow executed: **false**',
   '## Backend smoke-readiness',
   'BACKEND_SMOKE_READINESS',
   'Endpoint called: **false**',
@@ -421,6 +425,75 @@ function assertBackendContractSection(
   }
 }
 
+function assertBackendAvailabilitySmokeSection(report: LiveTestReport): void {
+  const availability = report.backendAvailabilitySmoke;
+
+  if (availability.mode !== 'CONTROLLED_BACKEND_SMOKE') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendAvailabilitySmoke.mode must be CONTROLLED_BACKEND_SMOKE',
+    );
+  }
+
+  if (availability.smokeKind !== 'BACKEND_AVAILABILITY') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendAvailabilitySmoke.smokeKind must be BACKEND_AVAILABILITY',
+    );
+  }
+
+  if (availability.target.method !== 'GET') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendAvailabilitySmoke.target.method must be GET',
+    );
+  }
+
+  if (availability.target.path !== '/health') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendAvailabilitySmoke.target.path must be /health',
+    );
+  }
+
+  const safetyFlags = [
+    availability.externalSideEffectsExecuted,
+    availability.workflowExecuted,
+    availability.invoiceProcessCreated,
+    availability.invoiceRecordCreated,
+    availability.dbWriteExecuted,
+    availability.bitrixCalled,
+    availability.fakturowniaCalled,
+    availability.ksefTested,
+  ];
+
+  if (safetyFlags.some((flag) => flag !== false)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendAvailabilitySmoke safety flags must remain false',
+    );
+  }
+
+  if (
+    availability.resultStatus === 'BACKEND_HEALTH_NOT_CONFIGURED' &&
+    availability.target.endpointCalled
+  ) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'NOT_CONFIGURED availability smoke must not call backend',
+    );
+  }
+
+  const serialized = JSON.stringify(report);
+  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  if (secret && secret.length >= 8 && serialized.includes(secret)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'Report must not contain backend auth secret values',
+    );
+  }
+}
+
 function assertBackendSmokeReadinessSection(
   report: LiveTestReport,
   scenarioId: ExpectedDryRunScenarioId,
@@ -639,6 +712,7 @@ export function assertDryRunReport(
   assertCommonSafetyFields(report);
   assertDryRunScenarioRequirements(report, scenarioId);
   assertBackendContractSection(report, scenarioId);
+  assertBackendAvailabilitySmokeSection(report);
   assertBackendSmokeReadinessSection(report, scenarioId);
   assertBackendDryRunSection(report, scenarioId);
   assertIntegrationStatuses(report);
