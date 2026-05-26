@@ -1,7 +1,8 @@
 import { FORBIDDEN_REAL_DATA_MARKERS, hasTestDealPrefix } from '../fixtures/fixture-common';
 import {
+  assertBitrixDealIdOnlyInApprovedMarkdownContexts,
   assertBitrixDealIdOnlyInApprovedReportFields,
-  redactMarkdownForRealDataMarkerCheck,
+  markdownForRealDataMarkerCheck,
   redactReportForRealDataMarkerCheck,
 } from './report-bitrix-deal-id-placement';
 import {
@@ -972,8 +973,23 @@ export function assertDryRunMarkdown(
     throw new DryRunReportAssertionError('FORBIDDEN_REAL_DATA', message);
   }
 
+  try {
+    assertBitrixDealIdOnlyInApprovedMarkdownContexts(markdown, report);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new DryRunReportAssertionError('FORBIDDEN_REAL_DATA', message);
+  }
+
+  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  if (secret && secret.length >= 8 && markdown.includes(secret)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'Markdown report must not contain backend auth secret values',
+    );
+  }
+
   assertNoForbiddenMarkersInText(
-    redactMarkdownForRealDataMarkerCheck(markdown, report),
+    markdownForRealDataMarkerCheck(markdown, report),
     'FORBIDDEN_REAL_DATA',
   );
 }

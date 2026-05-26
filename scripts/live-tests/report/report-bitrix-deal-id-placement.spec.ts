@@ -2,19 +2,30 @@ import { fullInvoiceDryRunContext } from '../fixtures/full-invoice.context';
 import { LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID } from '../live-smoke-target/live-smoke-target.types';
 import { mapBackendDryRunContract } from '../contracts/map-backend-dry-run-contract';
 import { runBackendTriggerPreflight } from '../trigger-preflight/run-backend-trigger-preflight';
+import { executeDryRunScenario } from '../execution/dry-run-executor';
 import { buildLiveTestReport } from './build-live-test-report';
+import { buildLiveTestReportMarkdown } from './report-writer';
 import { fullInvoiceScenario } from '../scenarios/full-invoice.scenario';
 import { collectSafetyChecks } from '../safety-guards';
 import type { LiveTestEnv } from '../live-test-env';
 import type { LiveTestReport } from '../types/live-test-report.types';
 import {
+  assertBitrixDealIdOnlyInApprovedMarkdownContexts,
   assertBitrixDealIdOnlyInApprovedReportFields,
-  redactMarkdownForRealDataMarkerCheck,
+  findUnapprovedMarkdownDealIdLines,
+  isApprovedMarkdownLineForDealId,
+  markdownForRealDataMarkerCheck,
 } from './report-bitrix-deal-id-placement';
 import {
+  assertDryRunMarkdown,
   assertDryRunReport,
   DryRunReportAssertionError,
 } from './assert-dry-run-report';
+import { parseBackendSmokeReadinessConfig } from '../smoke-readiness/backend-smoke-readiness-config';
+import {
+  restoreLiveTestEnvKeys,
+  saveAndClearLiveTestEnvKeys,
+} from '../isolate-live-test-env';
 
 const validEnv: LiveTestEnv = {
   LIVE_TEST_MODE: true,
@@ -26,23 +37,148 @@ const validEnv: LiveTestEnv = {
   ALLOW_DELETE_OR_CANCEL: false,
 };
 
-describe('report-bitrix-deal-id-placement', () => {
-  it('allows example deal id only in approved preflight fields', () => {
+const readyConfig = {
+  LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+  LIVE_TEST_BACKEND_TRIGGER_PATH: '/invoice-processes/bitrix-trigger',
+  LIVE_TEST_BACKEND_AUTH_HEADER_NAME: 'x-api-key',
+  LIVE_TEST_BACKEND_AUTH_SECRET: 'dummy-local-secret',
+};
+
+const smokeTargetEnv = {
+  LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+  LIVE_TEST_DEAL_LABEL: '[TEST] Runner FULL smoke test 001',
+  LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED: 'false',
+};
+
+function minimalReportWithNumericDealId(): LiveTestReport {
+  return {
+    backendTriggerPreflight: {
+      liveSmokeTarget: { actualBitrixDealId: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID },
+      request: { bitrix_deal_id: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID },
+    },
+  } as LiveTestReport;
+}
+
+describe('isApprovedMarkdownLineForDealId', () => {
+  it('approves Actual Bitrix deal ID and payload bitrix_deal_id lines', () => {
+    expect(
+      isApprovedMarkdownLineForDealId(
+        `- Actual Bitrix deal ID: **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+        LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+      ),
+    ).toBe(true);
+    expect(
+      isApprovedMarkdownLineForDealId(
+        `- Trigger payload deal ID (bitrix_deal_id): **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+        LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects arbitrary leaked marker line', () => {
+    expect(
+      isApprovedMarkdownLineForDealId(
+        `Arbitrary leaked real-data marker: ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+        LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects deal id in notes, warnings, and errors sections', () => {
+    const report = minimalReportWithNumericDealId();
+
+    for (const line of [
+      `- Note: customer deal ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+      `- Warning: retry for ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+      `- Error: failed for ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+    ]) {
+      expect(isApprovedMarkdownLineForDealId(line, LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID)).toBe(
+        false,
+      );
+      expect(findUnapprovedMarkdownDealIdLines(line, report)).toContain(line.trim());
+    }
+  });
+});
+
+describe('assertBitrixDealIdOnlyInApprovedMarkdownContexts', () => {
+  it('passes when deal id appears only on approved lines', () => {
+    const markdown = [
+      '## Backend trigger preflight',
+      `- Actual Bitrix deal ID: **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+      `- Trigger payload deal ID (bitrix_deal_id): **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+    ].join('\n');
+
+    expect(() =>
+      assertBitrixDealIdOnlyInApprovedMarkdownContexts(
+        markdown,
+        minimalReportWithNumericDealId(),
+      ),
+    ).not.toThrow();
+  });
+
+  it('fails when arbitrary leaked real-data marker line is appended', () => {
+    const markdown = [
+      `- Actual Bitrix deal ID: **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+      `Arbitrary leaked real-data marker: ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+    ].join('\n');
+
+    expect(() =>
+      assertBitrixDealIdOnlyInApprovedMarkdownContexts(
+        markdown,
+        minimalReportWithNumericDealId(),
+      ),
+    ).toThrow(/unapproved Markdown context/);
+  });
+
+  it('marker scan input still redacts only approved lines', () => {
+    const markdown = [
+      `- Actual Bitrix deal ID: **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`,
+      `Arbitrary leaked real-data marker: ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+    ].join('\n');
+    const report = minimalReportWithNumericDealId();
+
+    const scanned = markdownForRealDataMarkerCheck(markdown, report);
+    expect(scanned).toContain('[CONFIGURED_BITRIX_DEAL_ID]');
+    expect(scanned).toContain(
+      `Arbitrary leaked real-data marker: ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`,
+    );
+  });
+});
+
+describe('report-bitrix-deal-id-placement integration', () => {
+  const originalFetch = global.fetch;
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    Object.assign(savedEnv, saveAndClearLiveTestEnvKeys());
+    global.fetch = jest.fn();
+    process.env.LIVE_TEST_ACTUAL_BITRIX_DEAL_ID =
+      smokeTargetEnv.LIVE_TEST_ACTUAL_BITRIX_DEAL_ID;
+    process.env.LIVE_TEST_DEAL_LABEL = smokeTargetEnv.LIVE_TEST_DEAL_LABEL;
+    process.env.LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED =
+      smokeTargetEnv.LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED;
+    process.env.LIVE_TEST_BACKEND_BASE_URL = readyConfig.LIVE_TEST_BACKEND_BASE_URL;
+    process.env.LIVE_TEST_BACKEND_TRIGGER_PATH =
+      readyConfig.LIVE_TEST_BACKEND_TRIGGER_PATH;
+    process.env.LIVE_TEST_BACKEND_AUTH_HEADER_NAME =
+      readyConfig.LIVE_TEST_BACKEND_AUTH_HEADER_NAME;
+    process.env.LIVE_TEST_BACKEND_AUTH_SECRET =
+      readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET;
+  });
+
+  afterEach(() => {
+    restoreLiveTestEnvKeys(savedEnv);
+    Object.keys(savedEnv).forEach((key) => delete savedEnv[key]);
+    global.fetch = originalFetch;
+  });
+
+  it('allows example deal id only in approved JSON preflight fields', () => {
     const contract = mapBackendDryRunContract(fullInvoiceDryRunContext);
     const preflight = runBackendTriggerPreflight(
       contract,
-      {
-        baseUrl: 'http://localhost:3000',
-        triggerPath: '/invoice-processes/bitrix-trigger',
-        authHeaderName: 'x-api-key',
-        authSecret: 'dummy-local-secret',
-      },
+      parseBackendSmokeReadinessConfig(readyConfig),
       fullInvoiceDryRunContext,
-      {
-        LIVE_TEST_ACTUAL_BITRIX_DEAL_ID: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
-        LIVE_TEST_DEAL_LABEL: '[TEST] Runner FULL smoke test 001',
-        LIVE_TEST_MANUAL_CRM_PREPARATION_CONFIRMED: 'false',
-      },
+      smokeTargetEnv,
     );
 
     expect(preflight.liveSmokeTarget.actualBitrixDealId).toBe(
@@ -57,181 +193,10 @@ describe('report-bitrix-deal-id-placement', () => {
     expect(preflight.execution.endpointCalled).toBe(false);
     expect(preflight.execution.workflowExecuted).toBe(false);
     expect(preflight.execution.dbWriteExecuted).toBe(false);
-
-    const report: LiveTestReport = {
-      mode: 'DRY_RUN',
-      meta: {
-        scenarioId: 'full',
-        invoiceType: 'FULL',
-        runnerVersion: 'test',
-        startedAt: '2026-05-26T12:00:00.000Z',
-        finishedAt: '2026-05-26T12:00:01.000Z',
-      },
-      safety: { passed: true, checks: [] },
-      productionReadiness: 'NOT_READY',
-      ksefStatus: 'MANUAL_REQUIRED',
-      bitrixSyncStatus: 'NOT_TESTED_YET',
-      externalSideEffectsExecuted: false,
-      backendAvailabilitySmoke: {
-        mode: 'CONTROLLED_BACKEND_SMOKE',
-        smokeKind: 'BACKEND_AVAILABILITY',
-        target: {
-          method: 'GET',
-          path: '/health',
-          baseUrlConfigured: false,
-          endpointCalled: false,
-        },
-        request: { timeoutMs: 5000 },
-        resultStatus: 'BACKEND_HEALTH_NOT_CONFIGURED',
-        externalSideEffectsExecuted: false,
-        workflowExecuted: false,
-        invoiceProcessCreated: false,
-        invoiceRecordCreated: false,
-        dbWriteExecuted: false,
-        bitrixCalled: false,
-        fakturowniaCalled: false,
-        ksefTested: false,
-        warnings: [],
-        errors: [],
-      },
-      backendSmokeReadiness: {
-        mode: 'DRY_RUN',
-        readinessKind: 'BACKEND_SMOKE_READINESS',
-        scenarioType: 'FULL',
-        target: {
-          endpointName: 'BITRIX_TRIGGER',
-          method: 'POST',
-          path: '/invoice-processes/bitrix-trigger',
-          baseUrlConfigured: true,
-          endpointCallAllowed: false,
-          endpointCalled: false,
-        },
-        auth: {
-          required: true,
-          headerNameConfigured: true,
-          secretConfigured: true,
-          secretDisplayed: false,
-        },
-        contract: {
-          compatibleWithBitrixTriggerRequestDto: true,
-          contractValidationStatus: 'PASSED',
-        },
-        executionPolicy: {
-          backendEndpointAllowed: false,
-          useCaseExecutionAllowed: false,
-          dbWriteAllowed: false,
-          externalSideEffectsAllowed: false,
-        },
-        readinessStatus: 'NOT_READY_FOR_BACKEND_SMOKE',
-        blockers: [],
-        warnings: [],
-      },
-      backendTriggerPreflight: {
-        mode: 'CONTROLLED_BACKEND_PREFLIGHT',
-        preflightKind: 'BACKEND_TRIGGER_PREFLIGHT',
-        scenarioType: 'FULL',
-        target: {
-          method: 'POST',
-          path: '/invoice-processes/bitrix-trigger',
-          baseUrlConfigured: true,
-          authHeaderNameConfigured: true,
-          authSecretConfigured: true,
-          secretDisplayed: false,
-        },
-        request: {
-          payloadShapeValid: true,
-          bitrix_deal_id: preflight.request.payload.bitrix_deal_id,
-          trigger_source: 'BITRIX24_STAGE_CHANGE',
-          trigger_stage_id: preflight.request.payload.trigger_stage_id,
-          triggered_at: preflight.request.payload.triggered_at,
-        },
-        executionPolicy: {
-          triggerExecutionAllowed: false,
-          backendEndpointAllowed: false,
-          useCaseExecutionAllowed: false,
-          dbWriteAllowed: false,
-          externalSideEffectsAllowed: false,
-        },
-        execution: preflight.execution,
-        liveSmokeTarget: preflight.liveSmokeTarget,
-        preflightStatus: preflight.preflightStatus,
-        blockers: [],
-        warnings: [],
-      },
-      backendContract: {
-        mode: 'DRY_RUN',
-        scenarioType: 'FULL',
-        expectedInvoiceType: 'FULL',
-        trigger: {
-          bitrix_deal_id: '[TEST]-FULL-001',
-          trigger_source: 'BITRIX24_STAGE_CHANGE',
-          trigger_stage_id: 'PREPARATION',
-          triggered_at: '2026-05-26T12:00:00.000Z',
-        },
-        executionPolicy: {
-          backendEndpointAllowed: false,
-          useCaseExecutionAllowed: false,
-          dbWriteAllowed: false,
-          externalSideEffectsAllowed: false,
-        },
-        contractValidationStatus: 'PASSED',
-      },
-      backendDryRun: {
-        backendMode: 'DRY_RUN',
-        backendWorkflowExecuted: false,
-        backendEndpointCalled: false,
-        useCaseExecuted: false,
-        invoiceProcessCreated: false,
-        invoiceRecordCreated: false,
-        invoiceEventCreated: false,
-        dbWriteExecuted: false,
-        validationSimulated: true,
-        mappedFromFixture: true,
-        resultStatus: 'BACKEND_DRY_RUN_SIMULATED',
-        scenarioType: 'FULL',
-        expectedInvoiceType: 'FULL',
-        testContextId: 'test-context-full-001',
-        bitrixDealId: '[TEST]-FULL-001',
-        notes: ['simulated'],
-      },
-      fixture: {
-        testContextId: 'test-context-full-001',
-        scenarioType: 'FULL',
-        bitrixDealId: '[TEST]-FULL-001',
-        expectedInvoiceType: 'FULL',
-        paidStageId: 'PREPARATION',
-        buyerSummary: {
-          companyName: '[TEST] Demo',
-          nipMasked: 'TEST-****',
-          city: 'Warszawa',
-          country: 'PL',
-        },
-        productSummary: [],
-        expectedExternalStepsSkipped: [],
-      },
-      integrations: {
-        ksef: 'MANUAL_REQUIRED',
-        bitrixSync: 'NOT_TESTED_YET',
-        bitrixDealSetup: 'SKIPPED_NOT_EXECUTED',
-        backendWorkflow: 'BACKEND_DRY_RUN_SIMULATED',
-        fakturowniaOrder: 'SKIPPED_NOT_EXECUTED',
-        fakturowniaInvoice: 'SKIPPED_NOT_EXECUTED',
-        database: 'SKIPPED_NOT_EXECUTED',
-      },
-      scenario: {
-        id: 'full',
-        invoiceType: 'FULL',
-        status: 'DRY_RUN_COMPLETED',
-        steps: [],
-      },
-      summary: 'Dry-run only',
-    };
-
-    expect(() => assertBitrixDealIdOnlyInApprovedReportFields(report)).not.toThrow();
   });
 
-  it('rejects example deal id leaked into summary text', async () => {
-    const scenarioResult = await fullInvoiceScenario.run();
+  it('generated report passes strict JSON and Markdown assertions', async () => {
+    const scenarioResult = await executeDryRunScenarioWithEnv();
     const report = buildLiveTestReport({
       scenario: fullInvoiceScenario,
       scenarioResult,
@@ -239,22 +204,58 @@ describe('report-bitrix-deal-id-placement', () => {
       startedAt: new Date('2026-05-26T12:00:00.000Z'),
       finishedAt: new Date('2026-05-26T12:00:01.000Z'),
       reportWritten: true,
-      smokeReadinessConfig: {},
+      smokeReadinessConfig: parseBackendSmokeReadinessConfig(readyConfig),
+    });
+    const markdown = buildLiveTestReportMarkdown(report);
+
+    expect(report.backendTriggerPreflight.liveSmokeTarget.actualBitrixDealId).toBe(
+      LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+    );
+    expect(report.backendTriggerPreflight.request.bitrix_deal_id).toBe(
+      LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
+    );
+    expect(report.productionReadiness).toBe('NOT_READY');
+    expect(report.externalSideEffectsExecuted).toBe(false);
+
+    expect(() => assertDryRunReport(report, 'full')).not.toThrow();
+    expect(() => assertDryRunMarkdown(markdown, 'full', report)).not.toThrow();
+  });
+
+  it('negative Markdown leak probe fails when arbitrary 28392 is appended', async () => {
+    const scenarioResult = await executeDryRunScenarioWithEnv();
+    const report = buildLiveTestReport({
+      scenario: fullInvoiceScenario,
+      scenarioResult,
+      safetyChecks: collectSafetyChecks(validEnv, fullInvoiceScenario.safetyContext),
+      startedAt: new Date('2026-05-26T12:00:00.000Z'),
+      finishedAt: new Date('2026-05-26T12:00:01.000Z'),
+      reportWritten: true,
+      smokeReadinessConfig: parseBackendSmokeReadinessConfig(readyConfig),
+    });
+    const markdown = `${buildLiveTestReportMarkdown(report)}\nArbitrary leaked real-data marker: ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}`;
+
+    expect(() => assertDryRunMarkdown(markdown, 'full', report)).toThrow(
+      DryRunReportAssertionError,
+    );
+    expect(() => assertDryRunMarkdown(markdown, 'full', report)).toThrow(
+      /unapproved Markdown context/,
+    );
+  });
+
+  it('rejects example deal id leaked into JSON summary text', async () => {
+    const scenarioResult = await executeDryRunScenarioWithEnv();
+    const report = buildLiveTestReport({
+      scenario: fullInvoiceScenario,
+      scenarioResult,
+      safetyChecks: collectSafetyChecks(validEnv, fullInvoiceScenario.safetyContext),
+      startedAt: new Date('2026-05-26T12:00:00.000Z'),
+      finishedAt: new Date('2026-05-26T12:00:01.000Z'),
+      reportWritten: true,
+      smokeReadinessConfig: parseBackendSmokeReadinessConfig(readyConfig),
     });
 
     const leaked: LiveTestReport = {
       ...report,
-      backendTriggerPreflight: {
-        ...report.backendTriggerPreflight,
-        liveSmokeTarget: {
-          ...report.backendTriggerPreflight.liveSmokeTarget,
-          actualBitrixDealId: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
-        },
-        request: {
-          ...report.backendTriggerPreflight.request,
-          bitrix_deal_id: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID,
-        },
-      },
       summary: `Deal ${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID} prepared for smoke`,
     };
 
@@ -264,17 +265,33 @@ describe('report-bitrix-deal-id-placement', () => {
     expect(() => assertDryRunReport(leaked, 'full')).toThrow(DryRunReportAssertionError);
   });
 
-  it('redacts approved deal ids from markdown before forbidden marker scan', () => {
-    const markdown = `Actual Bitrix deal ID: **${LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID}**`;
-    const report = {
-      backendTriggerPreflight: {
-        liveSmokeTarget: { actualBitrixDealId: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID },
-        request: { bitrix_deal_id: LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID },
-      },
-    } as LiveTestReport;
+  it('fails Markdown assertion when backend auth secret appears', async () => {
+    const scenarioResult = await executeDryRunScenarioWithEnv();
+    const report = buildLiveTestReport({
+      scenario: fullInvoiceScenario,
+      scenarioResult,
+      safetyChecks: collectSafetyChecks(validEnv, fullInvoiceScenario.safetyContext),
+      startedAt: new Date('2026-05-26T12:00:00.000Z'),
+      finishedAt: new Date('2026-05-26T12:00:01.000Z'),
+      reportWritten: true,
+      smokeReadinessConfig: parseBackendSmokeReadinessConfig(readyConfig),
+    });
+    const markdown = `${buildLiveTestReportMarkdown(report)}\nsecret=${readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET}`;
 
-    const redacted = redactMarkdownForRealDataMarkerCheck(markdown, report);
-    expect(redacted).not.toContain(LIVE_TEST_EXAMPLE_BITRIX_DEAL_ID);
-    expect(redacted).toContain('[CONFIGURED_BITRIX_DEAL_ID]');
+    process.env.LIVE_TEST_BACKEND_AUTH_SECRET =
+      readyConfig.LIVE_TEST_BACKEND_AUTH_SECRET;
+
+    expect(() => assertDryRunMarkdown(markdown, 'full', report)).toThrow(
+      /auth secret/i,
+    );
   });
 });
+
+async function executeDryRunScenarioWithEnv() {
+  return executeDryRunScenario({
+    context: fullInvoiceDryRunContext,
+    availabilityConfig: { healthPath: '/health', timeoutMs: 5000 },
+    triggerPreflightConfig: parseBackendSmokeReadinessConfig(readyConfig),
+    fetchImpl: jest.fn(),
+  });
+}
