@@ -1,6 +1,12 @@
 import type { BackendDryRunResult } from '../adapters/backend-dry-run.types';
 import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
 import { toBackendDryRunContractReport } from '../contracts/to-backend-contract-report';
+import {
+  parseBackendSmokeReadinessConfig,
+  type BackendSmokeReadinessConfig,
+} from '../smoke-readiness/backend-smoke-readiness-config';
+import { checkBackendSmokeReadiness } from '../smoke-readiness/check-backend-smoke-readiness';
+import type { BackendSmokeReadinessResult } from '../smoke-readiness/backend-smoke-readiness.types';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
 import type {
@@ -18,6 +24,38 @@ export interface BuildLiveTestReportInput {
   startedAt: Date;
   finishedAt: Date;
   reportWritten?: boolean;
+  smokeReadinessConfig?: BackendSmokeReadinessConfig;
+}
+
+function buildMissingBackendSmokeReadiness(
+  scenarioType: LiveTestReport['meta']['invoiceType'],
+): BackendSmokeReadinessResult {
+  return checkBackendSmokeReadiness({
+    contract: {
+      mode: 'DRY_RUN',
+      scenarioType,
+      expectedInvoiceType: scenarioType,
+      trigger: {
+        bitrix_deal_id: 'missing',
+        trigger_source: 'BITRIX24_STAGE_CHANGE',
+        trigger_stage_id: 'missing',
+        triggered_at: '1970-01-01T00:00:00.000Z',
+      },
+      fixtureContext: {
+        fixtureId: 'missing',
+        bitrixDealId: 'missing',
+        hasSyntheticBuyer: false,
+        hasProducts: false,
+      },
+      executionPolicy: {
+        backendEndpointAllowed: false,
+        useCaseExecutionAllowed: false,
+        dbWriteAllowed: false,
+        externalSideEffectsAllowed: false,
+      },
+    },
+    config: {},
+  });
 }
 
 function toReportBackendContract(
@@ -100,7 +138,17 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     startedAt,
     finishedAt,
     reportWritten = false,
+    smokeReadinessConfig,
   } = input;
+
+  const resolvedSmokeConfig =
+    smokeReadinessConfig ?? parseBackendSmokeReadinessConfig(process.env);
+  const backendSmokeReadiness = scenarioResult.backendContract
+    ? checkBackendSmokeReadiness({
+        contract: scenarioResult.backendContract,
+        config: resolvedSmokeConfig,
+      })
+    : buildMissingBackendSmokeReadiness(scenario.invoiceType);
 
   const steps = appendWriteReportStep(scenarioResult.steps, reportWritten);
   const mode = 'DRY_RUN' as const;
@@ -124,6 +172,7 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    backendSmokeReadiness,
     backendContract: scenarioResult.backendContract
       ? toReportBackendContract(scenarioResult.backendContract)
       : {

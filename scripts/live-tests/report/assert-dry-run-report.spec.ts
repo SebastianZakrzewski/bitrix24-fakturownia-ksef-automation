@@ -54,6 +54,7 @@ async function buildScenarioReport(
     startedAt,
     finishedAt,
     reportWritten: true,
+    smokeReadinessConfig: {},
   });
 }
 

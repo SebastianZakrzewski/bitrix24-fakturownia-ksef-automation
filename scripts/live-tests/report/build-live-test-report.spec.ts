@@ -26,6 +26,7 @@ describe('buildLiveTestReport', () => {
       startedAt: new Date(),
       finishedAt: new Date(),
       reportWritten: false,
+      smokeReadinessConfig: {},
     });
 
     expect(report.productionReadiness).toBe('NOT_READY');

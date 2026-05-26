@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.4.0-backend-contract';
+export const LIVE_TEST_RUNNER_VERSION = '1.5.0-backend-smoke-readiness';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -97,6 +97,42 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  backendSmokeReadiness: z.object({
+    mode: liveTestModeSchema,
+    readinessKind: z.literal('BACKEND_SMOKE_READINESS'),
+    scenarioType: invoiceTypeSchema,
+    target: z.object({
+      endpointName: z.literal('BITRIX_TRIGGER'),
+      method: z.literal('POST'),
+      path: z.literal('/invoice-processes/bitrix-trigger'),
+      baseUrlConfigured: z.boolean(),
+      baseUrlMasked: z.string().optional(),
+      endpointCallAllowed: z.literal(false),
+      endpointCalled: z.literal(false),
+    }),
+    auth: z.object({
+      required: z.literal(true),
+      headerNameConfigured: z.boolean(),
+      secretConfigured: z.boolean(),
+      secretDisplayed: z.literal(false),
+    }),
+    contract: z.object({
+      compatibleWithBitrixTriggerRequestDto: z.boolean(),
+      contractValidationStatus: z.enum(['PASSED', 'FAILED']),
+    }),
+    executionPolicy: z.object({
+      backendEndpointAllowed: z.literal(false),
+      useCaseExecutionAllowed: z.literal(false),
+      dbWriteAllowed: z.literal(false),
+      externalSideEffectsAllowed: z.literal(false),
+    }),
+    readinessStatus: z.enum([
+      'READY_FOR_CONTROLLED_BACKEND_SMOKE',
+      'NOT_READY_FOR_BACKEND_SMOKE',
+    ]),
+    blockers: z.array(z.string()),
+    warnings: z.array(z.string()),
+  }),
   backendContract: z.object({
     mode: liveTestModeSchema,
     scenarioType: invoiceTypeSchema,

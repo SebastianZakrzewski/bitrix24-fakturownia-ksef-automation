@@ -61,6 +61,10 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   '## Backend dry-run contract',
   'Contract validation: **PASSED**',
   'Backend endpoint allowed: **false**',
+  '## Backend smoke-readiness',
+  'BACKEND_SMOKE_READINESS',
+  'Endpoint called: **false**',
+  'Auth secret displayed: **false**',
   '## Backend dry-run',
   'BACKEND_DRY_RUN_SIMULATED',
   'Real backend workflow ran: **false**',
@@ -417,6 +421,103 @@ function assertBackendContractSection(
   }
 }
 
+function assertBackendSmokeReadinessSection(
+  report: LiveTestReport,
+  scenarioId: ExpectedDryRunScenarioId,
+): void {
+  const expected = EXPECTED_DRY_RUN_REPORT_REQUIREMENTS[scenarioId];
+  const smoke = report.backendSmokeReadiness;
+
+  if (smoke.mode !== 'DRY_RUN') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendSmokeReadiness.mode must be DRY_RUN',
+    );
+  }
+
+  if (smoke.readinessKind !== 'BACKEND_SMOKE_READINESS') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendSmokeReadiness.readinessKind must be BACKEND_SMOKE_READINESS',
+    );
+  }
+
+  if (smoke.scenarioType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendSmokeReadiness.scenarioType must match scenario',
+    );
+  }
+
+  if (smoke.target.method !== 'POST') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendSmokeReadiness.target.method must be POST',
+    );
+  }
+
+  if (smoke.target.path !== '/invoice-processes/bitrix-trigger') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendSmokeReadiness.target.path must be /invoice-processes/bitrix-trigger',
+    );
+  }
+
+  if (smoke.target.endpointCallAllowed !== false || smoke.target.endpointCalled !== false) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backend smoke target must not allow or record endpoint calls',
+    );
+  }
+
+  if (smoke.auth.secretDisplayed !== false) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendSmokeReadiness.auth.secretDisplayed must be false',
+    );
+  }
+
+  const policy = smoke.executionPolicy;
+  if (
+    policy.backendEndpointAllowed !== false ||
+    policy.useCaseExecutionAllowed !== false ||
+    policy.dbWriteAllowed !== false ||
+    policy.externalSideEffectsAllowed !== false
+  ) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendSmokeReadiness.executionPolicy must deny all execution',
+    );
+  }
+
+  if (
+    smoke.readinessStatus === 'NOT_READY_FOR_BACKEND_SMOKE' &&
+    smoke.blockers.length === 0
+  ) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'NOT_READY smoke readiness must include blockers',
+    );
+  }
+
+  const serialized = JSON.stringify(report);
+  if (configLooksLikeSecretLeak(serialized)) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'Report must not contain raw backend auth secret values',
+    );
+  }
+}
+
+function configLooksLikeSecretLeak(serializedReport: string): boolean {
+  const secret = process.env.LIVE_TEST_BACKEND_AUTH_SECRET?.trim();
+  if (!secret || secret.length < 8) {
+    return false;
+  }
+
+  return serializedReport.includes(secret);
+}
+
 function assertBackendDryRunSection(
   report: LiveTestReport,
   scenarioId: ExpectedDryRunScenarioId,
@@ -538,6 +639,7 @@ export function assertDryRunReport(
   assertCommonSafetyFields(report);
   assertDryRunScenarioRequirements(report, scenarioId);
   assertBackendContractSection(report, scenarioId);
+  assertBackendSmokeReadinessSection(report, scenarioId);
   assertBackendDryRunSection(report, scenarioId);
   assertIntegrationStatuses(report);
   assertScenarioStepStatuses(report);

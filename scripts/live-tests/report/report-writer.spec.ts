@@ -48,6 +48,7 @@ describe('writeLiveTestReport', () => {
         startedAt,
         finishedAt,
         reportWritten: true,
+        smokeReadinessConfig: {},
       });
 
       const paths = await writeLiveTestReport(report, {
@@ -63,6 +64,14 @@ describe('writeLiveTestReport', () => {
       expect(parsed.ksefStatus).toBe('MANUAL_REQUIRED');
       expect(parsed.bitrixSyncStatus).toBe('NOT_TESTED_YET');
       expect(parsed.externalSideEffectsExecuted).toBe(false);
+      expect(parsed.backendSmokeReadiness.readinessKind).toBe(
+        'BACKEND_SMOKE_READINESS',
+      );
+      expect(parsed.backendSmokeReadiness.target.endpointCalled).toBe(false);
+      expect(parsed.backendSmokeReadiness.auth.secretDisplayed).toBe(false);
+      expect(parsed.backendSmokeReadiness.readinessStatus).toBe(
+        'NOT_READY_FOR_BACKEND_SMOKE',
+      );
       expect(parsed.backendContract.contractValidationStatus).toBe('PASSED');
       expect(parsed.backendContract.executionPolicy.backendEndpointAllowed).toBe(
         false,
@@ -80,6 +89,8 @@ describe('writeLiveTestReport', () => {
       expect(parsed.fixture.expectedInvoiceType).toBe(scenario.invoiceType);
       expect(parsed.fixture.bitrixDealId).toMatch(/^\[TEST\]-/);
       expect(parsed.fixture.productSummary.length).toBeGreaterThan(0);
+      expect(markdownContent).toContain('## Backend smoke-readiness');
+      expect(markdownContent).toContain('Endpoint called: **false**');
       expect(markdownContent).toContain('## Backend dry-run contract');
       expect(markdownContent).toContain('Contract validation: **PASSED**');
       expect(markdownContent).toContain('## Backend dry-run');

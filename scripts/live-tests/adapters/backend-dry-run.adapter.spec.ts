@@ -111,6 +111,7 @@ describe('simulateBackendDryRunWorkflow', () => {
       startedAt: new Date(),
       finishedAt: new Date(),
       reportWritten: true,
+      smokeReadinessConfig: {},
     });
 
     expect(report.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');

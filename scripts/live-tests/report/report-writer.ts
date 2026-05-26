@@ -64,6 +64,44 @@ export function buildLiveTestReportMarkdown(report: LiveTestReport): string {
     `- KSeF status: **${report.ksefStatus}**`,
     `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
     '',
+    '## Backend smoke-readiness',
+    '',
+    `- Readiness kind: **${report.backendSmokeReadiness.readinessKind}**`,
+    `- Scenario type: **${report.backendSmokeReadiness.scenarioType}**`,
+    `- Readiness status: **${report.backendSmokeReadiness.readinessStatus}**`,
+    `- Target: **${report.backendSmokeReadiness.target.method} ${report.backendSmokeReadiness.target.path}**`,
+    `- Base URL configured: **${report.backendSmokeReadiness.target.baseUrlConfigured}**`,
+    report.backendSmokeReadiness.target.baseUrlMasked
+      ? `- Base URL (masked): **${report.backendSmokeReadiness.target.baseUrlMasked}**`
+      : '',
+    `- Endpoint call allowed: **${report.backendSmokeReadiness.target.endpointCallAllowed}**`,
+    `- Endpoint called: **${report.backendSmokeReadiness.target.endpointCalled}**`,
+    `- Auth header configured: **${report.backendSmokeReadiness.auth.headerNameConfigured}**`,
+    `- Auth secret configured: **${report.backendSmokeReadiness.auth.secretConfigured}**`,
+    `- Auth secret displayed: **${report.backendSmokeReadiness.auth.secretDisplayed}**`,
+    `- Contract compatible with BitrixTriggerRequestDto: **${report.backendSmokeReadiness.contract.compatibleWithBitrixTriggerRequestDto}**`,
+    `- Contract validation: **${report.backendSmokeReadiness.contract.contractValidationStatus}**`,
+    `- Backend endpoint allowed: **${report.backendSmokeReadiness.executionPolicy.backendEndpointAllowed}**`,
+    `- Use case execution allowed: **${report.backendSmokeReadiness.executionPolicy.useCaseExecutionAllowed}**`,
+    `- DB write allowed: **${report.backendSmokeReadiness.executionPolicy.dbWriteAllowed}**`,
+    `- External side effects allowed: **${report.backendSmokeReadiness.executionPolicy.externalSideEffectsAllowed}**`,
+    '',
+    ...(report.backendSmokeReadiness.blockers.length > 0
+      ? [
+          '### Blockers',
+          '',
+          ...report.backendSmokeReadiness.blockers.map((item) => `- ${item}`),
+          '',
+        ]
+      : []),
+    ...(report.backendSmokeReadiness.warnings.length > 0
+      ? [
+          '### Warnings',
+          '',
+          ...report.backendSmokeReadiness.warnings.map((item) => `- ${item}`),
+          '',
+        ]
+      : []),
     '## Backend dry-run contract',
     '',
     `- Contract mode: **${report.backendContract.mode}**`,

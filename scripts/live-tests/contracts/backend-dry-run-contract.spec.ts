@@ -163,6 +163,7 @@ describe('mapBackendDryRunContract', () => {
       startedAt: new Date(),
       finishedAt: new Date(),
       reportWritten: true,
+      smokeReadinessConfig: {},
     });
 
     expect(report.backendContract.contractValidationStatus).toBe('PASSED');

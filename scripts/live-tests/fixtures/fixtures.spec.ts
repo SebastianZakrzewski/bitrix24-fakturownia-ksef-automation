@@ -75,6 +75,7 @@ describe('live-test fixtures', () => {
       startedAt: new Date(),
       finishedAt: new Date(),
       reportWritten: true,
+      smokeReadinessConfig: {},
     });
 
     const parsed = liveTestReportSchema.parse(report);
