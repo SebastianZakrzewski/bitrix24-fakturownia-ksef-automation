@@ -18,7 +18,8 @@
     "live-test:full": "ts-node scripts/live-tests/run-live-test.ts full",
     "live-test:advance": "ts-node scripts/live-tests/run-live-test.ts advance",
     "live-test:final": "ts-node scripts/live-tests/run-live-test.ts final",
-    "live-test:trigger-smoke:full": "ts-node scripts/live-tests/run-live-trigger-smoke.ts"
+    "live-test:trigger-smoke:full": "ts-node scripts/live-tests/run-live-trigger-smoke.ts",
+    "live-test:bitrix-e2e-setup:full": "ts-node scripts/live-tests/run-bitrix-e2e-setup.ts"
   },
   "keywords": [],
   "author": "",
