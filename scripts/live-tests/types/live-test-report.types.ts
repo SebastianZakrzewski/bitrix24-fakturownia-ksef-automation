@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.3.0-backend-dry-run';
+export const LIVE_TEST_RUNNER_VERSION = '1.4.0-backend-contract';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -97,6 +97,24 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  backendContract: z.object({
+    mode: liveTestModeSchema,
+    scenarioType: invoiceTypeSchema,
+    expectedInvoiceType: invoiceTypeSchema,
+    trigger: z.object({
+      bitrix_deal_id: z.string(),
+      trigger_source: z.literal('BITRIX24_STAGE_CHANGE'),
+      trigger_stage_id: z.string(),
+      triggered_at: z.string(),
+    }),
+    executionPolicy: z.object({
+      backendEndpointAllowed: z.literal(false),
+      useCaseExecutionAllowed: z.literal(false),
+      dbWriteAllowed: z.literal(false),
+      externalSideEffectsAllowed: z.literal(false),
+    }),
+    contractValidationStatus: z.literal('PASSED'),
+  }),
   backendDryRun: z.object({
     backendMode: liveTestModeSchema,
     backendWorkflowExecuted: z.literal(false),

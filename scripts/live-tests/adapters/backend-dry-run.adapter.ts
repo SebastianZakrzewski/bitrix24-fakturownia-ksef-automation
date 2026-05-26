@@ -1,3 +1,6 @@
+import { mapBackendDryRunContract } from '../contracts/map-backend-dry-run-contract';
+import { validateBackendDryRunContract } from '../contracts/validate-backend-dry-run-contract';
+import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
 import type {
   AdvanceLiveTestScenarioContext,
   FinalLiveTestScenarioContext,
@@ -90,9 +93,14 @@ function buildNotes(context: LiveTestScenarioContext): string[] {
  * Simulates backend workflow outcome from local fixture data only.
  * Must not import or call backend use cases, controllers, repositories, or HTTP clients.
  */
+export interface BackendDryRunWorkflowOutput {
+  result: BackendDryRunResult;
+  contract: BackendDryRunContract;
+}
+
 export function simulateBackendDryRunWorkflow(
   context: LiveTestScenarioContext,
-): BackendDryRunResult {
+): BackendDryRunWorkflowOutput {
   assertFixtureMatchesScenario(context);
 
   switch (context.scenarioType) {
@@ -110,6 +118,9 @@ export function simulateBackendDryRunWorkflow(
       throw new BackendDryRunAdapterError(`Unsupported scenario type: ${exhaustive}`);
     }
   }
+
+  const contract = mapBackendDryRunContract(context);
+  validateBackendDryRunContract(contract);
 
   const result: BackendDryRunResult = {
     scenarioType: context.scenarioType,
@@ -131,5 +142,8 @@ export function simulateBackendDryRunWorkflow(
     notes: buildNotes(context),
   };
 
-  return backendDryRunResultSchema.parse(result);
+  return {
+    result: backendDryRunResultSchema.parse(result),
+    contract,
+  };
 }

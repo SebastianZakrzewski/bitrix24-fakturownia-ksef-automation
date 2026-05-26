@@ -32,6 +32,12 @@ describe('executeDryRunScenario', () => {
       expect(result.externalSideEffectsExecuted).toBe(false);
       expect(result.backendDryRun?.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
       expect(result.backendDryRun?.useCaseExecuted).toBe(false);
+      expect(result.backendContract?.trigger.trigger_source).toBe(
+        'BITRIX24_STAGE_CHANGE',
+      );
+      expect(result.backendContract?.executionPolicy.backendEndpointAllowed).toBe(
+        false,
+      );
       expect(scenarioResult.externalSideEffectsExecuted).toBe(false);
       expect(result.status).toBe('DRY_RUN_COMPLETED');
       expect(result.executionMode).toBe('DRY_RUN');

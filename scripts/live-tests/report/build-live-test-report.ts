@@ -1,4 +1,6 @@
 import type { BackendDryRunResult } from '../adapters/backend-dry-run.types';
+import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
+import { toBackendDryRunContractReport } from '../contracts/to-backend-contract-report';
 import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
 import type {
@@ -16,6 +18,12 @@ export interface BuildLiveTestReportInput {
   startedAt: Date;
   finishedAt: Date;
   reportWritten?: boolean;
+}
+
+function toReportBackendContract(
+  contract: BackendDryRunContract,
+): LiveTestReport['backendContract'] {
+  return toBackendDryRunContractReport(contract);
 }
 
 function toReportBackendDryRun(
@@ -116,6 +124,26 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    backendContract: scenarioResult.backendContract
+      ? toReportBackendContract(scenarioResult.backendContract)
+      : {
+          mode: 'DRY_RUN',
+          scenarioType: scenario.invoiceType,
+          expectedInvoiceType: scenario.invoiceType,
+          trigger: {
+            bitrix_deal_id: 'missing',
+            trigger_source: 'BITRIX24_STAGE_CHANGE',
+            trigger_stage_id: 'missing',
+            triggered_at: '1970-01-01T00:00:00.000Z',
+          },
+          executionPolicy: {
+            backendEndpointAllowed: false,
+            useCaseExecutionAllowed: false,
+            dbWriteAllowed: false,
+            externalSideEffectsAllowed: false,
+          },
+          contractValidationStatus: 'PASSED',
+        },
     backendDryRun: scenarioResult.backendDryRun
       ? toReportBackendDryRun(scenarioResult.backendDryRun)
       : {

@@ -58,7 +58,7 @@ describe('simulateBackendDryRunWorkflow', () => {
   ] as const)(
     '%s fixture produces typed backend dry-run result',
     async (_label, fixture, scenario) => {
-      const adapterResult = simulateBackendDryRunWorkflow(fixture);
+      const { result: adapterResult, contract } = simulateBackendDryRunWorkflow(fixture);
       const scenarioResult = await scenario.run();
 
       expect(global.fetch).not.toHaveBeenCalled();
@@ -74,7 +74,10 @@ describe('simulateBackendDryRunWorkflow', () => {
       expect(adapterResult.dbWriteExecuted).toBe(false);
       expect(adapterResult.validationSimulated).toBe(true);
       expect(adapterResult.mappedFromFixture).toBe(true);
+      expect(contract.trigger.bitrix_deal_id).toBe(fixture.bitrixDealId);
+      expect(contract.executionPolicy.backendEndpointAllowed).toBe(false);
       expect(scenarioResult.backendDryRun).toEqual(adapterResult);
+      expect(scenarioResult.backendContract).toEqual(contract);
     },
   );
 
@@ -111,6 +114,7 @@ describe('simulateBackendDryRunWorkflow', () => {
     });
 
     expect(report.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
+    expect(report.backendContract.contractValidationStatus).toBe('PASSED');
     expect(() => assertDryRunReport(report, 'full')).not.toThrow();
   });
 

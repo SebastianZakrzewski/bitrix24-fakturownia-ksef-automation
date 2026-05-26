@@ -30,6 +30,7 @@ describe('buildLiveTestReport', () => {
 
     expect(report.productionReadiness).toBe('NOT_READY');
     expect(report.externalSideEffectsExecuted).toBe(false);
+    expect(report.backendContract.contractValidationStatus).toBe('PASSED');
     expect(report.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
     expect(report.integrations.backendWorkflow).toBe('BACKEND_DRY_RUN_SIMULATED');
     expect(report.backendDryRun.dbWriteExecuted).toBe(false);

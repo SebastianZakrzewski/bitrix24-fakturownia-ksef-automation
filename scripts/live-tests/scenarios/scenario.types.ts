@@ -1,4 +1,5 @@
 import type { BackendDryRunResult } from '../adapters/backend-dry-run.types';
+import type { BackendDryRunContract } from '../contracts/backend-dry-run-contract.types';
 import type { LiveTestScenarioContext } from '../fixtures/scenario-context.types';
 import type {
   IntegrationStepStatus,
@@ -22,6 +23,7 @@ export interface LiveTestScenarioResult {
   externalSideEffectsExecuted: boolean;
   context?: LiveTestScenarioContext;
   backendDryRun?: BackendDryRunResult;
+  backendContract?: BackendDryRunContract;
   steps: LiveTestScenarioStep[];
   message: string;
 }

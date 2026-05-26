@@ -63,6 +63,10 @@ describe('writeLiveTestReport', () => {
       expect(parsed.ksefStatus).toBe('MANUAL_REQUIRED');
       expect(parsed.bitrixSyncStatus).toBe('NOT_TESTED_YET');
       expect(parsed.externalSideEffectsExecuted).toBe(false);
+      expect(parsed.backendContract.contractValidationStatus).toBe('PASSED');
+      expect(parsed.backendContract.executionPolicy.backendEndpointAllowed).toBe(
+        false,
+      );
       expect(parsed.backendDryRun.backendMode).toBe('DRY_RUN');
       expect(parsed.backendDryRun.resultStatus).toBe('BACKEND_DRY_RUN_SIMULATED');
       expect(parsed.backendDryRun.backendWorkflowExecuted).toBe(false);
@@ -76,6 +80,8 @@ describe('writeLiveTestReport', () => {
       expect(parsed.fixture.expectedInvoiceType).toBe(scenario.invoiceType);
       expect(parsed.fixture.bitrixDealId).toMatch(/^\[TEST\]-/);
       expect(parsed.fixture.productSummary.length).toBeGreaterThan(0);
+      expect(markdownContent).toContain('## Backend dry-run contract');
+      expect(markdownContent).toContain('Contract validation: **PASSED**');
       expect(markdownContent).toContain('## Backend dry-run');
       expect(markdownContent).toContain('BACKEND_DRY_RUN_SIMULATED');
       expect(markdownContent).toContain('## Fixture summary');

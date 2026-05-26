@@ -58,6 +58,9 @@ const REQUIRED_MARKDOWN_SNIPPETS = [
   'MANUAL_REQUIRED',
   'NOT_TESTED_YET',
   'External side effects executed: **false**',
+  '## Backend dry-run contract',
+  'Contract validation: **PASSED**',
+  'Backend endpoint allowed: **false**',
   '## Backend dry-run',
   'BACKEND_DRY_RUN_SIMULATED',
   'Real backend workflow ran: **false**',
@@ -337,6 +340,83 @@ function assertScenarioStepStatuses(report: LiveTestReport): void {
   }
 }
 
+function assertBackendContractSection(
+  report: LiveTestReport,
+  scenarioId: ExpectedDryRunScenarioId,
+): void {
+  const expected = EXPECTED_DRY_RUN_REPORT_REQUIREMENTS[scenarioId];
+  const contract = report.backendContract;
+
+  if (contract.mode !== 'DRY_RUN') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendContract.mode must be DRY_RUN',
+    );
+  }
+
+  if (contract.contractValidationStatus !== 'PASSED') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendContract.contractValidationStatus must be PASSED',
+    );
+  }
+
+  if (contract.scenarioType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendContract.scenarioType must match scenario',
+    );
+  }
+
+  if (contract.expectedInvoiceType !== expected.scenarioType) {
+    throw new DryRunReportAssertionError(
+      'SCENARIO_TYPE_MISMATCH',
+      'backendContract.expectedInvoiceType must match scenario',
+    );
+  }
+
+  if (contract.trigger.bitrix_deal_id !== expected.bitrixDealId) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendContract.trigger.bitrix_deal_id must match fixture',
+    );
+  }
+
+  if (contract.trigger.trigger_source !== 'BITRIX24_STAGE_CHANGE') {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendContract.trigger.trigger_source must be BITRIX24_STAGE_CHANGE',
+    );
+  }
+
+  if (!contract.trigger.trigger_stage_id.trim()) {
+    throw new DryRunReportAssertionError(
+      'FIXTURE_MISMATCH',
+      'backendContract.trigger.trigger_stage_id is required',
+    );
+  }
+
+  if (!isIso8601Timestamp(contract.trigger.triggered_at)) {
+    throw new DryRunReportAssertionError(
+      'INVALID_TIMESTAMP',
+      'backendContract.trigger.triggered_at must be ISO-8601',
+    );
+  }
+
+  const policy = contract.executionPolicy;
+  if (
+    policy.backendEndpointAllowed !== false ||
+    policy.useCaseExecutionAllowed !== false ||
+    policy.dbWriteAllowed !== false ||
+    policy.externalSideEffectsAllowed !== false
+  ) {
+    throw new DryRunReportAssertionError(
+      'FORBIDDEN_EXTERNAL_SIDE_EFFECTS',
+      'backendContract.executionPolicy must deny all execution',
+    );
+  }
+}
+
 function assertBackendDryRunSection(
   report: LiveTestReport,
   scenarioId: ExpectedDryRunScenarioId,
@@ -457,6 +537,7 @@ export function assertDryRunReport(
   assertTimestamps(report);
   assertCommonSafetyFields(report);
   assertDryRunScenarioRequirements(report, scenarioId);
+  assertBackendContractSection(report, scenarioId);
   assertBackendDryRunSection(report, scenarioId);
   assertIntegrationStatuses(report);
   assertScenarioStepStatuses(report);

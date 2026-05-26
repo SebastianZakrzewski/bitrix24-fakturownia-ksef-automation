@@ -22,7 +22,8 @@ export async function executeDryRunScenario(
   input: ExecuteDryRunScenarioInput,
 ): Promise<LiveTestScenarioResult> {
   const { context } = input;
-  const backendDryRun = simulateBackendDryRunWorkflow(context);
+  const { result: backendDryRun, contract: backendContract } =
+    simulateBackendDryRunWorkflow(context);
 
   const steps: LiveTestScenarioStep[] = [
     step(
@@ -68,6 +69,7 @@ export async function executeDryRunScenario(
     externalSideEffectsExecuted: false,
     context,
     backendDryRun,
+    backendContract,
     steps,
     message: `Dry-run completed for ${context.scenarioId} (${context.invoiceType}). Backend workflow was simulated only; no external systems were called.`,
   };
