@@ -40,20 +40,23 @@ async function main(): Promise<void> {
     const safetyChecks = validateSafetyGuards(env, scenario.safetyContext);
     const scenarioResult = await scenario.run();
     const finishedAt = new Date();
-    const report = buildLiveTestReport({
-      scenario,
-      scenarioResult,
-      safetyChecks,
-      startedAt,
-      finishedAt,
-    });
 
-    const output = await writeLiveTestReport(report, {
-      outputDir: resolveLiveTestReportDir(env),
-      timestamp: finishedAt,
-    });
+    const output = await writeLiveTestReport(
+      buildLiveTestReport({
+        scenario,
+        scenarioResult,
+        safetyChecks,
+        startedAt,
+        finishedAt,
+        reportWritten: true,
+      }),
+      {
+        outputDir: resolveLiveTestReportDir(env),
+        timestamp: finishedAt,
+      },
+    );
 
-    console.log(`Live test report written:`);
+    console.log(`Live test dry-run report written:`);
     console.log(`  JSON: ${output.jsonPath}`);
     console.log(`  Markdown: ${output.markdownPath}`);
   } catch (error: unknown) {

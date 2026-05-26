@@ -1,9 +1,11 @@
-import type { LiveTestScenario, LiveTestScenarioResult } from '../scenarios/scenario.types';
-import type { SafetyCheck } from '../types/live-test-report.types';
-import {
-  LIVE_TEST_RUNNER_VERSION,
-  type LiveTestReport,
-} from '../types/live-test-report.types';
+import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
+import type {
+  LiveTestScenario,
+  LiveTestScenarioResult,
+  LiveTestScenarioStep,
+} from '../scenarios/scenario.types';
+import type { SafetyCheck, LiveTestReport } from '../types/live-test-report.types';
+import { LIVE_TEST_RUNNER_VERSION } from '../types/live-test-report.types';
 
 export interface BuildLiveTestReportInput {
   scenario: LiveTestScenario;
@@ -11,16 +13,70 @@ export interface BuildLiveTestReportInput {
   safetyChecks: SafetyCheck[];
   startedAt: Date;
   finishedAt: Date;
+  reportWritten?: boolean;
+}
+
+function appendWriteReportStep(
+  steps: LiveTestScenarioStep[],
+  reportWritten: boolean,
+): LiveTestScenarioStep[] {
+  const writeStep: LiveTestScenarioStep = {
+    name: DRY_RUN_STEP_NAMES.WRITE_REPORT,
+    status: reportWritten ? 'PASSED' : 'NOT_RUN',
+    message: reportWritten
+      ? 'JSON and Markdown report written locally.'
+      : 'Report not written yet.',
+  };
+
+  return [...steps, writeStep];
+}
+
+function resolveIntegrationStatuses(
+  scenarioResult: LiveTestScenarioResult,
+): LiveTestReport['integrations'] {
+  const skipped = 'SKIPPED_NOT_EXECUTED' as const;
+
+  if (scenarioResult.executionMode === 'dry-run') {
+    return {
+      ksef: 'MANUAL_REQUIRED',
+      bitrixSync: 'NOT_TESTED_YET',
+      bitrixDealSetup: skipped,
+      backendWorkflow: skipped,
+      fakturowniaOrder: skipped,
+      fakturowniaInvoice: skipped,
+      database: skipped,
+    };
+  }
+
+  return {
+    ksef: 'MANUAL_REQUIRED',
+    bitrixSync: 'NOT_TESTED_YET',
+    bitrixDealSetup: 'NOT_RUN',
+    backendWorkflow: 'NOT_RUN',
+    fakturowniaOrder: 'NOT_RUN',
+    fakturowniaInvoice: 'NOT_RUN',
+    database: 'NOT_RUN',
+  };
 }
 
 export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestReport {
-  const { scenario, scenarioResult, safetyChecks, startedAt, finishedAt } =
-    input;
+  const {
+    scenario,
+    scenarioResult,
+    safetyChecks,
+    startedAt,
+    finishedAt,
+    reportWritten = false,
+  } = input;
+
+  const steps = appendWriteReportStep(scenarioResult.steps, reportWritten);
+  const executionMode = scenarioResult.executionMode ?? 'dry-run';
 
   return {
     meta: {
       scenarioId: scenario.id,
       invoiceType: scenario.invoiceType,
+      executionMode,
       runnerVersion: LIVE_TEST_RUNNER_VERSION,
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
@@ -32,22 +88,27 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
       checks: safetyChecks,
     },
     productionReadiness: 'NOT_READY',
-    integrations: {
-      ksef: 'MANUAL_REQUIRED',
-      bitrixSync: 'NOT_TESTED_YET',
-      bitrixDealSetup: 'NOT_RUN',
-      backendWorkflow: 'NOT_RUN',
-      fakturowniaOrder: 'NOT_RUN',
-      fakturowniaInvoice: 'NOT_RUN',
-      database: 'NOT_RUN',
-    },
+    ksefStatus: 'MANUAL_REQUIRED',
+    bitrixSyncStatus: 'NOT_TESTED_YET',
+    externalSideEffectsExecuted: false,
+    integrations: resolveIntegrationStatuses(scenarioResult),
     scenario: {
       id: scenario.id,
       invoiceType: scenario.invoiceType,
       status: scenarioResult.status,
-      steps: [],
+      steps,
+      context: scenarioResult.context
+        ? {
+            testDealTitle: scenarioResult.context.testDealTitle,
+            bitrixDealId: scenarioResult.context.bitrixDealId,
+            idempotencyKey: scenarioResult.context.idempotencyKey,
+          }
+        : undefined,
       message: scenarioResult.message,
     },
-    summary: `Live test skeleton completed for ${scenario.id} (${scenario.invoiceType}). Scenario implementation is pending.`,
+    summary:
+      scenarioResult.executionMode === 'dry-run'
+        ? `Dry-run live test completed for ${scenario.id} (${scenario.invoiceType}). External side effects were not executed.`
+        : `Live test completed for ${scenario.id} (${scenario.invoiceType}).`,
   };
 }

@@ -24,10 +24,18 @@ function buildMarkdown(report: LiveTestReport): string {
     )
     .join('\n');
 
+  const stepRows = report.scenario.steps
+    .map(
+      (step) =>
+        `| ${step.name} | ${step.status} | ${step.message ?? ''} |`,
+    )
+    .join('\n');
+
   return [
     '# Live Test Report',
     '',
     `**Scenario:** ${report.meta.scenarioId} (${report.meta.invoiceType})`,
+    `**Execution mode:** ${report.meta.executionMode}`,
     `**Runner:** ${report.meta.runnerVersion}`,
     `**Started:** ${report.meta.startedAt}`,
     `**Finished:** ${report.meta.finishedAt}`,
@@ -39,6 +47,9 @@ function buildMarkdown(report: LiveTestReport): string {
     '## Production readiness',
     '',
     `- Status: **${report.productionReadiness}**`,
+    `- External side effects executed: **${report.externalSideEffectsExecuted}**`,
+    `- KSeF status: **${report.ksefStatus}**`,
+    `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
     '',
     '## Safety checks',
     '',
@@ -58,12 +69,21 @@ function buildMarkdown(report: LiveTestReport): string {
     `| Fakturownia invoice | ${report.integrations.fakturowniaInvoice} |`,
     `| Database | ${report.integrations.database} |`,
     '',
+    '## Scenario steps',
+    '',
+    '| Step | Status | Message |',
+    '| --- | --- | --- |',
+    stepRows,
+    '',
     '## Scenario',
     '',
     `- Status: **${report.scenario.status}**`,
     report.scenario.message ? `- Message: ${report.scenario.message}` : '',
+    report.scenario.context
+      ? `- Test deal: ${report.scenario.context.testDealTitle} (${report.scenario.context.bitrixDealId})`
+      : '',
   ]
-    .filter((line) => line !== undefined)
+    .filter((line) => line !== undefined && line !== '')
     .join('\n');
 }
 

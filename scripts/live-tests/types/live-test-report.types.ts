@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.0.0-skeleton';
+export const LIVE_TEST_RUNNER_VERSION = '1.1.0-dry-run';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -16,6 +16,7 @@ export const integrationStepStatusSchema = z.enum([
   'NOT_TESTED_YET',
   'MANUAL_REQUIRED',
   'SKIPPED',
+  'SKIPPED_NOT_EXECUTED',
   'PASSED',
   'FAILED',
 ]);
@@ -24,8 +25,12 @@ export type IntegrationStepStatus = z.infer<typeof integrationStepStatusSchema>;
 export const invoiceTypeSchema = z.enum(['FULL', 'ADVANCE', 'FINAL']);
 export type LiveTestInvoiceType = z.infer<typeof invoiceTypeSchema>;
 
+export const executionModeSchema = z.literal('dry-run');
+export type LiveTestExecutionMode = z.infer<typeof executionModeSchema>;
+
 export const scenarioRunStatusSchema = z.enum([
   'PLACEHOLDER_SKIPPED',
+  'DRY_RUN_COMPLETED',
   'PASSED',
   'FAILED',
 ]);
@@ -42,10 +47,17 @@ export const safetyCheckSchema = z.object({
 
 export type SafetyCheck = z.infer<typeof safetyCheckSchema>;
 
+export const scenarioStepSchema = z.object({
+  name: z.string(),
+  status: integrationStepStatusSchema,
+  message: z.string().optional(),
+});
+
 export const liveTestReportSchema = z.object({
   meta: z.object({
     scenarioId: z.string(),
     invoiceType: invoiceTypeSchema,
+    executionMode: executionModeSchema,
     runnerVersion: z.string(),
     startedAt: z.string(),
     finishedAt: z.string(),
@@ -55,6 +67,9 @@ export const liveTestReportSchema = z.object({
     checks: z.array(safetyCheckSchema),
   }),
   productionReadiness: productionReadinessSchema,
+  ksefStatus: ksefTestStatusSchema,
+  bitrixSyncStatus: bitrixSyncTestStatusSchema,
+  externalSideEffectsExecuted: z.literal(false),
   integrations: z.object({
     ksef: ksefTestStatusSchema,
     bitrixSync: bitrixSyncTestStatusSchema,
@@ -68,13 +83,14 @@ export const liveTestReportSchema = z.object({
     id: z.string(),
     invoiceType: invoiceTypeSchema,
     status: scenarioRunStatusSchema,
-    steps: z.array(
-      z.object({
-        name: z.string(),
-        status: integrationStepStatusSchema,
-        message: z.string().optional(),
-      }),
-    ),
+    steps: z.array(scenarioStepSchema),
+    context: z
+      .object({
+        testDealTitle: z.string(),
+        bitrixDealId: z.string(),
+        idempotencyKey: z.string(),
+      })
+      .optional(),
     message: z.string().optional(),
   }),
   summary: z.string(),

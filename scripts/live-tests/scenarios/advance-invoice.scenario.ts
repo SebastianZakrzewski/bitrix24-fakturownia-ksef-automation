@@ -1,3 +1,5 @@
+import { advanceInvoiceDryRunContext } from '../fixtures/advance-invoice.context';
+import { executeDryRunScenario } from '../execution/dry-run-executor';
 import type { LiveTestScenario } from './scenario.types';
 
 export const advanceInvoiceScenario: LiveTestScenario = {
@@ -10,10 +12,6 @@ export const advanceInvoiceScenario: LiveTestScenario = {
     requestsDeleteOrCancel: false,
   },
   async run() {
-    return {
-      status: 'PLACEHOLDER_SKIPPED',
-      message:
-        'ADVANCE invoice live test is not implemented yet. No external side effects were executed.',
-    };
+    return executeDryRunScenario({ context: advanceInvoiceDryRunContext });
   },
 };
