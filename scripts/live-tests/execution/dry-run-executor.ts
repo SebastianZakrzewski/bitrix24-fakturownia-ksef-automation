@@ -31,7 +31,7 @@ export async function executeDryRunScenario(
     step(
       DRY_RUN_STEP_NAMES.PREPARE_TEST_CONTEXT,
       'PASSED',
-      `Prepared local test context for ${context.invoiceType} (${context.testDealTitle}).`,
+      `Prepared local fixture ${context.testContextId} for ${context.invoiceType} (${context.testDealTitle}).`,
     ),
     step(
       DRY_RUN_STEP_NAMES.SIMULATE_BITRIX_DEAL_SETUP,

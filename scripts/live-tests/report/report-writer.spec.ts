@@ -67,6 +67,21 @@ describe('writeLiveTestReport', () => {
       expect(parsed.integrations.bitrixSync).toBe('NOT_TESTED_YET');
       expect(parsed.scenario.status).toBe('DRY_RUN_COMPLETED');
       expect(parsed.mode).toBe('DRY_RUN');
+      expect(parsed.fixture.scenarioType).toBe(scenario.invoiceType);
+      expect(parsed.fixture.expectedInvoiceType).toBe(scenario.invoiceType);
+      expect(parsed.fixture.bitrixDealId).toMatch(/^\[TEST\]-/);
+      expect(parsed.fixture.productSummary.length).toBeGreaterThan(0);
+      expect(markdownContent).toContain('## Fixture summary');
+
+      if (scenario.id === 'advance') {
+        expect(parsed.fixture.advanceAmountPln).toBe('500.00');
+      }
+
+      if (scenario.id === 'final') {
+        expect(parsed.fixture.previousAdvanceInvoiceId).toBe(
+          'fakturownia-advance-sim-0001',
+        );
+      }
 
       const stepNames = parsed.scenario.steps.map((step) => step.name);
       expect(stepNames).toContain(DRY_RUN_STEP_NAMES.SIMULATE_BITRIX_DEAL_SETUP);

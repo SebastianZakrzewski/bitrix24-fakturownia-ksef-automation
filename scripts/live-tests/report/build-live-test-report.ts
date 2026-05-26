@@ -1,3 +1,4 @@
+import { buildFixtureReportSummary } from '../fixtures/build-fixture-summary';
 import { DRY_RUN_STEP_NAMES } from '../execution/dry-run-steps';
 import type {
   LiveTestScenario,
@@ -91,6 +92,23 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
     ksefStatus: 'MANUAL_REQUIRED',
     bitrixSyncStatus: 'NOT_TESTED_YET',
     externalSideEffectsExecuted: false,
+    fixture: scenarioResult.context
+      ? buildFixtureReportSummary(scenarioResult.context)
+      : {
+          testContextId: 'missing',
+          scenarioType: scenario.invoiceType,
+          bitrixDealId: 'missing',
+          expectedInvoiceType: scenario.invoiceType,
+          paidStageId: 'missing',
+          buyerSummary: {
+            companyName: 'missing',
+            nipMasked: 'TEST-****',
+            city: 'missing',
+            country: 'PL',
+          },
+          productSummary: [],
+          expectedExternalStepsSkipped: [],
+        },
     integrations: resolveIntegrationStatuses(scenarioResult),
     scenario: {
       id: scenario.id,
@@ -99,6 +117,7 @@ export function buildLiveTestReport(input: BuildLiveTestReportInput): LiveTestRe
       steps,
       context: scenarioResult.context
         ? {
+            testContextId: scenarioResult.context.testContextId,
             testDealTitle: scenarioResult.context.testDealTitle,
             bitrixDealId: scenarioResult.context.bitrixDealId,
             idempotencyKey: scenarioResult.context.idempotencyKey,

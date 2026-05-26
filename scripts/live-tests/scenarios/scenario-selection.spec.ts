@@ -31,9 +31,10 @@ describe('scenario selection from CLI/npm script only', () => {
   it('does not infer scenario invoice type from fixture idempotency or Bitrix-like fields', async () => {
     const mismatchedContext = {
       ...fullInvoiceDryRunContext,
+      scenarioType: 'FINAL' as const,
       invoiceType: 'FINAL' as const,
-      idempotencyKey: 'dry-run-deal-full-0001:FINAL',
-      bitrixDealId: 'crm-deal-99999',
+      idempotencyKey: '[TEST]-FULL-001:FINAL',
+      bitrixDealId: '[TEST]-CRM-99999',
     };
 
     const advanceScenario = resolveScenarioFromCliArg('advance');

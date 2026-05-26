@@ -79,7 +79,8 @@ describe('executeDryRunScenario', () => {
       context: advanceInvoiceDryRunContext,
     });
 
-    expect(result.context?.bitrixDealId).toMatch(/^dry-run-deal-/);
+    expect(result.context?.bitrixDealId).toMatch(/^\[TEST\]-/);
+    expect(result.context?.testContextId).toBe('test-context-advance-001');
     expect(result.context?.testDealTitle).toContain('[TEST]');
     expect(result.context?.idempotencyKey).toContain(':ADVANCE');
   });

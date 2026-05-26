@@ -31,6 +31,17 @@ function buildMarkdown(report: LiveTestReport): string {
     )
     .join('\n');
 
+  const productRows = report.fixture.productSummary
+    .map(
+      (line) =>
+        `| ${line.name} | ${line.quantity} | ${line.unitPricePln} PLN |`,
+    )
+    .join('\n');
+
+  const skippedSteps = report.fixture.expectedExternalStepsSkipped
+    .map((step) => `- ${step}`)
+    .join('\n');
+
   return [
     '# Live Test Report',
     '',
@@ -50,6 +61,32 @@ function buildMarkdown(report: LiveTestReport): string {
     `- External side effects executed: **${report.externalSideEffectsExecuted}**`,
     `- KSeF status: **${report.ksefStatus}**`,
     `- Bitrix sync status: **${report.bitrixSyncStatus}**`,
+    '',
+    '## Fixture summary',
+    '',
+    `- Test context: **${report.fixture.testContextId}**`,
+    `- Scenario type: **${report.fixture.scenarioType}**`,
+    `- Expected invoice type: **${report.fixture.expectedInvoiceType}**`,
+    `- Bitrix deal ID: **${report.fixture.bitrixDealId}**`,
+    `- Paid stage: **${report.fixture.paidStageId}**`,
+    `- Buyer: ${report.fixture.buyerSummary.companyName} (${report.fixture.buyerSummary.city}, ${report.fixture.buyerSummary.country})`,
+    `- NIP (masked): ${report.fixture.buyerSummary.nipMasked}`,
+    report.fixture.advanceAmountPln
+      ? `- Advance amount: **${report.fixture.advanceAmountPln} PLN**`
+      : '',
+    report.fixture.previousAdvanceInvoiceId
+      ? `- Previous advance invoice (simulated): **${report.fixture.previousAdvanceInvoiceId}**`
+      : '',
+    '',
+    '### Products',
+    '',
+    '| Name | Qty | Unit price |',
+    '| --- | --- | --- |',
+    productRows,
+    '',
+    '### Expected external steps skipped',
+    '',
+    skippedSteps,
     '',
     '## Safety checks',
     '',

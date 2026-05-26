@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LIVE_TEST_RUNNER_VERSION = '1.1.0-dry-run';
+export const LIVE_TEST_RUNNER_VERSION = '1.2.0-fixtures';
 
 export const productionReadinessSchema = z.literal('NOT_READY');
 export type ProductionReadiness = z.infer<typeof productionReadinessSchema>;
@@ -53,6 +53,32 @@ export const scenarioStepSchema = z.object({
   message: z.string().optional(),
 });
 
+export const fixtureBuyerSummarySchema = z.object({
+  companyName: z.string(),
+  nipMasked: z.string(),
+  city: z.string(),
+  country: z.string(),
+});
+
+export const fixtureProductSummarySchema = z.object({
+  name: z.string(),
+  quantity: z.number(),
+  unitPricePln: z.string(),
+});
+
+export const fixtureReportSummarySchema = z.object({
+  testContextId: z.string(),
+  scenarioType: invoiceTypeSchema,
+  bitrixDealId: z.string(),
+  expectedInvoiceType: invoiceTypeSchema,
+  paidStageId: z.string(),
+  buyerSummary: fixtureBuyerSummarySchema,
+  productSummary: z.array(fixtureProductSummarySchema),
+  advanceAmountPln: z.string().optional(),
+  previousAdvanceInvoiceId: z.string().optional(),
+  expectedExternalStepsSkipped: z.array(z.string()),
+});
+
 export const liveTestReportSchema = z.object({
   mode: liveTestModeSchema,
   meta: z.object({
@@ -70,6 +96,7 @@ export const liveTestReportSchema = z.object({
   ksefStatus: ksefTestStatusSchema,
   bitrixSyncStatus: bitrixSyncTestStatusSchema,
   externalSideEffectsExecuted: z.literal(false),
+  fixture: fixtureReportSummarySchema,
   integrations: z.object({
     ksef: ksefTestStatusSchema,
     bitrixSync: bitrixSyncTestStatusSchema,
@@ -86,6 +113,7 @@ export const liveTestReportSchema = z.object({
     steps: z.array(scenarioStepSchema),
     context: z
       .object({
+        testContextId: z.string(),
         testDealTitle: z.string(),
         bitrixDealId: z.string(),
         idempotencyKey: z.string(),
