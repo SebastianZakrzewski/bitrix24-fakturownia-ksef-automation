@@ -5,7 +5,7 @@ import {
 } from '../bitrix-e2e-setup/bitrix-e2e-setup.types';
 import { productionReadinessSchema } from './live-test-report.types';
 
-export const LIVE_TEST_RUNNER_VERSION_BITRIX_E2E = '1.11.0-bitrix-e2e-setup';
+export const LIVE_TEST_RUNNER_VERSION_BITRIX_E2E = '1.11.1-bitrix-mutation-flag';
 
 export const bitrixE2eRunnerDirectSideEffectsSchema = z.object({
   runnerDirectBitrixCall: z.boolean(),
@@ -28,6 +28,7 @@ export const bitrixE2eSetupSectionSchema = z.object({
     blockers: z.array(z.string()),
     warnings: z.array(z.string()),
   }),
+  realBitrixMutationExecuted: z.boolean(),
   bitrixDealCreated: z.boolean(),
   bitrixDealUpdated: z.boolean(),
   bitrixStageChanged: z.boolean(),
@@ -76,6 +77,7 @@ export const bitrixE2eSetupReportSchema = z.object({
   productionReadiness: productionReadinessSchema,
   scenarioType: z.literal('FULL'),
   expectedInvoiceType: z.literal('FULL'),
+  realBitrixMutationExecuted: z.boolean(),
   bitrixDealCreated: z.boolean(),
   bitrixDealUpdated: z.boolean(),
   bitrixStageChanged: z.boolean(),

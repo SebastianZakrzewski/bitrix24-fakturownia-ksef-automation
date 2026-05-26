@@ -1,4 +1,5 @@
 import { parseBitrixE2eSetupEnv } from './bitrix-e2e-setup-env';
+import { buildBlockedBitrixE2eSetup } from './build-blocked-bitrix-e2e-setup';
 import { evaluateBitrixE2eSetupGate } from './evaluate-bitrix-e2e-setup-gate';
 import { runBitrixE2eSetup } from './run-bitrix-e2e-setup';
 import { buildBitrixE2eSetupReport } from '../report/build-bitrix-e2e-setup-report';
@@ -40,6 +41,73 @@ function readyEnv() {
 }
 
 describe('Bitrix E2E setup', () => {
+  it('blocked setup report has realBitrixMutationExecuted=false', () => {
+    const execution = buildBlockedBitrixE2eSetup(
+      'FULL',
+      '[TEST] blocked',
+      'PREPARATION',
+      ['LIVE_TEST_MODE must be true'],
+    );
+    const report = buildBitrixE2eSetupReport({
+      execution,
+      safetyChecks: [],
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+
+    expect(report.realBitrixMutationExecuted).toBe(false);
+    expect(report.bitrixDealCreated).toBe(false);
+    expect(report.bitrixStageChanged).toBe(false);
+    expect(report.backendWorkflowMayHaveExecuted).toBe(false);
+    expect(report.backendSideEffectsMayHaveOccurred).toBe(false);
+    expect(() => assertBitrixE2eSetupReport(report)).not.toThrow();
+  });
+
+  it('mocked FULL setup report has realBitrixMutationExecuted=true', async () => {
+    const client = createMockBitrixClient();
+    const execution = await runBitrixE2eSetup({
+      env: readyEnv(),
+      scenarioType: 'FULL',
+      rawConfig: READY_RAW,
+      client,
+    });
+    const report = buildBitrixE2eSetupReport({
+      execution,
+      safetyChecks: [],
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+
+    expect(report.realBitrixMutationExecuted).toBe(true);
+    expect(report.runnerDirectSideEffects.runnerDirectBitrixCall).toBe(true);
+    expect(report.runnerDirectExternalSideEffectsExecuted).toBe(true);
+    expect(() => assertBitrixE2eSetupReport(report)).not.toThrow();
+  });
+
+  it('when stageChanged=true report asserts backend may-execute flags and NOT_READY', async () => {
+    const client = createMockBitrixClient();
+    const execution = await runBitrixE2eSetup({
+      env: readyEnv(),
+      scenarioType: 'FULL',
+      rawConfig: READY_RAW,
+      client,
+    });
+    const report = buildBitrixE2eSetupReport({
+      execution,
+      safetyChecks: [],
+      startedAt: new Date(),
+      finishedAt: new Date(),
+    });
+
+    expect(execution.bitrixStageChanged).toBe(true);
+    expect(report.backendWorkflowMayHaveExecuted).toBe(true);
+    expect(report.backendSideEffectsMayHaveOccurred).toBe(true);
+    expect(report.manualVerificationRequired).toBe(true);
+    expect(report.productionReadiness).toBe('NOT_READY');
+    expect(report.runnerDirectBackendTrigger).toBe(false);
+    expect(report.backendTriggerRequestSent).toBe(false);
+  });
+
   it('blocks by default when Bitrix allow flags are false', () => {
     const env = parseBitrixE2eSetupEnv({
       LIVE_TEST_MODE: 'false',

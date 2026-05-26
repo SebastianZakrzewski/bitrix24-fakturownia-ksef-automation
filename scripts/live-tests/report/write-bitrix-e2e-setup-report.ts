@@ -47,6 +47,7 @@ export function buildBitrixE2eSetupReportMarkdown(report: BitrixE2eSetupReport):
     '## Bitrix E2E setup',
     '',
     `- Result: **${setup.resultStatus}**`,
+    `- Real Bitrix mutation executed: **${setup.realBitrixMutationExecuted}**`,
     `- Deal created: **${setup.bitrixDealCreated}**`,
     `- Deal updated: **${setup.bitrixDealUpdated}**`,
     `- Stage changed: **${setup.bitrixStageChanged}**`,

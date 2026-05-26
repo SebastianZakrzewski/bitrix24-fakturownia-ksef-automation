@@ -27,6 +27,51 @@ export function assertBitrixE2eSetupReport(report: BitrixE2eSetupReport): void {
     throw new Error('secretDisplayed must be false');
   }
 
+  if (!report.realBitrixMutationExecuted) {
+    if (report.bitrixDealCreated) {
+      throw new Error('bitrixDealCreated must be false when realBitrixMutationExecuted is false');
+    }
+    if (report.bitrixStageChanged) {
+      throw new Error('bitrixStageChanged must be false when realBitrixMutationExecuted is false');
+    }
+    if (report.backendWorkflowMayHaveExecuted) {
+      throw new Error(
+        'backendWorkflowMayHaveExecuted must be false when realBitrixMutationExecuted is false',
+      );
+    }
+    if (report.backendSideEffectsMayHaveOccurred) {
+      throw new Error(
+        'backendSideEffectsMayHaveOccurred must be false when realBitrixMutationExecuted is false',
+      );
+    }
+    if (report.runnerDirectSideEffects.runnerDirectBitrixCall) {
+      throw new Error(
+        'runnerDirectBitrixCall must be false when realBitrixMutationExecuted is false',
+      );
+    }
+    if (report.runnerDirectExternalSideEffectsExecuted) {
+      throw new Error(
+        'runnerDirectExternalSideEffectsExecuted must be false when realBitrixMutationExecuted is false',
+      );
+    }
+  } else {
+    if (!report.runnerDirectSideEffects.runnerDirectBitrixCall) {
+      throw new Error(
+        'runnerDirectBitrixCall must be true when realBitrixMutationExecuted is true',
+      );
+    }
+    if (!report.runnerDirectExternalSideEffectsExecuted) {
+      throw new Error(
+        'runnerDirectExternalSideEffectsExecuted must be true when realBitrixMutationExecuted is true',
+      );
+    }
+    if (!report.manualVerificationRequired) {
+      throw new Error(
+        'manualVerificationRequired must be true when realBitrixMutationExecuted is true',
+      );
+    }
+  }
+
   if (
     report.bitrixStageChanged &&
     !report.backendWorkflowMayHaveExecuted

@@ -16,10 +16,7 @@ export interface BuildBitrixE2eSetupReportInput {
 function runnerDirectSideEffects(
   execution: BitrixE2eSetupExecutionResult,
 ): BitrixE2eSetupReport['runnerDirectSideEffects'] {
-  const bitrixCalled =
-    execution.bitrixDealCreated ||
-    execution.bitrixDealUpdated ||
-    execution.bitrixStageChanged;
+  const bitrixCalled = execution.realBitrixMutationExecuted;
 
   return {
     runnerDirectBitrixCall: bitrixCalled,
@@ -61,6 +58,7 @@ export function buildBitrixE2eSetupReport(
     productionReadiness: 'NOT_READY',
     scenarioType: 'FULL',
     expectedInvoiceType: 'FULL',
+    realBitrixMutationExecuted: execution.realBitrixMutationExecuted,
     bitrixDealCreated: execution.bitrixDealCreated,
     bitrixDealUpdated: execution.bitrixDealUpdated,
     bitrixStageChanged: execution.bitrixStageChanged,
@@ -86,6 +84,7 @@ export function buildBitrixE2eSetupReport(
       scenarioType: 'FULL',
       expectedInvoiceType: 'FULL',
       gate: execution.gate,
+      realBitrixMutationExecuted: execution.realBitrixMutationExecuted,
       bitrixDealCreated: execution.bitrixDealCreated,
       bitrixDealUpdated: execution.bitrixDealUpdated,
       bitrixStageChanged: execution.bitrixStageChanged,

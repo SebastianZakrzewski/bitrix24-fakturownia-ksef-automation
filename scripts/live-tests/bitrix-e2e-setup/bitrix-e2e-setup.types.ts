@@ -24,6 +24,7 @@ export interface BitrixE2eSetupExecutionResult {
   scenarioType: LiveTestInvoiceType;
   triggerMode: BitrixE2eTriggerMode;
   gate: BitrixE2eSetupGateResult;
+  realBitrixMutationExecuted: boolean;
   bitrixDealCreated: boolean;
   bitrixDealUpdated: boolean;
   bitrixStageChanged: boolean;

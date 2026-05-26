@@ -18,6 +18,7 @@ import {
 } from './bitrix-test-setup-client';
 import type { BitrixTestSetupClient } from './bitrix-test-setup-client.types';
 import { resolveBitrixWebhookUrl } from './resolve-bitrix-webhook-url';
+import { deriveRealBitrixMutationExecuted } from './derive-real-bitrix-mutation-executed';
 import type { LiveTestInvoiceType } from '../types/live-test-report.types';
 
 const DEFAULT_INITIAL_STAGE_ID = 'NEW';
@@ -72,12 +73,14 @@ export async function runBitrixE2eSetup(
 
   const errors: string[] = [];
   const warnings = [...gate.warnings];
+  let bitrixMutationStarted = false;
   let bitrixDealCreated = false;
   let bitrixDealUpdated = false;
   let bitrixStageChanged = false;
   let bitrixDealId: string | undefined;
 
   try {
+    bitrixMutationStarted = true;
     const { companyId } = await client.createTestCompany(payload.company);
     const { dealId } = await client.createTestDeal({
       ...payload.deal,
@@ -101,12 +104,19 @@ export async function runBitrixE2eSetup(
     errors.push(message);
 
     const automation = deriveBitrixAutomationSystemEffects({ bitrixStageChanged });
+    const realBitrixMutationExecuted = deriveRealBitrixMutationExecuted({
+      bitrixMutationStarted,
+      bitrixDealCreated,
+      bitrixDealUpdated,
+      bitrixStageChanged,
+    });
 
     return {
       mode: BITRIX_E2E_SETUP_MODE,
       scenarioType,
       triggerMode: BITRIX_E2E_TRIGGER_MODE,
       gate,
+      realBitrixMutationExecuted,
       bitrixDealCreated,
       bitrixDealUpdated,
       bitrixStageChanged,
@@ -126,6 +136,12 @@ export async function runBitrixE2eSetup(
   }
 
   const automation = deriveBitrixAutomationSystemEffects({ bitrixStageChanged });
+  const realBitrixMutationExecuted = deriveRealBitrixMutationExecuted({
+    bitrixMutationStarted,
+    bitrixDealCreated,
+    bitrixDealUpdated,
+    bitrixStageChanged,
+  });
 
   if (bitrixStageChanged) {
     warnings.push(
@@ -138,6 +154,7 @@ export async function runBitrixE2eSetup(
     scenarioType,
     triggerMode: BITRIX_E2E_TRIGGER_MODE,
     gate,
+    realBitrixMutationExecuted,
     bitrixDealCreated,
     bitrixDealUpdated,
     bitrixStageChanged,
