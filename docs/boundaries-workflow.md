@@ -5,10 +5,10 @@
 |---|---|
 | Bitrix24 | Source of deal, company, products, invoice type, advance amount, paid stage; destination for comment and invoice link field |
 | n8n | Receives Bitrix24 automation trigger and forwards minimal payload to backend |
-| Backend NestJS | Validation, idempotency, mapping, business decisions, Fakturownia call, process statuses, audit, Bitrix sync |
+| Backend NestJS | Validation, idempotency, mapping, business decisions, Fakturownia call, process statuses, audit, Bitrix sync, invoice email orchestration |
 | Supabase/PostgreSQL | Process state, created invoices, audit, idempotency, configuration, retry attempts |
-| Fakturownia | Invoice creation and automatic KSeF handling |
-| Client panel | Read-only simple view of processes/invoices created by this system |
+| Fakturownia | Invoice creation, automatic KSeF handling, invoice PDF/link source |
+| Email provider | Outbound delivery of customer invoice email (integration only; backend decides when to send) |
 | KSeF | Indirectly handled through Fakturownia in V1 |
 
 ## Source of truth
@@ -22,7 +22,7 @@
 | Invoice link | Fakturownia, stored in our DB and Bitrix24 |
 | KSeF status | Fakturownia, stored as process result |
 | Audit | Our DB |
-| Client panel view | Our DB |
+| Customer invoice email | Backend orchestration + email provider; content from Fakturownia link/PDF |
 
 ## Main workflow
 1. Deal moves to `Opłacone` in Bitrix24.
@@ -45,8 +45,8 @@
 18. Backend saves `InvoiceRecord` and Fakturownia/KSeF status.
 19. Backend adds Bitrix24 timeline comment with invoice link.
 20. Backend tries to update Bitrix24 invoice link field.
-21. Backend sets `COMPLETED` only after required success conditions.
-22. Client panel reads list data from our DB.
+21. Backend sends customer invoice email with Fakturownia PDF and/or link.
+22. Backend sets `COMPLETED` only after required success conditions (Bitrix comment + customer email).
 
 ## Endpoint contracts at boundary level
 ### n8n -> Backend
@@ -54,10 +54,10 @@
 
 Input includes only trigger metadata, not invoice data. Backend loads actual data from Bitrix24.
 
-### Client panel
+### Client panel (V2 — deferred from V1)
 `GET /client/invoice-processes`
 
-Returns list items only. No details/audit/retry in V1 panel.
+Returns list items only. Not required for V1 completion. See `/docs/mvp-roadmap.md`.
 
 ### Technical admin
 - `POST /admin/invoice-processes/:id/retry`
@@ -74,7 +74,8 @@ These are outside client panel and protected by admin secret/API key.
 | Create Fakturownia invoice | Automated |
 | KSeF through Fakturownia | Automated by Fakturownia |
 | Bitrix comment/link | Automated |
-| Retry validation/Fakturownia/Bitrix sync | Manual technical endpoint |
+| Customer invoice email | Automated after confirmed invoice, KSeF path, and Bitrix comment |
+| Retry validation/Fakturownia/Bitrix sync/invoice email | Manual technical endpoint |
 | Retry after unknown timeout | Manual only after review |
 | KSeF error handling | Manual in Fakturownia/accounting |
 | Delete/cancel invoice | Not allowed in V1 |

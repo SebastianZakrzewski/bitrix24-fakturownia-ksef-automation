@@ -1,6 +1,8 @@
 import { Bitrix24CompanyService } from '../../bitrix24/services/bitrix24-company.service';
+import { Bitrix24DealFieldService } from '../../bitrix24/services/bitrix24-deal-field.service';
 import { Bitrix24DealService } from '../../bitrix24/services/bitrix24-deal.service';
 import { Bitrix24ProductRowService } from '../../bitrix24/services/bitrix24-product-row.service';
+import { Bitrix24TimelineService } from '../../bitrix24/services/bitrix24-timeline.service';
 import type { BitrixDealData } from '../../bitrix24/types/bitrix24.types';
 import { EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS } from '../config/evapremium-v1-client-config';
 import type { CreateInvoiceFromBitrixDealCommand } from '../commands/create-invoice-from-bitrix-deal.command';
@@ -21,6 +23,7 @@ import { InvoiceEventRepository } from '../repositories/invoice-event.repository
 import { InvoiceProcessRepository } from '../repositories/invoice-process.repository';
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
+import { InvoiceCommentService } from '../services/invoice-comment.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from '../services/invoice-idempotency.service';
 import { InvoiceProcessService } from '../services/invoice-process.service';
@@ -103,6 +106,10 @@ const fakturowniaCreateResult = () => ({
   currency: 'PLN' as const,
 });
 
+const FAKTUROWNIA_INVOICE_URL = fakturowniaCreateResult().fakturowniaInvoiceUrl;
+const INVOICE_LINK_FIELD =
+  EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS.bitrix_field_mapping.invoiceLinkField;
+
 const toDealCore = (deal: BitrixDealData) => ({
   dealId: deal.dealId,
   dealUrl: deal.dealUrl,
@@ -117,6 +124,12 @@ type UseCaseDeps = {
   bitrix24CompanyService: jest.Mocked<Pick<Bitrix24CompanyService, 'getCompanyById'>>;
   bitrix24ProductRowService: jest.Mocked<
     Pick<Bitrix24ProductRowService, 'listByDealId'>
+  >;
+  bitrix24TimelineService: jest.Mocked<
+    Pick<Bitrix24TimelineService, 'addDealComment'>
+  >;
+  bitrix24DealFieldService: jest.Mocked<
+    Pick<Bitrix24DealFieldService, 'updateDealField'>
   >;
   invoiceIdempotencyService: jest.Mocked<
     Pick<InvoiceIdempotencyService, 'claim' | 'assertCanCreateInvoice'>
@@ -142,6 +155,8 @@ const createDeps = (): UseCaseDeps => ({
   bitrix24DealService: { getDealById: jest.fn() },
   bitrix24CompanyService: { getCompanyById: jest.fn() },
   bitrix24ProductRowService: { listByDealId: jest.fn() },
+  bitrix24TimelineService: { addDealComment: jest.fn().mockResolvedValue(undefined) },
+  bitrix24DealFieldService: { updateDealField: jest.fn().mockResolvedValue(undefined) },
   invoiceIdempotencyService: {
     claim: jest.fn(),
     assertCanCreateInvoice: jest.fn().mockResolvedValue(undefined),
@@ -170,6 +185,8 @@ const createUseCase = (deps: UseCaseDeps) =>
     deps.bitrix24DealService as unknown as Bitrix24DealService,
     deps.bitrix24CompanyService as unknown as Bitrix24CompanyService,
     deps.bitrix24ProductRowService as unknown as Bitrix24ProductRowService,
+    deps.bitrix24TimelineService as unknown as Bitrix24TimelineService,
+    deps.bitrix24DealFieldService as unknown as Bitrix24DealFieldService,
     deps.invoiceIdempotencyService as unknown as InvoiceIdempotencyService,
     new BitrixInvoiceMapper(),
     new InvoiceValidationService(),
@@ -181,6 +198,7 @@ const createUseCase = (deps: UseCaseDeps) =>
     new InvoiceDraftBuilderService(),
     deps.fakturowniaOrderEnsureService as unknown as FakturowniaOrderEnsureService,
     deps.fakturowniaService as unknown as FakturowniaService,
+    new InvoiceCommentService(),
   );
 
 const setupBitrixMocks = (
@@ -214,6 +232,8 @@ describe('CreateInvoiceFromBitrixDealUseCase — stale trigger handling', () => 
     expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
+    expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
+    expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
   };
 
   it('returns STALE_TRIGGER_IGNORED when deal is no longer on paid stage', async () => {
@@ -259,6 +279,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
     expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
+    expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
   };
 
   const assertValidationFailurePersistence = (
@@ -284,6 +305,12 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
         invoice_process_id: 'process-uuid-1',
         bitrix_deal_id: '27000',
         event_type: 'VALIDATION_FAILED',
+      }),
+    );
+    expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealId: '27000',
+        message: expect.stringContaining(expectedCode),
       }),
     );
     assertForbiddenSideEffects();
@@ -459,6 +486,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
     const result = await useCase.execute(command());
 
     expect(result.status).toBe('INVOICE_CREATED');
+    expect(result.message).toContain('synced to Bitrix24');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ invoiceType: 'FULL', bitrixDealId: '27000' }),
@@ -468,9 +496,20 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
       expect.objectContaining({
         invoice_process_id: 'process-uuid-1',
         fakturownia_invoice_id: '987654',
-        fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/987654',
+        fakturownia_invoice_url: FAKTUROWNIA_INVOICE_URL,
       }),
     );
+    expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealId: '27000',
+        message: expect.stringContaining(FAKTUROWNIA_INVOICE_URL),
+      }),
+    );
+    expect(deps.bitrix24DealFieldService.updateDealField).toHaveBeenCalledWith({
+      dealId: '27000',
+      fieldCode: INVOICE_LINK_FIELD,
+      value: FAKTUROWNIA_INVOICE_URL,
+    });
     expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
       'process-uuid-1',
       expect.objectContaining({ status: 'INVOICE_CREATION_IN_PROGRESS' }),
@@ -484,6 +523,12 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
     );
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'INVOICE_CREATED' }),
+    );
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'BITRIX_TIMELINE_COMMENT_ADDED' }),
+    );
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'BITRIX_LINK_FIELD_UPDATED' }),
     );
   });
 
@@ -653,6 +698,9 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
       callOrder.push('createInvoice');
       return fakturowniaCreateResult();
     });
+    deps.bitrix24TimelineService.addDealComment.mockImplementation(async () => {
+      callOrder.push('addDealComment');
+    });
 
     await useCase.execute(command());
 
@@ -660,6 +708,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
       'assertCanCreateInvoice',
       'updateStatus:INVOICE_CREATION_IN_PROGRESS',
       'createInvoice',
+      'addDealComment',
     ]);
   });
 
@@ -856,17 +905,150 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
     },
   );
 
-  it('does not perform Bitrix sync after successful invoice creation', async () => {
+  it('does not perform Bitrix sync when Fakturownia create fails', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.fakturowniaService.createInvoice.mockRejectedValue(
+      new FakturowniaApiError({
+        category: 'CLIENT',
+        message: 'Provider rejected invoice',
+        httpStatus: 422,
+      }),
+    );
+
+    await useCase.execute(command());
+
+    expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
+    expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+  });
+});
+
+describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREATED', () => {
+  let deps: UseCaseDeps;
+  let useCase: CreateInvoiceFromBitrixDealUseCase;
+
+  beforeEach(() => {
+    deps = createDeps();
+    useCase = createUseCase(deps);
+  });
+
+  it.each(['FULL', 'ADVANCE', 'FINAL'] as const)(
+    'syncs timeline comment and link field after %s invoice creation',
+    async (invoiceType) => {
+      const deal =
+        invoiceType === 'FULL'
+          ? bitrixDealForFull()
+          : invoiceType === 'ADVANCE'
+            ? bitrixDealForAdvance()
+            : bitrixDealForFinal();
+
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow(invoiceType));
+
+      if (invoiceType === 'FINAL') {
+        const advanceProcess = processRow('ADVANCE', { id: 'advance-process-uuid' });
+        const advanceRecord: InvoiceRecordRow = {
+          id: 'record-advance-uuid',
+          invoice_process_id: 'advance-process-uuid',
+          bitrix_deal_id: '27000',
+          invoice_type: 'ADVANCE',
+          fakturownia_invoice_id: '2432393',
+          fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/2432393',
+          total_net: '3000',
+          total_gross: '3690',
+          vat_rate: 23,
+          currency: 'PLN',
+          created_at: '2026-01-01T00:00:00.000Z',
+        };
+
+        deps.invoiceProcessRepository.findByDealIdAndInvoiceType.mockImplementation(
+          async (_dealId, type) => (type === 'ADVANCE' ? advanceProcess : null),
+        );
+        deps.invoiceRecordRepository.findByInvoiceProcessId.mockImplementation(
+          async (processId) =>
+            processId === 'advance-process-uuid' ? advanceRecord : null,
+        );
+      }
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('INVOICE_CREATED');
+      expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dealId: '27000',
+          message: expect.stringContaining(FAKTUROWNIA_INVOICE_URL),
+        }),
+      );
+      expect(deps.bitrix24DealFieldService.updateDealField).toHaveBeenCalledWith({
+        dealId: '27000',
+        fieldCode: INVOICE_LINK_FIELD,
+        value: FAKTUROWNIA_INVOICE_URL,
+      });
+    },
+  );
+
+  it('sets MANUAL_REVIEW_REQUIRED when timeline comment fails after invoice creation', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.bitrix24TimelineService.addDealComment.mockRejectedValue(
+      new Error('Bitrix timeline unavailable'),
+    );
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('MANUAL_REVIEW_REQUIRED');
+    expect(deps.invoiceRecordRepository.insert).toHaveBeenCalledTimes(1);
+    expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+      'process-uuid-1',
+      expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
+    );
+    expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'BITRIX_TIMELINE_COMMENT_FAILED' }),
+    );
+  });
+
+  it('keeps INVOICE_CREATED when link field update fails after successful comment', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.bitrix24DealFieldService.updateDealField.mockRejectedValue(
+      new Error('Bitrix field update failed'),
+    );
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('INVOICE_CREATED');
+    expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledTimes(1);
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'BITRIX_LINK_FIELD_UPDATE_FAILED' }),
+    );
+    expect(deps.invoiceProcessRepository.updateStatus).not.toHaveBeenCalledWith(
+      'process-uuid-1',
+      expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
+    );
+  });
+
+  it('does not call Bitrix timeline before Fakturownia createInvoice', async () => {
     const deal = bitrixDealForFull();
     setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
     deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
 
+    const callOrder: string[] = [];
+
+    deps.fakturowniaService.createInvoice.mockImplementation(async () => {
+      callOrder.push('createInvoice');
+      return fakturowniaCreateResult();
+    });
+    deps.bitrix24TimelineService.addDealComment.mockImplementation(async () => {
+      callOrder.push('addDealComment');
+      return undefined;
+    });
+
     await useCase.execute(command());
 
-    expect(deps.bitrix24DealService.getDealById).toHaveBeenCalledTimes(1);
-    expect(deps.bitrix24CompanyService.getCompanyById).toHaveBeenCalledWith('7', {
-      addressSource: 'CRM_ADDRESS_LIST',
-    });
-    expect(deps.bitrix24ProductRowService.listByDealId).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(['createInvoice', 'addDealComment']);
   });
 });

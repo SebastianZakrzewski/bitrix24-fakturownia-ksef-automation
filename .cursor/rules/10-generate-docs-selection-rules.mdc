@@ -1,0 +1,150 @@
+---
+description: Generate project-specific docs-selection rules dynamically from standardized /docs
+alwaysApply: false
+---
+
+# Generate Docs Selection Rules Dynamically From Standardized Docs
+
+Use this rule only when the user asks to generate, rebuild, update, or validate `.cursor/rules/docs-selection/*`.
+
+## Role
+
+You are a Docs Selection Rule Generator.
+
+The project uses a standardized `/docs` structure, but the actual domain, modules, workflows and integrations differ per project.
+
+Your job is to generate project-specific docs-selection rules from the actual content of `/docs`.
+
+Do not copy fixed integration names from previous projects.
+Do not assume Bitrix24, Fakturownia, KSeF, invoices, CRM, AI agents, payments, scraping, chatbots or any other module unless they are explicitly present in the current `/docs`.
+
+## Source of truth
+
+Read existing files from the standardized docs set:
+
+- `/docs/overview.md`
+- `/docs/business-process-map.md`
+- `/docs/mvp-roadmap.md`
+- `/docs/boundaries-workflow.md`
+- `/docs/domain-lifecycle.md`
+- `/docs/contracts.md`
+- `/docs/database-schema.md`
+- `/docs/modules-reliability.md`
+- `/docs/security-observability-testing.md`
+- `/docs/implementation-plan-v1.md`
+- `/docs/decision-log.md`
+
+Use only paths that exist in this repo.
+
+If a file is missing:
+
+- do not invent its content
+- do not reference missing paths
+- create `TODO_DECISION` only if the missing file prevents safe docs-selection generation
+
+## Required output layout
+
+Generate or update **project-specific** files under `docs-selection/`:
+
+```text
+.cursor/rules/
+  00-docs-selection-policy.mdc           # generic policy — do NOT hardcode modules; do not overwrite unless user asks
+  10-generate-docs-selection-rules.mdc   # this file — do not overwrite unless user asks
+.cursor/rules/docs-selection/
+  10-*.mdc … 80-*.mdc                     # task-area category rules (project-specific)
+  90-tech-lead-audit.mdc                  # audit docs selection
+```
+
+Do not delete `10-generate-docs-selection-rules.mdc` during rebuild unless the user explicitly requests it.
+
+## Category discovery (from /docs, not memory)
+
+1. Read `/docs/overview.md`, `/docs/boundaries-workflow.md`, `/docs/modules-reliability.md`, `/docs/implementation-plan-v1.md`.
+2. Identify **core cross-cutting areas** that always apply to many tasks:
+   - DB / persistence (if `database-schema.md` exists)
+   - Lifecycle / statuses (if `domain-lifecycle.md` exists)
+   - DTO / API / controllers (if `contracts.md` exists)
+   - Validation / mapping (if business validation or mapping is documented)
+   - Testing (if `security-observability-testing.md` exists)
+   - Main workflow / use case (if a primary orchestrated process is documented)
+3. Identify **integration or module areas** only when explicitly documented — e.g. named external systems, modules, or bounded contexts in `/docs`.
+4. Assign numbering in tens: `10`, `20`, `30`, … Reserve `90` for tech-lead audit.
+5. Skip a category entirely if `/docs` does not support it; do not create placeholder rules for absent domains.
+
+## Category rule file template
+
+Each generated category file must follow this shape:
+
+```markdown
+---
+description: Docs to read for [area]
+globs: [repo-specific paths from src/ and test/]
+alwaysApply: false
+---
+
+# Docs — [area title]
+
+Read before coding:
+
+- `/docs/[paths derived from /docs relevance]`
+- `/docs/decision-log.md`
+
+Applies when the task touches: [concrete types, services, paths from this repo's /docs and code layout].
+
+Rules:
+
+- [boundary or forbidden-behavior bullets from /docs, if any for this area]
+```
+
+Requirements per file:
+
+- **description**: one line, task-area specific
+- **globs**: match actual source/test paths in this repo (inspect `src/`, `test/`, `scripts/`); do not invent modules
+- **Read before coding**: minimal set — always include `decision-log.md`; add only `/docs` files that area actually needs
+- **Applies when**: named symbols, folders, or process steps from current `/docs` and codebase
+- **Rules**: optional; only documented constraints (e.g. integration must not decide business correctness)
+
+## Do NOT hardcode modules in `00-docs-selection-policy.mdc`
+
+`.cursor/rules/00-docs-selection-policy.mdc` is **generic across all SellGenius projects**. Never add project-specific module names (integrations, domain entities, use cases) to it.
+
+Project-specific content belongs only in:
+
+- `docs-selection/10-*.mdc` … `docs-selection/80-*.mdc` — one file per discovered task area
+- `docs-selection/90-tech-lead-audit.mdc` — audit table rows derived from generated categories
+
+When generating, leave `00-docs-selection-policy.mdc` unchanged except if the user explicitly asks to update the generic numbering convention itself.
+
+## Update `90-tech-lead-audit.mdc`
+
+Regenerate the **By audited area** table from the same category list. Each row must reference the generated `NN-*.mdc` files and their doc lists — not hardcoded integration names from other projects.
+
+## Validation before finishing
+
+1. Every referenced `/docs/*.md` path exists in the repo.
+2. Every generated `NN-*.mdc` (10–80) maps to content documented in `/docs`.
+3. `00-docs-selection-policy.mdc` contains no project-specific module or integration names.
+4. No category references modules or integrations absent from `/docs`.
+5. Globs are non-empty for file-scoped categories (except audit if using broad globs intentionally).
+6. `decision-log.md` appears in every category's read list.
+7. Legacy forbidden paths from `01-core-implementation-agent.mdc` are not referenced.
+
+## Output report
+
+When done, report:
+
+```text
+DOCS-SELECTION GENERATION REPORT
+- Categories created/updated: [list NN-name.mdc]
+- Categories removed/skipped: [list + reason from /docs]
+- /docs files used: [paths]
+- /docs files not referenced: [paths + why]
+- TODO_DECISION: [if any]
+- Manual review needed: [globs or symbols that need human confirmation]
+```
+
+Forbidden during generation:
+
+- inventing undocumented modules, statuses, or integrations
+- copying category names or globs from another SellGenius project without verifying this repo
+- setting `alwaysApply: true` on category rules (only `00-docs-selection-policy.mdc` is always-on)

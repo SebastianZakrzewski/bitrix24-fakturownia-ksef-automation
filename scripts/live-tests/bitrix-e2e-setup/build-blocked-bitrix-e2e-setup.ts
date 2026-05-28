@@ -27,6 +27,8 @@ export function buildBlockedBitrixE2eSetup(
       warnings: [],
     },
     realBitrixMutationExecuted: false,
+    bitrixCompanyReusedExisting: false,
+    bitrixCompanyCreated: false,
     bitrixDealCreated: false,
     bitrixDealUpdated: false,
     bitrixStageChanged: false,

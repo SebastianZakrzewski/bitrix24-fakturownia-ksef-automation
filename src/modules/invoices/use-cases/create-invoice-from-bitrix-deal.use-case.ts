@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Bitrix24DealFieldService } from '../../bitrix24/services/bitrix24-deal-field.service';
+import { Bitrix24TimelineService } from '../../bitrix24/services/bitrix24-timeline.service';
 import { Bitrix24CompanyService } from '../../bitrix24/services/bitrix24-company.service';
 import { Bitrix24DealService } from '../../bitrix24/services/bitrix24-deal.service';
 import { Bitrix24ProductRowService } from '../../bitrix24/services/bitrix24-product-row.service';
@@ -22,6 +24,7 @@ import { InvoiceEventRepository } from '../repositories/invoice-event.repository
 import { InvoiceProcessRepository } from '../repositories/invoice-process.repository';
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
+import { InvoiceCommentService } from '../services/invoice-comment.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from '../services/invoice-idempotency.service';
 import { InvoiceProcessService } from '../services/invoice-process.service';
@@ -37,6 +40,8 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly bitrix24DealService: Bitrix24DealService,
     private readonly bitrix24CompanyService: Bitrix24CompanyService,
     private readonly bitrix24ProductRowService: Bitrix24ProductRowService,
+    private readonly bitrix24TimelineService: Bitrix24TimelineService,
+    private readonly bitrix24DealFieldService: Bitrix24DealFieldService,
     private readonly invoiceIdempotencyService: InvoiceIdempotencyService,
     private readonly bitrixInvoiceMapper: BitrixInvoiceMapper,
     private readonly invoiceValidationService: InvoiceValidationService,
@@ -48,6 +53,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly invoiceDraftBuilderService: InvoiceDraftBuilderService,
     private readonly fakturowniaOrderEnsureService: FakturowniaOrderEnsureService,
     private readonly fakturowniaService: FakturowniaService,
+    private readonly invoiceCommentService: InvoiceCommentService,
   ) {}
 
   async execute(
@@ -159,6 +165,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
       validationResult.data,
       invoiceType,
       command.bitrixDealId,
+      config,
     );
   }
 
@@ -209,6 +216,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     validated: ValidatedInvoiceMapping,
     invoiceType: InvoiceType,
     bitrixDealId: string,
+    config: ClientConfigMappings,
   ): Promise<InvoiceProcessTriggerResponseDto> {
     const draft = this.invoiceDraftBuilderService.build(validated);
 
@@ -292,13 +300,14 @@ export class CreateInvoiceFromBitrixDealUseCase {
         },
       });
 
-      return {
-        process_id: process.id,
-        status: 'INVOICE_CREATED',
-        bitrix_deal_id: bitrixDealId,
-        invoice_type: invoiceType,
-        message: 'Invoice created successfully in Fakturownia.',
-      };
+      return this.syncBitrixAfterInvoiceCreated({
+        processId: process.id,
+        bitrixDealId,
+        invoiceType,
+        config,
+        fakturowniaInvoiceId: result.fakturowniaInvoiceId,
+        fakturowniaInvoiceUrl: result.fakturowniaInvoiceUrl,
+      });
     } catch (error) {
       if (error instanceof FakturowniaApiError) {
         return this.handleFakturowniaError(process.id, bitrixDealId, invoiceType, error);
@@ -306,6 +315,112 @@ export class CreateInvoiceFromBitrixDealUseCase {
 
       throw error;
     }
+  }
+
+  private async syncBitrixAfterInvoiceCreated(params: {
+    processId: string;
+    bitrixDealId: string;
+    invoiceType: InvoiceType;
+    config: ClientConfigMappings;
+    fakturowniaInvoiceId: string;
+    fakturowniaInvoiceUrl: string;
+  }): Promise<InvoiceProcessTriggerResponseDto> {
+    const commentMessage = this.invoiceCommentService.buildInvoiceCreatedComment({
+      invoiceType: params.invoiceType,
+      fakturowniaInvoiceUrl: params.fakturowniaInvoiceUrl,
+      fakturowniaInvoiceId: params.fakturowniaInvoiceId,
+    });
+
+    try {
+      await this.bitrix24TimelineService.addDealComment({
+        dealId: params.bitrixDealId,
+        message: commentMessage,
+      });
+    } catch (error) {
+      const failureMessage =
+        error instanceof Error
+          ? error.message
+          : 'Bitrix24 timeline comment failed after invoice creation.';
+
+      this.invoiceProcessService.assertCanTransition(
+        'INVOICE_CREATED',
+        'MANUAL_REVIEW_REQUIRED',
+      );
+
+      await this.invoiceProcessRepository.updateStatus(params.processId, {
+        status: 'MANUAL_REVIEW_REQUIRED',
+        last_error_message: failureMessage,
+      });
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: params.processId,
+        bitrix_deal_id: params.bitrixDealId,
+        event_type: 'BITRIX_TIMELINE_COMMENT_FAILED',
+        message: failureMessage,
+      });
+
+      return {
+        process_id: params.processId,
+        status: 'MANUAL_REVIEW_REQUIRED',
+        bitrix_deal_id: params.bitrixDealId,
+        invoice_type: params.invoiceType,
+        message:
+          'Invoice created in Fakturownia, but Bitrix24 timeline comment failed. Manual review required.',
+      };
+    }
+
+    await this.invoiceEventRepository.insert({
+      invoice_process_id: params.processId,
+      bitrix_deal_id: params.bitrixDealId,
+      event_type: 'BITRIX_TIMELINE_COMMENT_ADDED',
+      message: 'Bitrix24 timeline comment with invoice link added.',
+      metadata: {
+        fakturownia_invoice_url: params.fakturowniaInvoiceUrl,
+      },
+    });
+
+    try {
+      await this.bitrix24DealFieldService.updateDealField({
+        dealId: params.bitrixDealId,
+        fieldCode: params.config.bitrix_field_mapping.invoiceLinkField,
+        value: params.fakturowniaInvoiceUrl,
+      });
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: params.processId,
+        bitrix_deal_id: params.bitrixDealId,
+        event_type: 'BITRIX_LINK_FIELD_UPDATED',
+        message: 'Bitrix24 invoice link field updated.',
+        metadata: {
+          field_code: params.config.bitrix_field_mapping.invoiceLinkField,
+          fakturownia_invoice_url: params.fakturowniaInvoiceUrl,
+        },
+      });
+    } catch (error) {
+      const warningMessage =
+        error instanceof Error
+          ? error.message
+          : 'Bitrix24 invoice link field update failed.';
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: params.processId,
+        bitrix_deal_id: params.bitrixDealId,
+        event_type: 'BITRIX_LINK_FIELD_UPDATE_FAILED',
+        message: warningMessage,
+        metadata: {
+          field_code: params.config.bitrix_field_mapping.invoiceLinkField,
+        },
+      });
+    }
+
+    return {
+      process_id: params.processId,
+      status: 'INVOICE_CREATED',
+      bitrix_deal_id: params.bitrixDealId,
+      invoice_type: params.invoiceType,
+      message:
+        'Invoice created successfully in Fakturownia and synced to Bitrix24.',
+    };
   }
 
   private async handleFakturowniaError(
@@ -380,6 +495,8 @@ export class CreateInvoiceFromBitrixDealUseCase {
       metadata: { errors },
     });
 
+    await this.tryAddValidationFailureComment(process.id, bitrixDealId, errors);
+
     return {
       process_id: process.id,
       status: 'VALIDATION_FAILED',
@@ -387,6 +504,35 @@ export class CreateInvoiceFromBitrixDealUseCase {
       invoice_type: invoiceType,
       message,
     };
+  }
+
+  private async tryAddValidationFailureComment(
+    processId: string,
+    bitrixDealId: string,
+    errors: ValidationError[],
+  ): Promise<void> {
+    const commentMessage = this.invoiceCommentService.buildValidationFailureComment({
+      errors,
+    });
+
+    try {
+      await this.bitrix24TimelineService.addDealComment({
+        dealId: bitrixDealId,
+        message: commentMessage,
+      });
+    } catch (error) {
+      const warningMessage =
+        error instanceof Error
+          ? error.message
+          : 'Bitrix24 validation failure comment failed.';
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: processId,
+        bitrix_deal_id: bitrixDealId,
+        event_type: 'BITRIX_VALIDATION_COMMENT_FAILED',
+        message: warningMessage,
+      });
+    }
   }
 
   private buildValidationFailureMessage(errors: ValidationError[]): string {

@@ -1,7 +1,7 @@
 # Implementation Plan V1 for Cursor
 
 ## Scope principle
-Implement V1 only. Do not build V2 features such as client panel retry, roles, corrections, all-Fakturownia invoice sync, multi-tenant SaaS or direct KSeF integration.
+Implement V1 only. Do not build V2 features such as client panel, panel retry, roles, corrections, all-Fakturownia invoice sync, multi-tenant SaaS or direct KSeF integration.
 
 ## Suggested task order
 
@@ -9,7 +9,7 @@ Implement V1 only. Do not build V2 features such as client panel retry, roles, c
 Create NestJS module structure:
 - `invoices`
 - `bitrix24`
-- `client-panel`
+- `client-panel` (skeleton only — V2 feature)
 - `health`
 
 Add folders according to `/docs/modules-reliability.md`.
@@ -139,15 +139,18 @@ Validation:
 - Fakturownia timeout/error,
 - KSeF unknown,
 - Bitrix comment failure,
-- Bitrix link field warning.
+- Bitrix link field warning,
+- customer email failure,
+- duplicate email idempotency.
 
 ### Task 10 — API endpoints
 Implement:
 - `POST /invoice-processes/bitrix-trigger`
-- `GET /client/invoice-processes`
 - `POST /admin/invoice-processes/:id/retry`
 - `POST /admin/invoice-processes/:id/mark-reviewed`
 - `GET /health`
+
+Optional skeleton only (V2): `GET /client/invoice-processes`
 
 Rules:
 - trigger endpoint protected by API key,
@@ -157,18 +160,28 @@ Rules:
 Validation:
 - API tests for auth and DTO responses.
 
-### Task 11 — Client panel V1
-Implement simple panel backend support:
-- one admin account,
-- list only,
-- no roles,
-- no retry,
-- no details/audit in panel.
+### Task 11 — Customer invoice email delivery
+Implement invoice email orchestration and provider integration skeleton:
+- `InvoiceEmailService` in invoices module
+- `modules/invoices/integrations/email` provider client/service/mapper/types
+- wire into `CreateInvoiceFromBitrixDealUseCase` after Bitrix comment success
+- load customer email from Bitrix24 per confirmed mapping (`OPEN_DECISION_CUSTOMER_EMAIL_SOURCE`)
+- send Fakturownia invoice link and/or PDF attachment
+- audit every send attempt
+- `RETRY_INVOICE_EMAIL` in `TechnicalRetryService`
+
+Rules:
+- no email before validation and confirmed Fakturownia invoice,
+- no duplicate email for same process,
+- email failure does not cancel Fakturownia invoice,
+- `COMPLETED` only after successful email delivery,
+- resolve customer email Bitrix field before production wiring.
 
 Validation:
-- login/auth works,
-- password hash only,
-- list DTO matches docs.
+- mocked provider tests for success, 4xx, 5xx, timeout,
+- forbidden side effect tests (no email before validation/invoice),
+- happy path includes email step,
+- no full email addresses in logs.
 
 ### Task 12 — Technical retry
 Implement `TechnicalRetryService` and admin endpoints.
@@ -188,9 +201,10 @@ Implement:
 - structured logs,
 - request/correlation ID,
 - redaction rules,
-- rate limiting for login and trigger,
-- CORS restricted to panel domain,
+- rate limiting for trigger,
 - health check.
+
+Optional V2 follow-up: panel login, CORS, panel list endpoint.
 
 Validation:
 - no sensitive data in logs,
@@ -212,9 +226,9 @@ V1 is done only when:
 - core invoice flow works for `FULL`, `ADVANCE`, `FINAL`,
 - duplicates are blocked,
 - validation blocks bad invoices,
-- Fakturownia/KSeF/Bitrix errors produce correct statuses,
+- Fakturownia/KSeF/Bitrix/email errors produce correct statuses,
 - audit exists,
-- simple client panel list works,
+- customer invoice email delivery works,
 - technical retry is controlled,
 - no V2/V3 scope is implemented accidentally,
 - all checks pass.

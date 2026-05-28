@@ -6,11 +6,11 @@
 | Sales/CRM user | Moves deal to `Opłacone` and maintains correct deal/company/product data |
 | Bitrix24 | Source of deal, company, product rows, invoice type, advance amount and paid stage |
 | n8n | Receives Bitrix24 trigger and forwards minimal payload to backend |
-| Backend NestJS | Validates, maps, creates process, controls idempotency, calls Fakturownia, syncs Bitrix24 |
-| Fakturownia | Creates invoice and handles KSeF submission automatically |
+| Backend NestJS | Validates, maps, creates process, controls idempotency, calls Fakturownia, syncs Bitrix24, orchestrates customer invoice email |
+| Fakturownia | Creates invoice and handles KSeF submission automatically; provides invoice PDF/link for email |
 | KSeF | Indirectly handled by Fakturownia in V1 |
-| Client panel | Shows list of invoice processes/factors created by this system |
-| Operator/Admin | Can use technical retry outside the client panel |
+| Email provider | Outbound integration used by backend to deliver invoice email to customer |
+| Operator/Admin | Can use technical retry outside any client UI (V2) |
 
 ## Trigger
 Given a Bitrix24 deal changes to paid stage `Opłacone`, when Bitrix24 automation rule/webhook runs, then n8n forwards the minimal payload to the backend.
@@ -68,9 +68,26 @@ V1 does not integrate directly with KSeF. Fakturownia handles KSeF submission. V
 ## Bitrix24 sync results
 | Situation | Behavior |
 |---|---|
-| Comment with invoice link added | Required for `COMPLETED` |
-| Link field update failed | Warning-only; process can be `COMPLETED` |
+| Comment with invoice link added | Required before customer email and `COMPLETED` |
+| Link field update failed | Warning-only; process can be `COMPLETED` after email sent |
 | Comment failed after invoice/KSeF success | `MANUAL_REVIEW_REQUIRED`, retry only Bitrix sync |
+
+## Customer invoice email delivery
+Given invoice creation and KSeF submission are confirmed (or manual review cleared KSeF unknown/error per operator workflow), and Bitrix24 timeline comment with invoice link was added, when backend sends the customer-facing invoice email, then:
+
+- Email includes Fakturownia invoice link and/or PDF attachment from Fakturownia.
+- Recipient address comes from Bitrix24 (field/source defined in `/docs/contracts.md`; see `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` until confirmed).
+- Send attempt is audited in DB (`invoice_events` and/or dedicated email audit fields when implemented).
+- `COMPLETED` is set only after successful email delivery.
+
+| Situation | Behavior |
+|---|---|
+| Customer email missing/invalid at validation | `VALIDATION_FAILED`, no Fakturownia call |
+| Email provider success | Audit event recorded; process can reach `COMPLETED` if Bitrix comment succeeded |
+| Email provider 4xx/validation error | `MANUAL_REVIEW_REQUIRED`, retry only invoice email |
+| Email provider 5xx/timeout/unknown | `MANUAL_REVIEW_REQUIRED`, no automatic retry; manual verification required |
+| Email failed after invoice/KSeF/Bitrix comment success | `MANUAL_REVIEW_REQUIRED`, retry only invoice email; invoice remains in Fakturownia |
+| Duplicate trigger/retry after email already sent | Idempotency must not send duplicate customer email for same process |
 
 ## Forbidden outcomes
 | Code | Meaning |
@@ -85,6 +102,9 @@ V1 does not integrate directly with KSeF. Fakturownia handles KSeF submission. V
 | `NO_RETRY_AFTER_UNKNOWN_WITHOUT_MANUAL_REVIEW` | Timeout/unknown blocks unsafe retry |
 | `NO_CRITICAL_LOGIC_IN_N8N` | n8n only orchestrates trigger |
 | `NO_COMPLETED_WITHOUT_BITRIX_COMMENT` | Comment with link required for `COMPLETED` |
+| `NO_COMPLETED_WITHOUT_CUSTOMER_EMAIL` | Customer invoice email required for `COMPLETED` |
+| `NO_EMAIL_BEFORE_VALIDATED_INVOICE` | No customer email before validation, idempotency check, and confirmed Fakturownia invoice |
+| `NO_DUPLICATE_CUSTOMER_EMAIL` | No second customer email for same completed process |
 | `NO_AUTO_DELETE_OR_CANCEL_INVOICE` | No automatic invoice deletion/cancellation in V1 |
 
 ## Given/When/Then validation scenarios
@@ -99,3 +119,6 @@ V1 does not integrate directly with KSeF. Fakturownia handles KSeF submission. V
 | Fakturownia timeout | Given timeout after create request, then `UNKNOWN_AFTER_TIMEOUT` and manual verification required |
 | KSeF error/unknown | Given invoice exists but KSeF is error/unknown, then invoice remains and manual review is required |
 | Bitrix comment failure | Given invoice/KSeF OK but Bitrix comment fails, then no `COMPLETED`; retry only Bitrix sync |
+| Missing customer email | Given paid deal without valid customer email from Bitrix24, when validated, then no invoice and `VALIDATION_FAILED` |
+| Customer email failure | Given invoice/KSeF/Bitrix comment OK but email fails, then no `COMPLETED`; retry only invoice email |
+| Duplicate email retry | Given email already sent for process, when retry runs, then no second email |

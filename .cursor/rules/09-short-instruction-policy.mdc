@@ -1,0 +1,180 @@
+---
+description: Short instruction policy — convert short user commands into safe structured tasks
+alwaysApply: true
+---
+
+# Short Instruction Policy
+
+When the user gives a short, broad, or ambiguous instruction, do not start coding immediately.
+
+Examples of short instructions:
+
+- `/task` (or any message prefixed with `/task`) — **always** full task template first; see `08-task-template-enforcement.mdc` § `/task`
+- "do the next step"
+- "fix this"
+- "add tests"
+- "finish the task"
+- "create the integration"
+- "do a live test"
+- "implement this"
+- "continue"
+- "fix"
+- "review"
+- "next"
+- "run"
+- "wykonaj"
+
+## `/task` in context window
+
+If the user declares **`/task`** (prefix, slash command, or attached TASK skill):
+
+1. Do **not** interpret it as “implement now”.
+2. Do **not** modify files or run side-effect tests on the first turn.
+3. Output the full **Cursor Task Template** from `08-task-template-enforcement.mdc` (use skill `.cursor/skills/task/SKILL.md`).
+4. Ask: **Approve this task for implementation?**
+5. Wait for approval before coding — even when the rest of the message is long and specific.
+
+## Default behavior
+
+If the instruction is short or ambiguous:
+
+1. Do not modify files.
+2. Do not run destructive commands.
+3. Do not execute external side effects.
+4. First convert the request into a structured task.
+5. Ask the user for approval before implementation.
+
+For implementation work, prefer the full **Cursor Task Template** in `08-task-template-enforcement.mdc` when scope is non-trivial. The compact format below is the minimum proposal; expand to the full template when the task touches lifecycle, DB, integrations, or side effects.
+
+## Structured task format (minimum proposal)
+
+Every proposed task must include:
+
+```text
+TASK:
+[clear task name]
+
+READ:
+- Use docs selection policy (`.cursor/rules/00-docs-selection-policy.mdc`).
+- List relevant docs category if clear.
+- Always include /docs/decision-log.md.
+
+GOAL:
+[one precise outcome]
+
+SCOPE:
+- [allowed change 1]
+- [allowed change 2]
+- [allowed change 3]
+
+FORBIDDEN:
+- Do not implement V2/V3 features.
+- Do not invent undocumented architecture.
+- Do not add undocumented statuses, event types, endpoints, tables, DTOs or business rules.
+- Do not change DB migrations unless explicitly scoped.
+- Do not execute external side effects unless explicitly approved.
+- Do not modify files outside task scope.
+
+VALIDATION:
+- npm run typecheck
+- npm run build
+- npm run lint
+- npm test
+- npm run test:integration if DB/persistence/idempotency is touched
+- npm run test:e2e if API behavior is touched
+
+OUTPUT:
+- files changed
+- tests added/updated
+- validation result
+- remaining open decisions
+- deviation risks
+```
+
+Then ask:
+
+**Approve this task for implementation?**
+
+## If the user says "approved" or "implement"
+
+Implement only the last explicitly approved structured task.
+
+Rules:
+
+- Do not expand scope.
+- Do not implement adjacent tasks.
+- Do not add V2/V3 features.
+- Do not make undocumented architecture changes.
+- Run required validation commands.
+- Report changed files, tests, validation result and risks.
+
+## If the user asks for review/audit
+
+Do not modify code.
+
+Run a deviation review per `07-tech-lead-audit-policy.mdc` against:
+
+- `.cursor/rules`
+- relevant `/docs`
+- `/docs/decision-log.md`
+
+Output:
+
+| issue | severity | category | file | reason | required fix |
+|---|---|---|---|---|---|
+
+Then answer:
+
+- Overall deviation: OK / LOW / MEDIUM / CRITICAL
+- Can proceed to next task: YES / NO
+- Blocking fixes
+- Recommended next task
+
+Severity rules:
+
+- If any Critical exists, Overall deviation must be CRITICAL.
+- If any Medium exists and no Critical exists, Overall deviation must be MEDIUM.
+- Overall deviation can be LOW only if there are Low issues only.
+- Overall deviation can be OK only if there are no issues.
+
+## If the user asks for live testing
+
+Do not execute live side effects immediately.
+
+First prepare a controlled live-test task with:
+
+- safety gates
+- explicit confirmation
+- test deals only
+- no bulk processing
+- no delete/cancel operations
+- report schema
+- forbidden side effects
+
+Live side effects require at minimum:
+
+- `LIVE_TEST_MODE=true`
+- `LIVE_TEST_CONFIRM=true`
+- `ENABLE_EXTERNAL_SIDE_EFFECTS=true`
+- `ALLOW_TEST_DEAL_CREATION=true`
+- `TEST_DEAL_PREFIX=[TEST]`
+
+Integration-specific live-test flags are documented in `.env.example` and `scripts/live-tests/` for the system under test.
+
+Ask for approval before implementation or execution.
+
+## General rule
+
+Short instruction does not mean permission to guess.
+
+If business rules, docs, statuses, mappings, fields, endpoint contracts or side-effect behavior are unclear:
+
+- create `TODO_DECISION`,
+- stop affected implementation,
+- ask for clarification.
+
+## Related rules
+
+- Full task template: `08-task-template-enforcement.mdc`
+- Template gate: `08-task-template-enforcement.mdc`
+- Task execution: `06-task-execution-policy.mdc`

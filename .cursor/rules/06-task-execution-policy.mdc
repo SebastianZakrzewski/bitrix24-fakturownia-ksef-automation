@@ -7,6 +7,8 @@ alwaysApply: true
 
 Do not start implementation from broad or ambiguous instructions.
 
+**Enforcement:** full task block per `08-task-template-enforcement.mdc`. Short/ambiguous commands: `09-short-instruction-policy.mdc`. **`/task` in context window:** mandatory task template first — no coding until approval (`08` § `/task`).
+
 A valid implementation task must include:
 - TASK: clear task name
 - READ: relevant `.cursor/rules` and `/docs` files (use `.cursor/rules/docs-selection/` index; do not read all `/docs` by default)
@@ -16,7 +18,7 @@ A valid implementation task must include:
 - OUTPUT: expected implementation report
 
 If the user gives a short or ambiguous instruction, do not guess the full scope.
-Ask for clarification or propose a structured task before coding.
+Propose a filled task from `08-task-template-enforcement.mdc` (or minimum format in `09-short-instruction-policy.mdc`) and wait for confirmation before coding.
 
 For skeleton/setup tasks:
 - create structure only

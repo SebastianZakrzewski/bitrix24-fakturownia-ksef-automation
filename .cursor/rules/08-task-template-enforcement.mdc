@@ -1,0 +1,105 @@
+---
+description: Enforce Cursor Task Template before implementation; gate coding on complete task block
+alwaysApply: true
+---
+
+# Task Template Enforcement
+
+Before writing or modifying production code, the user instruction MUST match the Cursor Task Template defined in this rule.
+
+This rule is a hard implementation gate.
+
+Do not implement, refactor, modify production code, run tests, or apply helpful partial fixes until the task gate passes.
+
+---
+
+## `/task` context command (mandatory)
+
+When the user declares **`/task`** in the context window (message prefix, slash command, or attached TASK skill):
+
+1. **Always** follow [`.cursor/skills/task/SKILL.md`](../skills/task/SKILL.md).
+2. **Always** output a filled **Cursor Task Template** (below) as the **first substantive response** — before any implementation.
+3. **Stop immediately** — no file edits, no partial fixes, no “helpful” scaffolding, no test runs with side effects.
+4. Reading repo or `/docs` **only** to fill TASK sections is allowed; creating or modifying project files is forbidden until approval.
+5. Ask: **Approve this task for implementation?**
+6. **`/task` is not permission to code** — a long or detailed instruction after `/task` does not bypass the gate.
+7. Only after explicit approval (`tak`, `approved`, `implement`, `wykonaj` after task approval) → agent pre-coding note → implement within SCOPE.
+
+When `/task` is declared, these exceptions do **not** apply: trivial one-liner skip, “implement while exploring”, or treating `/task` as “start coding”.
+
+---
+
+## Cursor Task Template
+
+```text
+TASK:
+[Clear task name]
+
+READ:
+Use docs selection policy (`.cursor/rules/00-docs-selection-policy.mdc`).
+
+Docs-selection rules (list concrete paths that apply; pick by task area or open-file globs):
+- `.cursor/rules/docs-selection/<rule>.mdc`
+
+Docs (always + paths from selected category rules):
+- /docs/decision-log.md
+- /docs/<...>
+
+GOAL:
+[One precise result of this task]
+
+SCOPE:
+- [Allowed change 1]
+- [Allowed change 2]
+- [Allowed change 3]
+
+FORBIDDEN:
+- Do not implement V2/V3 features.
+- Do not invent undocumented statuses, event types, DTOs, modules, endpoints, tables, or business rules.
+- Do not change accepted architecture unless explicitly requested.
+- Do not execute external side effects unless explicitly approved.
+- [Task-specific forbidden item]
+
+BUSINESS BEHAVIOR:
+Given:
+- [Initial condition]
+
+When:
+- [Action]
+
+Then:
+- [Expected result]
+
+Forbidden side effect:
+- [What must not happen]
+
+TECHNICAL REQUIREMENTS:
+- Modify/create only:
+  - [file/module 1]
+  - [file/module 2]
+- Keep controllers thin.
+- Keep repositories persistence-only.
+- Keep integrations provider-only.
+- Keep business rules in approved use cases/services.
+
+VALIDATION:
+- npm run typecheck
+- npm run build
+- npm run lint
+- npm test
+- npm run test:integration  # if DB/persistence/idempotency is touched
+- npm run test:e2e           # if API behavior is touched
+
+EXPECTED OUTPUT:
+- files changed
+- docs inspected
+- tests added/updated
+- validation result
+- forbidden side effects asserted
+- remaining open decisions
+- deviation risks
+
+TYPE:
+[ ] functional
+[ ] skeleton/setup
+```

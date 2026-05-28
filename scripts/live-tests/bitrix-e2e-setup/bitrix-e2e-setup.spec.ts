@@ -25,10 +25,12 @@ const READY_RAW: Record<string, string> = {
   LIVE_TEST_BITRIX_PAID_STAGE_ID: 'PREPARATION',
   BITRIX24_WEBHOOK_URL: 'https://example.bitrix24.pl/rest/1/dummy-token/',
   LIVE_TEST_DEAL_LABEL: '[TEST] Mock FULL Bitrix E2E',
+  LIVE_TEST_BITRIX_EXISTING_COMPANY_ID: '9001',
 };
 
 function createMockBitrixClient(): jest.Mocked<BitrixTestSetupClient> {
   return {
+    useExistingTestCompany: jest.fn().mockResolvedValue({ companyId: '9001' }),
     createTestCompany: jest.fn().mockResolvedValue({ companyId: '9001' }),
     createTestDeal: jest.fn().mockResolvedValue({ dealId: '8001' }),
     updateTestDeal: jest.fn().mockResolvedValue(undefined),
@@ -212,7 +214,7 @@ describe('Bitrix E2E setup', () => {
     expect(gate.blockers.some((b) => b.includes('webhook') || b.includes('BITRIX'))).toBe(true);
   });
 
-  it('calls mocked Bitrix create paths exactly once on valid FULL setup', async () => {
+  it('calls mocked existing company resolver exactly once on valid FULL setup', async () => {
     const client = createMockBitrixClient();
     await runBitrixE2eSetup({
       env: readyEnv(),
@@ -220,8 +222,22 @@ describe('Bitrix E2E setup', () => {
       rawConfig: READY_RAW,
       client,
     });
-    expect(client.createTestCompany).toHaveBeenCalledTimes(1);
+    expect(client.useExistingTestCompany).toHaveBeenCalledTimes(1);
+    expect(client.useExistingTestCompany).toHaveBeenCalledWith('9001');
+    expect(client.createTestCompany).not.toHaveBeenCalled();
     expect(client.createTestDeal).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks when LIVE_TEST_BITRIX_EXISTING_COMPANY_ID is missing', () => {
+    const env = readyEnv();
+    const gate = evaluateBitrixE2eSetupGate(env, 'FULL', '[TEST] deal', {
+      ...READY_RAW,
+      LIVE_TEST_BITRIX_EXISTING_COMPANY_ID: '',
+    });
+    expect(gate.setupAllowed).toBe(false);
+    expect(
+      gate.blockers.some((b) => b.includes('LIVE_TEST_BITRIX_EXISTING_COMPANY_ID')),
+    ).toBe(true);
   });
 
   it('calls mocked Bitrix stage update exactly once on valid FULL setup', async () => {

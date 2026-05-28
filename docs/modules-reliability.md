@@ -14,6 +14,7 @@ src/
       types/
       integrations/
         fakturownia/
+        email/
     bitrix24/
       client/
       services/
@@ -25,6 +26,7 @@ src/
       dto/
       services/
       repositories/
+      # V2 — not MVP_REQUIRED in V1; module may exist as skeleton only
     health/
 ```
 
@@ -53,16 +55,18 @@ Responsibilities:
 16. Save `InvoiceRecord` and statuses.
 17. Add Bitrix timeline comment with link.
 18. Try to update Bitrix link field.
-19. Set `COMPLETED` or error status.
+19. Send customer invoice email via `InvoiceEmailService`.
+20. Set `COMPLETED` or error status.
 
 ### Services
 | Service | Responsibility |
 |---|---|
 | `InvoiceProcessService` | Lifecycle transitions and finalization |
-| `InvoiceValidationService` | Invoice type, buyer, products, advance/final rules |
+| `InvoiceValidationService` | Invoice type, buyer, products, advance/final rules, customer email presence |
 | `InvoiceDraftBuilderService` | Build `InvoiceDraft` |
 | `InvoiceIdempotencyService` | Claim/find process for `dealId + invoiceType` |
 | `InvoiceCommentService` | Build deterministic Bitrix comments |
+| `InvoiceEmailService` | Build email payload, orchestrate send after invoice/KSeF/Bitrix comment, record delivery result |
 | `TechnicalRetryService` | Evaluate and execute allowed technical retries |
 
 ### Mappers
@@ -110,6 +114,23 @@ Located in `modules/invoices/integrations/fakturownia`.
 
 Fakturownia integration must not decide whether an invoice is allowed.
 
+## Email provider integration
+Located in `modules/invoices/integrations/email`.
+
+| Element | Responsibility |
+|---|---|
+| `EmailProviderClient` | Low-level HTTP/API to email provider, auth, timeouts, errors |
+| `EmailProviderService` | `sendInvoiceEmail(payload)` returns `InvoiceEmailDeliveryResult` |
+| `InvoiceEmailMapper` | Map internal payload to provider request; map provider response to result |
+| `EmailProviderErrorMapper` | Map 4xx/5xx/timeout/unknown to controlled errors |
+
+Email integration must not decide whether an email is allowed or when lifecycle transitions occur. `InvoiceEmailService` in the invoices module owns orchestration and idempotency guards.
+
+Rules:
+- No email before validation, process claim, confirmed Fakturownia invoice, and required Bitrix timeline comment.
+- One successful customer email per `InvoiceProcess` in V1.
+- Email failure after invoice creation does not delete or cancel the Fakturownia invoice.
+
 ## Reliability rules
 ### Idempotency and race condition
 | Situation | Behavior |
@@ -132,6 +153,7 @@ Rules:
 - Timeout becomes `UNKNOWN_AFTER_TIMEOUT`.
 - KSeF unknown becomes `KSEF_STATUS_UNKNOWN`.
 - Bitrix sync failure after invoice creation allows only Bitrix sync retry.
+- Email failure after invoice/KSeF/Bitrix comment allows only invoice email retry.
 
 ### Error handling
 | Area | Rule |
@@ -141,6 +163,8 @@ Rules:
 | KSeF unknown/error | No new invoice, manual handling |
 | Cannot load Bitrix deal | Event only, no process |
 | Deal not paid anymore | `STALE_TRIGGER_IGNORED` event only |
-| Missing company/products after deal load | `VALIDATION_FAILED` |
+| Missing company/products/customer email after deal load | `VALIDATION_FAILED` |
 | Bitrix comment failure after invoice/KSeF | `MANUAL_REVIEW_REQUIRED`, retry only Bitrix sync |
-| Bitrix link field failure | Warning event only, `COMPLETED` allowed |
+| Bitrix link field failure | Warning event only, `COMPLETED` allowed if comment and email succeeded |
+| Email provider 4xx | `MANUAL_REVIEW_REQUIRED`, retry only invoice email |
+| Email provider 5xx/timeout/unknown | `MANUAL_REVIEW_REQUIRED`, no auto retry |

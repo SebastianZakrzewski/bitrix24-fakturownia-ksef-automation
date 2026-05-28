@@ -18,6 +18,7 @@ import {
 } from './bitrix-test-setup-client';
 import type { BitrixTestSetupClient } from './bitrix-test-setup-client.types';
 import { resolveBitrixWebhookUrl } from './resolve-bitrix-webhook-url';
+import { resolveBitrixExistingCompanyId } from './resolve-bitrix-existing-company-id';
 import { deriveRealBitrixMutationExecuted } from './derive-real-bitrix-mutation-executed';
 import type { LiveTestInvoiceType } from '../types/live-test-report.types';
 
@@ -73,7 +74,13 @@ export async function runBitrixE2eSetup(
 
   const errors: string[] = [];
   const warnings = [...gate.warnings];
+  const existingCompany = resolveBitrixExistingCompanyId(rawConfig);
+  const existingCompanyId = existingCompany.companyId!;
+
   let bitrixMutationStarted = false;
+  let bitrixCompanyId: string | undefined;
+  let bitrixCompanyReusedExisting = false;
+  let bitrixCompanyCreated = false;
   let bitrixDealCreated = false;
   let bitrixDealUpdated = false;
   let bitrixStageChanged = false;
@@ -81,7 +88,10 @@ export async function runBitrixE2eSetup(
 
   try {
     bitrixMutationStarted = true;
-    const { companyId } = await client.createTestCompany(payload.company);
+    const { companyId } = await client.useExistingTestCompany(existingCompanyId);
+    bitrixCompanyId = companyId;
+    bitrixCompanyReusedExisting = true;
+    bitrixCompanyCreated = false;
     const { dealId } = await client.createTestDeal({
       ...payload.deal,
       companyId,
@@ -117,6 +127,9 @@ export async function runBitrixE2eSetup(
       triggerMode: BITRIX_E2E_TRIGGER_MODE,
       gate,
       realBitrixMutationExecuted,
+      bitrixCompanyId,
+      bitrixCompanyReusedExisting,
+      bitrixCompanyCreated,
       bitrixDealCreated,
       bitrixDealUpdated,
       bitrixStageChanged,
@@ -155,6 +168,9 @@ export async function runBitrixE2eSetup(
     triggerMode: BITRIX_E2E_TRIGGER_MODE,
     gate,
     realBitrixMutationExecuted,
+    bitrixCompanyId,
+    bitrixCompanyReusedExisting,
+    bitrixCompanyCreated,
     bitrixDealCreated,
     bitrixDealUpdated,
     bitrixStageChanged,

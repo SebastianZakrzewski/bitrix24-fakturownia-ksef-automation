@@ -23,19 +23,22 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | One invalid product line blocks whole invoice | Avoid incorrect invoice amount | Critical |
 | VAT fixed at 23% | V1 simplification | High |
 | Fakturownia handles KSeF | Avoid direct KSeF integration V1 | Critical |
-| Success requires Fakturownia invoice + KSeF submission confirmed + Bitrix comment with link | Complete business process | Critical |
+| Success requires Fakturownia invoice + KSeF submission confirmed + Bitrix comment with link + customer invoice email | Complete business process | Critical |
 | Invoice number is not stored in Bitrix24 | Business requirement | Medium |
 | Invoice link is stored in comment and separate deal field | Operational convenience | High |
-| Link field failure is warning-only | Comment link is minimum result | Medium |
+| Link field failure is warning-only | Comment link and email are minimum result | Medium |
+| V1 defers simple client panel to V2 | Customer delivery via email replaces panel visibility for MVP | High |
+| V1 sends customer invoice by email with Fakturownia PDF and/or link | Customer-facing delivery without panel | Critical |
+| Customer email required before Fakturownia side effects | Avoid invoice without delivery path | High |
+| One customer email per process; no duplicate on retry | Idempotency for outbound side effect | Critical |
+| Email failure after invoice creation -> `MANUAL_REVIEW_REQUIRED`, retry only email | Same recovery pattern as Bitrix sync | High |
 | Idempotency key = `bitrix_deal_id + invoice_type` | Blocks duplicates but allows advance/final | Critical |
 | `STALE_TRIGGER_IGNORED` is event only | Does not block future real process | Critical |
 | `VALIDATION_FAILED` audit event uses same string as process status | Persisted in `invoice_events.event_type` when validation fails after process claim; not an `InvoiceProcessStatus` alias in code | Medium |
 | `InvoiceRecord` existence blocks `createInvoice` permanently for process | Prevent duplicate invoice | Critical |
 | No automatic retry for invoice creation | Prevent duplicate invoice | Critical |
 | Timeout/unknown requires manual verification | Unknown if invoice was created | Critical |
-| Simple client panel V1 | Basic visibility without scope creep | High |
-| One panel admin account in V1 | Simple auth | Medium |
-| Technical retry outside panel V1 | Recovery without UI complexity | High |
+| Technical retry outside UI V1 | Recovery without panel (panel deferred to V2) | High |
 | No AI in V1 | Deterministic financial process | Critical |
 | Security/observability/testing baselines accepted | Production safety | Critical |
 | Fakturownia payload mapped from validated `InvoiceDraft` only | Keeps CRM validation separate from provider I/O | Critical |
@@ -55,6 +58,9 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 
 | ID | Decision needed | Status | Blocks |
 |---|---|---|---|
+| `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` | Which Bitrix24 field or contact rule supplies `customerEmail` for invoice delivery (company UF, deal UF, primary contact, etc.) | **Open** — field not verified on Evapremium portal | Task 11 email wiring; `MISSING_CUSTOMER_EMAIL` validation mapping |
+| `OPEN_DECISION_EMAIL_PROVIDER` | Which email provider/API (SMTP, transactional API) and env vars for V1 | **Open** | Task 11 integration implementation |
+| `OPEN_DECISION_FAKTUROWNIA_PDF_SOURCE` | How to obtain PDF bytes for attachment (Fakturownia API endpoint vs link-only email) | **Open** | Task 11 attachment vs link-only template |
 | `OPEN_DECISION_FAKTUROWNIA_POSITION_UNIT` | Whether Fakturownia requires explicit position unit (`szt.`) on create-invoice/order | **Deferred** — V1 omits unit field; verify if documents show wrong unit | Low; adjust mapper only if provider rejects or displays incorrect unit |
 | `OPEN_DECISION_FAKTUROWNIA_ACCOUNT_SMOKE_TEST` | Verify create-order + ADVANCE/FINAL invoice with `copy_invoice_from` on Evapremium Fakturownia account | **Not verified** | Task 9 production wiring; may require payload adjustments |
 | `OPEN_DECISION_FAKTUROWNIA_OID_UNIQUE` | Whether to send `oid_unique: yes` on order create to prevent duplicate provider orders on retry | **Deferred** — V1 uses `oid` only; DB unique on `bitrix_deal_id` prevents duplicate persistence | Medium; Task 9 retry/idempotency design |
@@ -67,6 +73,7 @@ Context for `OPEN_DECISION_FAKTUROWNIA_ACCOUNT_SMOKE_TEST`:
 ## Deferred decisions / V2+
 | Feature | Target |
 |---|---|
+| Simple client panel (one admin, process list) | V2 |
 | Client panel manual retry | V2 |
 | Panel roles and multiple users | V2 |
 | Detailed process/audit in panel | V2 |

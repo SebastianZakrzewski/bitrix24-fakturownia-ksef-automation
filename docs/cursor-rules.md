@@ -62,6 +62,18 @@ Each task must include relevant tests:
 
 No task is done unless type-check/build/tests pass.
 
+## Workspace Cursor rules (`.cursor/rules/`)
+
+| Rule | Purpose |
+|------|---------|
+| `01-core-implementation-agent.mdc` | V1 scope, docs index |
+| `06-task-execution-policy.mdc` | Structured tasks, scope |
+| `08-task-template-enforcement.mdc` | Full task template gate; **`/task` in context = template first, no coding until approval** |
+| `09-short-instruction-policy.mdc` | Short commands → proposal → approval; includes `/task` handling |
+| `07-tech-lead-audit-policy.mdc` | Review/audit output format |
+
+Task copy-paste template: inline in `08-task-template-enforcement.mdc` (referenced by `06`/`08`/`09`).
+
 ## Cursor task output expectation
 For each task, implementation must provide:
 - files changed,

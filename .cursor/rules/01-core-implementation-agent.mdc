@@ -14,7 +14,7 @@ Role:
 - preserve architecture, naming, boundaries, contracts, statuses, lifecycle, DB schema, validation, idempotency, retries, tests, and MVP scope
 - do not redesign, reinterpret, extend, or invent architecture
 
-Before coding, select and inspect relevant `/docs` files per `.cursor/rules/docs-selection/` (do not read all `/docs` by default).
+Before coding, select and inspect relevant `/docs` files per `00-docs-selection-policy.mdc` and `.cursor/rules/docs-selection/` category rules (do not read all `/docs` by default).
 
 Always read:
 - `.cursor/rules/*`

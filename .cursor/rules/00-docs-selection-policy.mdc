@@ -1,0 +1,65 @@
+---
+description: Docs selection policy — read only relevant /docs before coding; never implement from memory
+alwaysApply: true
+---
+
+# Docs Selection Policy
+
+Before coding, inspect `.cursor/rules` and the `/docs` files relevant to the **current task**.
+
+Do **not** read all `/docs` by default unless the task is broad, architectural, or touches multiple core areas.
+
+Use category rules in `.cursor/rules/docs-selection/` (matched by task area or open file globs).
+
+## Always read (every implementation task)
+
+- `.cursor/rules/*`
+- `/docs/decision-log.md`
+
+## If unclear
+
+1. Do not guess which docs apply.
+2. Propose the relevant docs to inspect.
+3. Ask for approval before coding.
+
+Forbidden:
+
+- implement from memory
+- proceed without inspecting required docs for the task category
+- assume modules or integrations from another project (read only what this repo's `/docs` and category rules define)
+
+## Category rules (project-specific)
+
+Category rules are **generated per project** from `/docs`. Layout:
+
+```text
+.cursor/rules/
+  00-docs-selection-policy.mdc           # this file — generic, do not hardcode modules here
+  10-generate-docs-selection-rules.mdc   # generator — run when categories missing or stale
+  01-09 …                                # other global Cursor rules
+.cursor/rules/docs-selection/
+  10-*.mdc … 80-*.mdc                    # task areas for THIS repo only
+  90-tech-lead-audit.mdc                 # audit docs selection
+```
+
+**How to pick a category:** open or match globs on `docs-selection/10-*.mdc` … `docs-selection/80-*.mdc`; read each file's `description`, `globs`, and doc list. Use only files that exist in **this** repo.
+
+**If categories are missing or don't match `/docs`:** generate or rebuild per `10-generate-docs-selection-rules.mdc`.
+
+### Numbering convention (slots — not fixed module names)
+
+| Slot | Typical area (include only if `/docs` supports it) | Rule file pattern |
+|------|-----------------------------------------------------|-------------------|
+| 10 | DB, migrations, repositories | `docs-selection/10-*.mdc` |
+| 20 | Lifecycle, statuses, state machine | `docs-selection/20-*.mdc` |
+| 30 | DTO, API, controllers | `docs-selection/30-*.mdc` |
+| 40 | Validation, mapping, domain input shaping | `docs-selection/40-*.mdc` |
+| 50–70 | Documented integrations, modules, testing | `docs-selection/50-*.mdc`, … |
+| 80 | Primary orchestrated workflow / main use case | `docs-selection/80-*.mdc` |
+| 90 | Tech Lead audit / review / deviation check | `docs-selection/90-tech-lead-audit.mdc` + `.cursor/rules/audit/*` |
+
+Gaps in numbering are allowed. Do not create a slot for a domain absent from `/docs`.
+
+Broad or multi-area tasks: combine doc lists from all matching category files (dedupe paths).
+
+**Audit tasks:** read `07-tech-lead-audit-policy.mdc`; review only unless user asks to fix.

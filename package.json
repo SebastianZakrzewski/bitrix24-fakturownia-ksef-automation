@@ -18,6 +18,11 @@
     "live-test:full": "ts-node scripts/live-tests/run-live-test.ts full",
     "live-test:advance": "ts-node scripts/live-tests/run-live-test.ts advance",
     "live-test:final": "ts-node scripts/live-tests/run-live-test.ts final",
+    "live-test:matrix": "jest --config jest.config.ts --runInBand scripts/live-tests/matrix/invoice-runner-matrix.spec.ts",
+    "live-test:matrix:cli": "ts-node scripts/live-tests/run-invoice-runner-matrix-cli.ts",
+    "live-test:matrix:live-e2e": "ts-node scripts/live-tests/run-invoice-matrix-live-e2e-cli.ts",
+    "live-test:logs": "ts-node scripts/live-tests/generate-all-test-logs.ts",
+    "live-test:summary": "ts-node scripts/live-tests/generate-all-test-logs.ts",
     "live-test:trigger-smoke:full": "ts-node scripts/live-tests/run-live-trigger-smoke.ts",
     "live-test:bitrix-e2e-setup:full": "ts-node scripts/live-tests/run-bitrix-e2e-setup.ts"
   },

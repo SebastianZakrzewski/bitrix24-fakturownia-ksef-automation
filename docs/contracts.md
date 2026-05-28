@@ -68,7 +68,7 @@ Rules:
 - `VALIDATION_FAILED` as event type mirrors the resulting process status for audit; it is **not** a substitute for updating `invoice_processes.status`.
 - Validation failure **before** process claim (e.g. unresolved invoice type) returns `VALIDATION_FAILED` response only — no `invoice_events` row.
 
-## Client panel list DTO
+## Client panel list DTO (V2 — deferred from V1)
 ```ts
 type ClientInvoiceProcessListItemDto = {
   process_id: string;
@@ -93,7 +93,8 @@ type TechnicalRetryRequestDto = {
   target_action:
     | 'RETRY_VALIDATION_AND_PROCESS'
     | 'RETRY_FAKTUROWNIA_CREATION'
-    | 'RETRY_BITRIX_SYNC';
+    | 'RETRY_BITRIX_SYNC'
+    | 'RETRY_INVOICE_EMAIL';
 };
 ```
 
@@ -129,6 +130,7 @@ type BitrixCompanyData = {
   postalCode?: string;
   city?: string;
   country?: string;
+  customerEmail?: string;
 };
 
 type BitrixProductRow = {
@@ -140,6 +142,74 @@ type BitrixProductRow = {
 ```
 
 These are integration DTOs. `BitrixInvoiceMapper` maps them with `ClientConfig` to internal invoice models.
+
+### Customer email source (Bitrix24)
+
+V1 requires a valid customer-facing email before Fakturownia side effects.
+
+| Field | Source | Status |
+|---|---|---|
+| `BitrixCompanyData.customerEmail` | Bitrix24 company or deal field — **exact field/mapping TBD** | Blocked by `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` |
+
+Rules until field is confirmed:
+- Do not invent a Bitrix UF code or contact resolution rule in implementation.
+- Once confirmed, add mapping to `ClientBitrixFieldMapping` (e.g. `customerEmailField` or contact lookup rule) and validate with `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL`.
+- Email must be normalized (trim, lowercase) before send; invalid format blocks at validation.
+
+## Invoice email delivery contract
+
+Located in `modules/invoices/integrations/email` (provider) and `InvoiceEmailService` (orchestration). Types are **not** domain types.
+
+### Internal send payload
+
+```ts
+type InvoiceEmailPayload = {
+  processId: string;
+  bitrixDealId: string;
+  invoiceType: 'FULL' | 'ADVANCE' | 'FINAL';
+  recipientEmail: string;
+  recipientCompanyName: string;
+  fakturowniaInvoiceId: string;
+  fakturowniaInvoiceUrl: string;
+  pdfAttachment?: {
+    filename: string;
+    contentBase64: string;
+    contentType: 'application/pdf';
+  };
+};
+```
+
+Rules:
+- Built only after confirmed `FakturowniaCreateInvoiceResult`, required KSeF path for V1 success, and successful Bitrix timeline comment.
+- PDF attachment is optional if provider/template uses link-only delivery; at least one of PDF or link must be present in the email body.
+- PDF bytes come from Fakturownia (download URL/API — provider detail in integration task); not from Bitrix.
+
+### Delivery result
+
+```ts
+type InvoiceEmailDeliveryResult = {
+  success: boolean;
+  providerMessageId?: string;
+  provider: string;
+  sentAt: string;
+  errorCode?: string;
+  errorMessage?: string;
+};
+```
+
+Rules:
+- Persist delivery outcome in audit (`invoice_events` and/or process fields when implemented).
+- `success: true` required before `COMPLETED`.
+- Integration returns result only; use case decides status transition.
+
+### Integration error categories
+
+| Category | Condition | Use-case status |
+|---|---|---|
+| `CLIENT` | HTTP 4xx, invalid recipient, template/config error | `MANUAL_REVIEW_REQUIRED` |
+| `SERVER` | HTTP 5xx | `MANUAL_REVIEW_REQUIRED`, no auto retry |
+| `TIMEOUT` | Request timeout | `MANUAL_REVIEW_REQUIRED`, manual verification |
+| `UNKNOWN` | Other failures | `MANUAL_REVIEW_REQUIRED` |
 
 ## ClientConfig Bitrix mapping (Evapremium V1)
 
@@ -529,7 +599,9 @@ type ValidationError = {
     | 'INVALID_ADVANCE_AMOUNT'
     | 'MISSING_PREVIOUS_ADVANCE_INVOICE'
     | 'DUPLICATE_INVOICE'
-    | 'DEAL_NOT_IN_PAID_STAGE';
+    | 'DEAL_NOT_IN_PAID_STAGE'
+    | 'MISSING_CUSTOMER_EMAIL'
+    | 'INVALID_CUSTOMER_EMAIL';
   message: string;
   field?: string;
   source?: 'BITRIX_DEAL' | 'BITRIX_COMPANY' | 'PRODUCT_MAPPING' | 'INVOICE_RULE';

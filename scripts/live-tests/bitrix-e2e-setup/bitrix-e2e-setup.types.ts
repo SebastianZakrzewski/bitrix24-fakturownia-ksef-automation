@@ -25,6 +25,9 @@ export interface BitrixE2eSetupExecutionResult {
   triggerMode: BitrixE2eTriggerMode;
   gate: BitrixE2eSetupGateResult;
   realBitrixMutationExecuted: boolean;
+  bitrixCompanyId?: string;
+  bitrixCompanyReusedExisting: boolean;
+  bitrixCompanyCreated: boolean;
   bitrixDealCreated: boolean;
   bitrixDealUpdated: boolean;
   bitrixStageChanged: boolean;

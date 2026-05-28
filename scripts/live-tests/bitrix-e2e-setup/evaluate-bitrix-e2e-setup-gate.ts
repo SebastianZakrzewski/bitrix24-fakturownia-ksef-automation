@@ -3,6 +3,7 @@ import type { BitrixE2eSetupEnv } from './bitrix-e2e-setup-env';
 import { assertDealTitleHasTestPrefix } from './build-full-bitrix-deal-fields';
 import type { BitrixE2eSetupGateResult } from './bitrix-e2e-setup.types';
 import { resolveBitrixWebhookUrl } from './resolve-bitrix-webhook-url';
+import { resolveBitrixExistingCompanyId } from './resolve-bitrix-existing-company-id';
 import type { LiveTestInvoiceType } from '../types/live-test-report.types';
 
 function requireTrue(
@@ -94,6 +95,18 @@ export function evaluateBitrixE2eSetupGate(
     blockers,
     'LIVE_TEST_BITRIX_WEBHOOK_URL, BITRIX24_WEBHOOK_URL, or LIVE_TEST_BITRIX_BASE_URL + LIVE_TEST_BITRIX_AUTH_SECRET must be configured',
   );
+
+  const existingCompany = resolveBitrixExistingCompanyId(rawConfig);
+  requireTrue(
+    existingCompany.configured,
+    blockers,
+    'LIVE_TEST_BITRIX_EXISTING_COMPANY_ID must be configured (existing [TEST] company with NIP/requisites)',
+  );
+  if (existingCompany.configured) {
+    warnings.push(
+      'Reusing existing Bitrix test company; crm.requisite.add and crm.address.add are not called.',
+    );
+  }
 
   const paidStageId = env.LIVE_TEST_BITRIX_PAID_STAGE_ID;
   const initialStageId = env.LIVE_TEST_BITRIX_INITIAL_STAGE_ID;

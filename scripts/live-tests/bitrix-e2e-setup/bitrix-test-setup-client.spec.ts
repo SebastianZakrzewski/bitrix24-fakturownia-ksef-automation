@@ -19,6 +19,13 @@ function createRecordingCallFn(): {
     calls.push({ method, params });
 
     switch (method) {
+      case 'crm.company.get':
+        return { ID: '42' };
+      case 'crm.address.list':
+        return [];
+      case 'crm.requisite.list':
+        return [{ ID: '9002', RQ_INN: '1111111111' }];
+      case 'crm.requisite.update':
       case 'crm.company.add':
         return 9001;
       case 'crm.requisite.add':
@@ -37,6 +44,51 @@ function createRecordingCallFn(): {
 }
 
 describe('createBitrixTestSetupClient REST coverage', () => {
+  it('useExistingTestCompany calls crm.company.get only (no requisite/address)', async () => {
+    const { call, calls } = createRecordingCallFn();
+    const client = createBitrixTestSetupClient(call);
+
+    const result = await client.useExistingTestCompany('42');
+
+    expect(result.companyId).toBe('42');
+    expect(calls).toEqual([{ method: 'crm.company.get', params: { id: '42' } }]);
+  });
+
+  it('ensureExistingTestCompanyAddress adds crm.address when list is empty', async () => {
+    const { call, calls } = createRecordingCallFn();
+    const client = createBitrixTestSetupClient(call);
+
+    const result = await client.ensureExistingTestCompanyAddress('42', {
+      street: 'ul. Testowa 1',
+      postalCode: '00-001',
+      city: 'Warszawa',
+      country: 'PL',
+    });
+
+    expect(result.addressAdded).toBe(true);
+    expect(calls.map((entry) => entry.method)).toEqual([
+      'crm.company.get',
+      'crm.address.list',
+      'crm.address.add',
+    ]);
+  });
+
+  it('ensureExistingTestCompanyRequisite updates invalid NIP', async () => {
+    const { call, calls } = createRecordingCallFn();
+    const client = createBitrixTestSetupClient(call);
+
+    const result = await client.ensureExistingTestCompanyRequisite(
+      '42',
+      '5261040828',
+    );
+
+    expect(result.nipUpdated).toBe(true);
+    expect(calls.map((entry) => entry.method)).toEqual([
+      'crm.requisite.list',
+      'crm.requisite.update',
+    ]);
+  });
+
   it('calls documented Bitrix REST methods once each for FULL setup path', async () => {
     const { call, calls } = createRecordingCallFn();
     const client = createBitrixTestSetupClient(call);

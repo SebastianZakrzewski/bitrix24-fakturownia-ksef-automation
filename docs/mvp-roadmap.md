@@ -15,12 +15,13 @@
 | DB audit and process statuses | MVP_REQUIRED |
 | Bitrix24 timeline comment with invoice link | MVP_REQUIRED |
 | Bitrix24 separate link field update | MVP_REQUIRED, warning-only |
-| Simple client panel: one admin account + list of processes/invoices | MVP_REQUIRED |
+| Customer invoice email delivery (Fakturownia PDF and/or link) | MVP_REQUIRED |
 | Technical manual retry outside client panel | MVP_REQUIRED |
 
 ## V2
 | Feature | Classification |
 |---|---|
+| Simple client panel: one admin account + list of processes/invoices | V2 |
 | Manual retry in client panel | V2 |
 | Process details/audit in client panel | V2 |
 | Roles and multiple client panel users | V2 |

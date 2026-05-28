@@ -1,6 +1,9 @@
 import type {
   BitrixRestCallFn,
+  BitrixTestCompanyAddressEnsureResult,
+  BitrixTestCompanyAddressInput,
   BitrixTestCompanyInput,
+  BitrixTestCompanyRequisiteEnsureResult,
   BitrixTestCompanyResult,
   BitrixTestDealInput,
   BitrixTestDealResult,
@@ -56,10 +59,130 @@ export function createBitrixRestCallFn(webhookUrl: string): BitrixRestCallFn {
   };
 }
 
+function hasCompleteCrmAddress(addresses: unknown): boolean {
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    return false;
+  }
+
+  const address = addresses[0] as Record<string, unknown>;
+  const streetParts = [address.ADDRESS_1, address.ADDRESS_2]
+    .map((part) => (part === undefined || part === null || part === '' ? undefined : String(part)))
+    .filter((part): part is string => Boolean(part));
+
+  return (
+    streetParts.length > 0 &&
+    Boolean(address.POSTAL_CODE) &&
+    Boolean(address.CITY) &&
+    Boolean(address.COUNTRY)
+  );
+}
+
 export function createBitrixTestSetupClient(
   call: BitrixRestCallFn,
 ): BitrixTestSetupClient {
   return {
+    async useExistingTestCompany(companyId: string): Promise<BitrixTestCompanyResult> {
+      const result = await call('crm.company.get', { id: companyId });
+
+      if (result === undefined || result === null) {
+        throw new BitrixTestSetupClientError(
+          'crm.company.get',
+          `Existing test company ${companyId} was not found`,
+        );
+      }
+
+      return { companyId };
+    },
+
+    async ensureExistingTestCompanyAddress(
+      companyId: string,
+      address: BitrixTestCompanyAddressInput,
+    ): Promise<BitrixTestCompanyAddressEnsureResult> {
+      await call('crm.company.get', { id: companyId });
+
+      const addresses = await call('crm.address.list', {
+        filter: {
+          ENTITY_TYPE_ID: BITRIX_COMPANY_ENTITY_TYPE_ID,
+          ENTITY_ID: companyId,
+        },
+      });
+
+      if (hasCompleteCrmAddress(addresses)) {
+        return {
+          companyId,
+          addressAlreadyPresent: true,
+          addressAdded: false,
+        };
+      }
+
+      await call('crm.address.add', {
+        fields: {
+          TYPE_ID: 1,
+          ENTITY_TYPE_ID: BITRIX_COMPANY_ENTITY_TYPE_ID,
+          ENTITY_ID: companyId,
+          ADDRESS_1: address.street,
+          CITY: address.city,
+          POSTAL_CODE: address.postalCode,
+          COUNTRY: address.country,
+        },
+      });
+
+      return {
+        companyId,
+        addressAlreadyPresent: false,
+        addressAdded: true,
+      };
+    },
+
+    async ensureExistingTestCompanyRequisite(
+      companyId: string,
+      nip: string,
+    ): Promise<BitrixTestCompanyRequisiteEnsureResult> {
+      const requisites = (await call('crm.requisite.list', {
+        filter: {
+          ENTITY_TYPE_ID: BITRIX_COMPANY_ENTITY_TYPE_ID,
+          ENTITY_ID: companyId,
+        },
+      })) as Array<Record<string, unknown>> | undefined;
+
+      const requisite = Array.isArray(requisites) ? requisites[0] : undefined;
+      if (!requisite?.ID) {
+        throw new BitrixTestSetupClientError(
+          'crm.requisite.list',
+          `Existing test company ${companyId} has no requisite for NIP ensure`,
+        );
+      }
+
+      const requisiteId = String(requisite.ID);
+      const currentNip =
+        requisite.RQ_INN === undefined || requisite.RQ_INN === null
+          ? ''
+          : String(requisite.RQ_INN).trim();
+
+      if (currentNip === nip.trim()) {
+        return {
+          companyId,
+          requisiteId,
+          nipAlreadyValid: true,
+          nipUpdated: false,
+        };
+      }
+
+      await call('crm.requisite.update', {
+        id: requisiteId,
+        fields: {
+          RQ_INN: nip,
+        },
+      });
+
+      return {
+        companyId,
+        requisiteId,
+        nipAlreadyValid: false,
+        nipUpdated: true,
+      };
+    },
+
     async createTestCompany(input: BitrixTestCompanyInput): Promise<BitrixTestCompanyResult> {
       const companyId = await call('crm.company.add', {
         fields: { TITLE: input.title },

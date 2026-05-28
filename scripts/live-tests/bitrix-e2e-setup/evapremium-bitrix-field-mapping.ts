@@ -14,6 +14,7 @@ export const EVAPREMIUM_BITRIX_FIELD_MAPPING = {
   documentTypeField: 'UF_CRM_1764599187558',
   documentTypeInvoiceValueId: '722',
   shippingCostField: 'UF_CRM_1764865232643',
+  advanceAmountField: 'UF_CRM_1764863464851',
   mainProductName: 'Dywaniki Evapremium',
   companyAddressSource: 'CRM_ADDRESS_LIST' as const,
 };
