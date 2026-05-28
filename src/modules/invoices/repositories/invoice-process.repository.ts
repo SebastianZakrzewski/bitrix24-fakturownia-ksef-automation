@@ -101,6 +101,10 @@ export class InvoiceProcessRepository {
               WHEN $5 IS NOT NULL THEN now()
               ELSE ksef_last_checked_at
             END,
+            completed_at = CASE
+              WHEN $2 = 'COMPLETED' THEN now()
+              ELSE completed_at
+            END,
             updated_at = now()
           WHERE id = $1
           RETURNING *

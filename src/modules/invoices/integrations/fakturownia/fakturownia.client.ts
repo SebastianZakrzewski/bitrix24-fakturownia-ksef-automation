@@ -58,6 +58,32 @@ export class FakturowniaClient {
     return this.postInvoiceDocument(requestBody) as Promise<FakturowniaInvoiceRaw>;
   }
 
+  async downloadInvoicePdf(invoiceId: string): Promise<Buffer> {
+    this.assertConfigured();
+
+    const url = `${this.baseUrl!.replace(/\/$/, '')}/invoices/${encodeURIComponent(invoiceId)}.pdf?api_token=${encodeURIComponent(this.getApiToken())}`;
+
+    const response = await this.fetchFn(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/pdf',
+      },
+      signal: AbortSignal.timeout(this.requestTimeoutMs),
+    });
+
+    if (!response.ok) {
+      const body = await this.parseResponseBody(response);
+      const failure: FakturowniaHttpFailure = {
+        httpStatus: response.status,
+        body,
+      };
+      throw failure;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
   async createOrder(
     payload: FakturowniaOrderPayload,
   ): Promise<FakturowniaOrderRaw> {

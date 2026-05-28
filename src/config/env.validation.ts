@@ -21,6 +21,13 @@ const envSchema = z
       .int()
       .positive()
       .default(30000),
+    N8N_INVOICE_EMAIL_WEBHOOK_URL: z.string().url().optional(),
+    N8N_INVOICE_EMAIL_WEBHOOK_SECRET: z.string().min(1).optional(),
+    N8N_INVOICE_EMAIL_WEBHOOK_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(30000),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'test' && !env.DATABASE_URL) {
@@ -52,6 +59,24 @@ const envSchema = z
         code: 'custom',
         message: 'FAKTUROWNIA_API_TOKEN is required when NODE_ENV is not test',
         path: ['FAKTUROWNIA_API_TOKEN'],
+      });
+    }
+
+    if (env.NODE_ENV !== 'test' && !env.N8N_INVOICE_EMAIL_WEBHOOK_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'N8N_INVOICE_EMAIL_WEBHOOK_URL is required when NODE_ENV is not test',
+        path: ['N8N_INVOICE_EMAIL_WEBHOOK_URL'],
+      });
+    }
+
+    if (env.NODE_ENV !== 'test' && !env.N8N_INVOICE_EMAIL_WEBHOOK_SECRET) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'N8N_INVOICE_EMAIL_WEBHOOK_SECRET is required when NODE_ENV is not test',
+        path: ['N8N_INVOICE_EMAIL_WEBHOOK_SECRET'],
       });
     }
   });

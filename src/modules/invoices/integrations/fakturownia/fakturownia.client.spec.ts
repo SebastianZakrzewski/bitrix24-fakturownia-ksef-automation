@@ -195,4 +195,42 @@ describe('FakturowniaClient', () => {
 
     await expect(client.createOrder(payload)).rejects.toThrow('The operation was aborted');
   });
+
+  it('downloads invoice PDF from Fakturownia API', async () => {
+    const pdfBytes = Buffer.from('%PDF-1.4 test');
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => pdfBytes,
+    });
+
+    const client = await createClient(fetchFn);
+    const result = await client.downloadInvoicePdf('987654');
+
+    expect(result.equals(pdfBytes)).toBe(true);
+    expect(fetchFn).toHaveBeenCalledWith(
+      `${baseUrl}/invoices/987654.pdf?api_token=${apiToken}`,
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          Accept: 'application/pdf',
+        },
+      }),
+    );
+  });
+
+  it('throws HTTP failure object on downloadInvoicePdf non-2xx response', async () => {
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: 'Not found' }),
+    });
+
+    const client = await createClient(fetchFn);
+
+    await expect(client.downloadInvoicePdf('987654')).rejects.toEqual({
+      httpStatus: 404,
+      body: { message: 'Not found' },
+    });
+  });
 });

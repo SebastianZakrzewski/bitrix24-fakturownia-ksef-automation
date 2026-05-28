@@ -9,6 +9,7 @@ import { EVAPREMIUM_V1_CLIENT_CONFIG_MAPPINGS } from '../config/evapremium-v1-cl
 import type { CreateInvoiceFromBitrixDealCommand } from '../commands/create-invoice-from-bitrix-deal.command';
 import { InvoiceCreationBlockedError } from '../errors/invoice-process.errors';
 import { FakturowniaApiError } from '../integrations/fakturownia/fakturownia.errors';
+import { EmailProviderApiError } from '../integrations/email/email.errors';
 import { FakturowniaService } from '../integrations/fakturownia/fakturownia.service';
 import {
   fakturowniaInvoiceOrderLinkageFixture,
@@ -25,6 +26,7 @@ import { InvoiceProcessRepository } from '../repositories/invoice-process.reposi
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from '../services/invoice-comment.service';
+import { InvoiceEmailService } from '../services/invoice-email.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from '../services/invoice-idempotency.service';
 import { InvoiceProcessService } from '../services/invoice-process.service';
@@ -156,6 +158,9 @@ type UseCaseDeps = {
     Pick<FakturowniaOrderEnsureService, 'ensureForDeal'>
   >;
   fakturowniaService: jest.Mocked<Pick<FakturowniaService, 'createInvoice'>>;
+  invoiceEmailService: jest.Mocked<
+    Pick<InvoiceEmailService, 'sendCustomerInvoice'>
+  >;
 };
 
 const createDeps = (): UseCaseDeps => ({
@@ -188,6 +193,13 @@ const createDeps = (): UseCaseDeps => ({
   fakturowniaService: {
     createInvoice: jest.fn().mockResolvedValue(fakturowniaCreateResult()),
   },
+  invoiceEmailService: {
+    sendCustomerInvoice: jest.fn().mockResolvedValue({
+      success: true,
+      provider: 'n8n',
+      sentAt: '2026-01-01T00:00:00.000Z',
+    }),
+  },
 });
 
 const createUseCase = (deps: UseCaseDeps) =>
@@ -211,6 +223,7 @@ const createUseCase = (deps: UseCaseDeps) =>
     deps.fakturowniaOrderEnsureService as unknown as FakturowniaOrderEnsureService,
     deps.fakturowniaService as unknown as FakturowniaService,
     new InvoiceCommentService(),
+    deps.invoiceEmailService as unknown as InvoiceEmailService,
   );
 
 const setupBitrixMocks = (
@@ -246,6 +259,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — stale trigger handling', () => 
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
     expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
     expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+    expect(deps.invoiceEmailService.sendCustomerInvoice).not.toHaveBeenCalled();
   };
 
   it('returns STALE_TRIGGER_IGNORED when deal is no longer on paid stage', async () => {
@@ -292,6 +306,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
     expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
     expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+    expect(deps.invoiceEmailService.sendCustomerInvoice).not.toHaveBeenCalled();
   };
 
   const assertValidationFailurePersistence = (
@@ -552,8 +567,8 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
-    expect(result.message).toContain('synced to Bitrix24');
+    expect(result.status).toBe('COMPLETED');
+    expect(result.message).toContain('customer email succeeded');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ invoiceType: 'FULL', bitrixDealId: '27000' }),
@@ -587,9 +602,13 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
     );
     expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
       'process-uuid-1',
+      expect.objectContaining({ status: 'COMPLETED' }),
+    );
+    expect(deps.invoiceEmailService.sendCustomerInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'KSEF_SUBMISSION_CONFIRMED',
-        ksef_status: 'SUBMISSION_CONFIRMED',
+        processId: 'process-uuid-1',
+        bitrixDealId: '27000',
+        fakturowniaResult: fakturowniaCreateResult(),
       }),
     );
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
@@ -616,7 +635,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
+    expect(result.status).toBe('COMPLETED');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).toHaveBeenCalledWith(
       expect.objectContaining({
         invoiceProcessId: 'process-uuid-1',
@@ -659,7 +678,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
+    expect(result.status).toBe('COMPLETED');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1001,7 +1020,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
   });
 });
 
-describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSION_CONFIRMED', () => {
+describe('CreateInvoiceFromBitrixDealUseCase — customer email after Bitrix sync', () => {
   let deps: UseCaseDeps;
   let useCase: CreateInvoiceFromBitrixDealUseCase;
 
@@ -1050,7 +1069,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSI
 
       const result = await useCase.execute(command());
 
-      expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
+      expect(result.status).toBe('COMPLETED');
       expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledWith(
         expect.objectContaining({
           dealId: '27000',
@@ -1082,12 +1101,13 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSI
       expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
     );
     expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+    expect(deps.invoiceEmailService.sendCustomerInvoice).not.toHaveBeenCalled();
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'BITRIX_TIMELINE_COMMENT_FAILED' }),
     );
   });
 
-  it('keeps KSEF_SUBMISSION_CONFIRMED when link field update fails after successful comment', async () => {
+  it('reaches COMPLETED when link field update fails after successful comment', async () => {
     const deal = bitrixDealForFull();
     setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
     deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
@@ -1097,12 +1117,34 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSI
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
+    expect(result.status).toBe('COMPLETED');
     expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledTimes(1);
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'BITRIX_LINK_FIELD_UPDATE_FAILED' }),
     );
     expect(deps.invoiceProcessRepository.updateStatus).not.toHaveBeenCalledWith(
+      'process-uuid-1',
+      expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
+    );
+  });
+
+  it('sets MANUAL_REVIEW_REQUIRED when customer email fails after Bitrix sync', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.invoiceEmailService.sendCustomerInvoice.mockRejectedValue(
+      new EmailProviderApiError({
+        category: 'SERVER',
+        message: 'Invoice email webhook HTTP 500',
+        httpStatus: 500,
+      }),
+    );
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('MANUAL_REVIEW_REQUIRED');
+    expect(result.message).toContain('customer invoice email failed');
+    expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
       'process-uuid-1',
       expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
     );
@@ -1123,10 +1165,22 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSI
       callOrder.push('addDealComment');
       return undefined;
     });
+    deps.invoiceEmailService.sendCustomerInvoice.mockImplementation(async () => {
+      callOrder.push('sendCustomerInvoice');
+      return {
+        success: true,
+        provider: 'n8n',
+        sentAt: '2026-01-01T00:00:00.000Z',
+      };
+    });
 
     await useCase.execute(command());
 
-    expect(callOrder).toEqual(['createInvoice', 'addDealComment']);
+    expect(callOrder).toEqual([
+      'createInvoice',
+      'addDealComment',
+      'sendCustomerInvoice',
+    ]);
   });
 
   it('does not call Bitrix timeline before KSeF submission is confirmed', async () => {

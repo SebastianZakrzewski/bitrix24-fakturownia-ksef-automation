@@ -16,6 +16,14 @@ export class FakturowniaService {
     private readonly errorMapper: FakturowniaErrorMapper,
   ) {}
 
+  async downloadInvoicePdf(fakturowniaInvoiceId: string): Promise<Buffer> {
+    try {
+      return await this.client.downloadInvoicePdf(fakturowniaInvoiceId);
+    } catch (error) {
+      throw this.errorMapper.map(error);
+    }
+  }
+
   async createInvoice(
     invoiceDraft: InvoiceDraft,
     orderLinkage?: FakturowniaInvoiceOrderLinkage,

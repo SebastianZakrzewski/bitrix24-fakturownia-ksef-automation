@@ -11,6 +11,23 @@ import type {
 export class InvoiceEventRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  async existsByProcessIdAndEventType(
+    invoiceProcessId: string,
+    eventType: string,
+  ): Promise<boolean> {
+    const result = await this.databaseService.query(
+      `
+        SELECT 1
+        FROM invoice_events
+        WHERE invoice_process_id = $1 AND event_type = $2
+        LIMIT 1
+      `,
+      [invoiceProcessId, eventType],
+    );
+
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
   async insert(params: InsertInvoiceEventParams): Promise<InvoiceEventRow> {
     try {
       const result = await this.databaseService.query(

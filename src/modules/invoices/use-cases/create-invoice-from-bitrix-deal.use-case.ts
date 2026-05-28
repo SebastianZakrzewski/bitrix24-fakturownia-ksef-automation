@@ -14,6 +14,7 @@ import type {
 import { CreateInvoiceFromBitrixDealCommand } from '../commands/create-invoice-from-bitrix-deal.command';
 import { InvoiceProcessTriggerResponseDto } from '../dto/invoice-process-trigger-response.dto';
 import { InvoiceCreationBlockedError } from '../errors/invoice-process.errors';
+import { EmailProviderApiError } from '../integrations/email/email.errors';
 import { FakturowniaApiError } from '../integrations/fakturownia/fakturownia.errors';
 import { FakturowniaService } from '../integrations/fakturownia/fakturownia.service';
 import type {
@@ -30,13 +31,19 @@ import { InvoiceProcessRepository } from '../repositories/invoice-process.reposi
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from '../services/invoice-comment.service';
+import { InvoiceEmailService } from '../services/invoice-email.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from '../services/invoice-idempotency.service';
 import { InvoiceProcessService } from '../services/invoice-process.service';
 import { InvoiceValidationService } from '../services/invoice-validation.service';
 import type { ClientConfigMappings } from '../types/client-config.types';
 import type { ValidatedInvoiceMapping } from '../types/invoice-mapping.types';
-import type { InvoiceProcessStatus, InvoiceType, ValidationError } from '../types/invoice.types';
+import type {
+  InvoiceDraft,
+  InvoiceProcessStatus,
+  InvoiceType,
+  ValidationError,
+} from '../types/invoice.types';
 
 @Injectable()
 export class CreateInvoiceFromBitrixDealUseCase {
@@ -60,6 +67,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly fakturowniaOrderEnsureService: FakturowniaOrderEnsureService,
     private readonly fakturowniaService: FakturowniaService,
     private readonly invoiceCommentService: InvoiceCommentService,
+    private readonly invoiceEmailService: InvoiceEmailService,
   ) {}
 
   async execute(
@@ -342,6 +350,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
         invoiceType,
         config,
         result,
+        invoiceDraft: draft,
       });
     } catch (error) {
       if (error instanceof FakturowniaApiError) {
@@ -358,6 +367,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     invoiceType: InvoiceType;
     config: ClientConfigMappings;
     result: FakturowniaCreateInvoiceResult;
+    invoiceDraft: InvoiceDraft;
   }): Promise<InvoiceProcessTriggerResponseDto> {
     const ksefIntegrationStatus = params.result.ksefStatus ?? 'STATUS_UNKNOWN';
     const ksefMetadata = {
@@ -391,8 +401,8 @@ export class CreateInvoiceFromBitrixDealUseCase {
         bitrixDealId: params.bitrixDealId,
         invoiceType: params.invoiceType,
         config: params.config,
-        fakturowniaInvoiceId: params.result.fakturowniaInvoiceId,
-        fakturowniaInvoiceUrl: params.result.fakturowniaInvoiceUrl,
+        fakturowniaResult: params.result,
+        invoiceDraft: params.invoiceDraft,
       });
     }
 
@@ -449,13 +459,13 @@ export class CreateInvoiceFromBitrixDealUseCase {
     bitrixDealId: string;
     invoiceType: InvoiceType;
     config: ClientConfigMappings;
-    fakturowniaInvoiceId: string;
-    fakturowniaInvoiceUrl: string;
+    fakturowniaResult: FakturowniaCreateInvoiceResult;
+    invoiceDraft: InvoiceDraft;
   }): Promise<InvoiceProcessTriggerResponseDto> {
     const commentMessage = this.invoiceCommentService.buildInvoiceCreatedComment({
       invoiceType: params.invoiceType,
-      fakturowniaInvoiceUrl: params.fakturowniaInvoiceUrl,
-      fakturowniaInvoiceId: params.fakturowniaInvoiceId,
+      fakturowniaInvoiceUrl: params.fakturowniaResult.fakturowniaInvoiceUrl,
+      fakturowniaInvoiceId: params.fakturowniaResult.fakturowniaInvoiceId,
     });
 
     try {
@@ -502,7 +512,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
       event_type: 'BITRIX_TIMELINE_COMMENT_ADDED',
       message: 'Bitrix24 timeline comment with invoice link added.',
       metadata: {
-        fakturownia_invoice_url: params.fakturowniaInvoiceUrl,
+        fakturownia_invoice_url: params.fakturowniaResult.fakturowniaInvoiceUrl,
       },
     });
 
@@ -510,7 +520,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
       await this.bitrix24DealFieldService.updateDealField({
         dealId: params.bitrixDealId,
         fieldCode: params.config.bitrix_field_mapping.invoiceLinkField,
-        value: params.fakturowniaInvoiceUrl,
+        value: params.fakturowniaResult.fakturowniaInvoiceUrl,
       });
 
       await this.invoiceEventRepository.insert({
@@ -520,7 +530,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
         message: 'Bitrix24 invoice link field updated.',
         metadata: {
           field_code: params.config.bitrix_field_mapping.invoiceLinkField,
-          fakturownia_invoice_url: params.fakturowniaInvoiceUrl,
+          fakturownia_invoice_url: params.fakturowniaResult.fakturowniaInvoiceUrl,
         },
       });
     } catch (error) {
@@ -540,13 +550,71 @@ export class CreateInvoiceFromBitrixDealUseCase {
       });
     }
 
+    return this.sendCustomerInvoiceAndComplete({
+      processId: params.processId,
+      bitrixDealId: params.bitrixDealId,
+      invoiceType: params.invoiceType,
+      invoiceDraft: params.invoiceDraft,
+      fakturowniaResult: params.fakturowniaResult,
+    });
+  }
+
+  private async sendCustomerInvoiceAndComplete(params: {
+    processId: string;
+    bitrixDealId: string;
+    invoiceType: InvoiceType;
+    invoiceDraft: InvoiceDraft;
+    fakturowniaResult: FakturowniaCreateInvoiceResult;
+  }): Promise<InvoiceProcessTriggerResponseDto> {
+    try {
+      await this.invoiceEmailService.sendCustomerInvoice({
+        processId: params.processId,
+        bitrixDealId: params.bitrixDealId,
+        invoiceDraft: params.invoiceDraft,
+        fakturowniaResult: params.fakturowniaResult,
+      });
+    } catch (error) {
+      if (error instanceof EmailProviderApiError) {
+        this.invoiceProcessService.assertCanTransition(
+          'KSEF_SUBMISSION_CONFIRMED',
+          'MANUAL_REVIEW_REQUIRED',
+        );
+
+        await this.invoiceProcessRepository.updateStatus(params.processId, {
+          status: 'MANUAL_REVIEW_REQUIRED',
+          last_error_message: error.message,
+        });
+
+        return {
+          process_id: params.processId,
+          status: 'MANUAL_REVIEW_REQUIRED',
+          bitrix_deal_id: params.bitrixDealId,
+          invoice_type: params.invoiceType,
+          message:
+            'Invoice and KSeF confirmed in Fakturownia and synced to Bitrix24, but customer invoice email failed. Manual review required.',
+        };
+      }
+
+      throw error;
+    }
+
+    this.invoiceProcessService.assertCanTransition(
+      'KSEF_SUBMISSION_CONFIRMED',
+      'COMPLETED',
+    );
+
+    await this.invoiceProcessRepository.updateStatus(params.processId, {
+      status: 'COMPLETED',
+      last_error_message: null,
+    });
+
     return {
       process_id: params.processId,
-      status: 'KSEF_SUBMISSION_CONFIRMED',
+      status: 'COMPLETED',
       bitrix_deal_id: params.bitrixDealId,
       invoice_type: params.invoiceType,
       message:
-        'Invoice and KSeF confirmed in Fakturownia and synced to Bitrix24.',
+        'Invoice process completed: Fakturownia invoice, KSeF, Bitrix24 sync and customer email succeeded.',
     };
   }
 

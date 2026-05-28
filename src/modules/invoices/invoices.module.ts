@@ -6,6 +6,11 @@ import { AdminInvoiceProcessesController } from './controllers/admin-invoice-pro
 import { InvoiceProcessesController } from './controllers/invoice-processes.controller';
 import { FakturowniaClient } from './integrations/fakturownia/fakturownia.client';
 import { FAKTUROWNIA_HTTP_CLIENT } from './integrations/fakturownia/fakturownia-http-client.token';
+import { EMAIL_HTTP_CLIENT } from './integrations/email/email-http-client.token';
+import { EmailProviderErrorMapper } from './integrations/email/email-provider.error-mapper';
+import { EmailProviderService } from './integrations/email/email-provider.service';
+import { InvoiceEmailMapper } from './integrations/email/invoice-email.mapper';
+import { N8nEmailWebhookClient } from './integrations/email/n8n-email-webhook.client';
 import { FakturowniaErrorMapper } from './integrations/fakturownia/fakturownia-error.mapper';
 import { FakturowniaMapper } from './integrations/fakturownia/fakturownia.mapper';
 import { FakturowniaOrderMapper } from './integrations/fakturownia/fakturownia-order.mapper';
@@ -21,6 +26,7 @@ import { InvoiceRecordRepository } from './repositories/invoice-record.repositor
 import { TechnicalRetryAttemptRepository } from './repositories/technical-retry-attempt.repository';
 import { FakturowniaOrderEnsureService } from './services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from './services/invoice-comment.service';
+import { InvoiceEmailService } from './services/invoice-email.service';
 import { InvoiceDraftBuilderService } from './services/invoice-draft-builder.service';
 import { InvoiceIdempotencyService } from './services/invoice-idempotency.service';
 import { InvoiceProcessService } from './services/invoice-process.service';
@@ -42,6 +48,7 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     InvoiceIdempotencyService,
     FakturowniaOrderEnsureService,
     InvoiceCommentService,
+    InvoiceEmailService,
     BitrixInvoiceMapper,
     InvoiceProcessRepository,
     FakturowniaOrderRepository,
@@ -54,12 +61,20 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
       provide: FAKTUROWNIA_HTTP_CLIENT,
       useValue: fetch,
     },
+    {
+      provide: EMAIL_HTTP_CLIENT,
+      useValue: fetch,
+    },
     FakturowniaClient,
     FakturowniaService,
     FakturowniaOrderService,
     FakturowniaMapper,
     FakturowniaOrderMapper,
     FakturowniaErrorMapper,
+    N8nEmailWebhookClient,
+    EmailProviderService,
+    InvoiceEmailMapper,
+    EmailProviderErrorMapper,
   ],
 })
 export class InvoicesModule {}
