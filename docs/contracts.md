@@ -118,6 +118,7 @@ type BitrixDealData = {
   dealUrl?: string;
   stageId: string;
   companyId?: string;
+  contactId?: string;
   customFields: Record<string, unknown>;
   productRows: BitrixProductRow[];
 };
@@ -147,14 +148,26 @@ These are integration DTOs. `BitrixInvoiceMapper` maps them with `ClientConfig` 
 
 V1 requires a valid customer-facing email before Fakturownia side effects.
 
-| Field | Source | Status |
-|---|---|---|
-| `BitrixCompanyData.customerEmail` | Bitrix24 company or deal field — **exact field/mapping TBD** | Blocked by `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` |
+**Accepted source (Evapremium V1):** deal-linked contact primary email.
 
-Rules until field is confirmed:
-- Do not invent a Bitrix UF code or contact resolution rule in implementation.
-- Once confirmed, add mapping to `ClientBitrixFieldMapping` (e.g. `customerEmailField` or contact lookup rule) and validate with `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL`.
-- Email must be normalized (trim, lowercase) before send; invalid format blocks at validation.
+| Step | Bitrix24 API / field | Maps to |
+|---|---|---|
+| 1 | `crm.deal.get` → `CONTACT_ID` | `BitrixDealCore.contactId` |
+| 2 | `crm.contact.get` → `EMAIL[0].VALUE` (first multi-field entry) | `BitrixCompanyData.customerEmail` (via use case merge before `BitrixInvoiceMapper`) |
+| 3 | `BitrixInvoiceMapper.mapBuyer` | `MappedBuyer.customerEmail` → validated `InvoiceDraft.buyer.customerEmail` |
+
+Implementation:
+- `Bitrix24ContactService.getPrimaryEmailByContactId(contactId)` — integration only; no business rules.
+- `CreateInvoiceFromBitrixDealUseCase.resolveCompanyForInvoiceMapping` — when `dealCore.contactId` is set, loads contact email and sets `company.customerEmail` before mapping.
+- Company UF / deal UF email fields are **not** used in V1.
+- If `CONTACT_ID` is missing or contact has no `EMAIL` entries → `MISSING_CUSTOMER_EMAIL` at validation (`source: BITRIX_COMPANY`, `field: customerEmail`).
+
+Rules:
+- Email must pass format validation in `InvoiceValidationService`; invalid → `INVALID_CUSTOMER_EMAIL`.
+- Email is normalized (`trim`, lowercase) in validated buyer before `InvoiceDraft` build.
+- Verified on Evapremium portal: deal `29134`, contact `15532` (company `120` had no email value).
+
+Task 11 (`InvoiceEmailService`) reuses validated `InvoiceDraft.buyer.customerEmail` as `recipientEmail`; no second Bitrix lookup at send time unless process is reloaded from snapshot.
 
 ## Invoice email delivery contract
 

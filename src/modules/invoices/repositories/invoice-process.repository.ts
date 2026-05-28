@@ -96,6 +96,11 @@ export class InvoiceProcessRepository {
             status = $2,
             last_error_message = $3,
             validation_errors = $4,
+            ksef_status = COALESCE($5, ksef_status),
+            ksef_last_checked_at = CASE
+              WHEN $5 IS NOT NULL THEN now()
+              ELSE ksef_last_checked_at
+            END,
             updated_at = now()
           WHERE id = $1
           RETURNING *
@@ -107,6 +112,7 @@ export class InvoiceProcessRepository {
           params.validation_errors
             ? JSON.stringify(params.validation_errors)
             : null,
+          params.ksef_status ?? null,
         ],
       );
 

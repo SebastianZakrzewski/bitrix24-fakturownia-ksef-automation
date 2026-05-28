@@ -165,7 +165,7 @@ Implement invoice email orchestration and provider integration skeleton:
 - `InvoiceEmailService` in invoices module
 - `modules/invoices/integrations/email` provider client/service/mapper/types
 - wire into `CreateInvoiceFromBitrixDealUseCase` after Bitrix comment success
-- load customer email from Bitrix24 per confirmed mapping (`OPEN_DECISION_CUSTOMER_EMAIL_SOURCE`)
+- load customer email from validated `InvoiceDraft.buyer.customerEmail` (populated at validation from deal contact per `/docs/contracts.md`)
 - send Fakturownia invoice link and/or PDF attachment
 - audit every send attempt
 - `RETRY_INVOICE_EMAIL` in `TechnicalRetryService`
@@ -174,8 +174,7 @@ Rules:
 - no email before validation and confirmed Fakturownia invoice,
 - no duplicate email for same process,
 - email failure does not cancel Fakturownia invoice,
-- `COMPLETED` only after successful email delivery,
-- resolve customer email Bitrix field before production wiring.
+- `COMPLETED` only after successful email delivery.
 
 Validation:
 - mocked provider tests for success, 4xx, 5xx, timeout,

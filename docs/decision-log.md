@@ -53,12 +53,13 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Fakturownia order via `POST /invoices.json` with `kind: estimate` | Official Fakturownia API for Zamówienie documents | High |
 | Order payload from validated `InvoiceDraft` with `oid` = `bitrixDealId` | Traceability; buyer + positions same as invoice mapping | High |
 | `FakturowniaOrderService.createOrder` returns integration result only | DB insert via use case Task 9 | Medium |
+| Customer email from deal-linked Bitrix24 contact (`CONTACT_ID` → `crm.contact.get` → first `EMAIL[].VALUE`) | Evapremium stores recipient on deal contact, not company UF; verified on deal 29134 | High |
+| `customerEmail` validated before Fakturownia; normalized trim + lowercase in `InvoiceValidationService` | Blocks invoice without delivery path; codes `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL` | High |
 
 ## Open decisions
 
 | ID | Decision needed | Status | Blocks |
 |---|---|---|---|
-| `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` | Which Bitrix24 field or contact rule supplies `customerEmail` for invoice delivery (company UF, deal UF, primary contact, etc.) | **Open** — field not verified on Evapremium portal | Task 11 email wiring; `MISSING_CUSTOMER_EMAIL` validation mapping |
 | `OPEN_DECISION_EMAIL_PROVIDER` | Which email provider/API (SMTP, transactional API) and env vars for V1 | **Open** | Task 11 integration implementation |
 | `OPEN_DECISION_FAKTUROWNIA_PDF_SOURCE` | How to obtain PDF bytes for attachment (Fakturownia API endpoint vs link-only email) | **Open** | Task 11 attachment vs link-only template |
 | `OPEN_DECISION_FAKTUROWNIA_POSITION_UNIT` | Whether Fakturownia requires explicit position unit (`szt.`) on create-invoice/order | **Deferred** — V1 omits unit field; verify if documents show wrong unit | Low; adjust mapper only if provider rejects or displays incorrect unit |

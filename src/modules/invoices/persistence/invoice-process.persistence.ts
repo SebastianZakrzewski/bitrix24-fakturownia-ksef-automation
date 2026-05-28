@@ -37,4 +37,5 @@ export type UpdateInvoiceProcessStatusParams = {
   status: InvoiceProcessStatus;
   last_error_message?: string | null;
   validation_errors?: ValidationError[] | null;
+  ksef_status?: string | null;
 };

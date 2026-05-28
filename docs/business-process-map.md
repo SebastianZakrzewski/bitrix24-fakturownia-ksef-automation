@@ -76,7 +76,7 @@ V1 does not integrate directly with KSeF. Fakturownia handles KSeF submission. V
 Given invoice creation and KSeF submission are confirmed (or manual review cleared KSeF unknown/error per operator workflow), and Bitrix24 timeline comment with invoice link was added, when backend sends the customer-facing invoice email, then:
 
 - Email includes Fakturownia invoice link and/or PDF attachment from Fakturownia.
-- Recipient address comes from Bitrix24 (field/source defined in `/docs/contracts.md`; see `OPEN_DECISION_CUSTOMER_EMAIL_SOURCE` until confirmed).
+- Recipient address is `InvoiceDraft.buyer.customerEmail` loaded at validation from deal contact (`CONTACT_ID` → `crm.contact.get` → first `EMAIL[].VALUE`; see `/docs/contracts.md`).
 - Send attempt is audited in DB (`invoice_events` and/or dedicated email audit fields when implemented).
 - `COMPLETED` is set only after successful email delivery.
 
@@ -119,6 +119,6 @@ Given invoice creation and KSeF submission are confirmed (or manual review clear
 | Fakturownia timeout | Given timeout after create request, then `UNKNOWN_AFTER_TIMEOUT` and manual verification required |
 | KSeF error/unknown | Given invoice exists but KSeF is error/unknown, then invoice remains and manual review is required |
 | Bitrix comment failure | Given invoice/KSeF OK but Bitrix comment fails, then no `COMPLETED`; retry only Bitrix sync |
-| Missing customer email | Given paid deal without valid customer email from Bitrix24, when validated, then no invoice and `VALIDATION_FAILED` |
+| Missing customer email | Given paid deal whose linked contact has no valid email (or deal has no `CONTACT_ID`), when validated, then no invoice and `VALIDATION_FAILED` |
 | Customer email failure | Given invoice/KSeF/Bitrix comment OK but email fails, then no `COMPLETED`; retry only invoice email |
 | Duplicate email retry | Given email already sent for process, when retry runs, then no second email |

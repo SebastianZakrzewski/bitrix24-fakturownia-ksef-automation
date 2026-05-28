@@ -16,7 +16,10 @@ import { InvoiceProcessTriggerResponseDto } from '../dto/invoice-process-trigger
 import { InvoiceCreationBlockedError } from '../errors/invoice-process.errors';
 import { FakturowniaApiError } from '../integrations/fakturownia/fakturownia.errors';
 import { FakturowniaService } from '../integrations/fakturownia/fakturownia.service';
-import type { FakturowniaInvoiceOrderLinkage } from '../integrations/fakturownia/fakturownia.types';
+import type {
+  FakturowniaCreateInvoiceResult,
+  FakturowniaInvoiceOrderLinkage,
+} from '../integrations/fakturownia/fakturownia.types';
 import { BitrixInvoiceMapper } from '../mappers/bitrix-invoice.mapper';
 import type { ClientConfigRow } from '../persistence/client-config.persistence';
 import type { InvoiceProcessRow } from '../persistence/invoice-process.persistence';
@@ -333,13 +336,12 @@ export class CreateInvoiceFromBitrixDealUseCase {
         },
       });
 
-      return this.syncBitrixAfterInvoiceCreated({
+      return this.applyKsefSubmissionResult({
         processId: process.id,
         bitrixDealId,
         invoiceType,
         config,
-        fakturowniaInvoiceId: result.fakturowniaInvoiceId,
-        fakturowniaInvoiceUrl: result.fakturowniaInvoiceUrl,
+        result,
       });
     } catch (error) {
       if (error instanceof FakturowniaApiError) {
@@ -350,7 +352,99 @@ export class CreateInvoiceFromBitrixDealUseCase {
     }
   }
 
-  private async syncBitrixAfterInvoiceCreated(params: {
+  private async applyKsefSubmissionResult(params: {
+    processId: string;
+    bitrixDealId: string;
+    invoiceType: InvoiceType;
+    config: ClientConfigMappings;
+    result: FakturowniaCreateInvoiceResult;
+  }): Promise<InvoiceProcessTriggerResponseDto> {
+    const ksefIntegrationStatus = params.result.ksefStatus ?? 'STATUS_UNKNOWN';
+    const ksefMetadata = {
+      ksef_status: ksefIntegrationStatus,
+      ...(params.result.ksefRawStatus !== undefined
+        ? { ksef_raw_status: params.result.ksefRawStatus }
+        : {}),
+    };
+
+    if (ksefIntegrationStatus === 'SUBMISSION_CONFIRMED') {
+      this.invoiceProcessService.assertCanTransition(
+        'INVOICE_CREATED',
+        'KSEF_SUBMISSION_CONFIRMED',
+      );
+
+      await this.invoiceProcessRepository.updateStatus(params.processId, {
+        status: 'KSEF_SUBMISSION_CONFIRMED',
+        ksef_status: ksefIntegrationStatus,
+      });
+
+      await this.invoiceEventRepository.insert({
+        invoice_process_id: params.processId,
+        bitrix_deal_id: params.bitrixDealId,
+        event_type: 'KSEF_SUBMISSION_CONFIRMED',
+        message: 'KSeF submission confirmed by Fakturownia.',
+        metadata: ksefMetadata,
+      });
+
+      return this.syncBitrixAfterKsefConfirmed({
+        processId: params.processId,
+        bitrixDealId: params.bitrixDealId,
+        invoiceType: params.invoiceType,
+        config: params.config,
+        fakturowniaInvoiceId: params.result.fakturowniaInvoiceId,
+        fakturowniaInvoiceUrl: params.result.fakturowniaInvoiceUrl,
+      });
+    }
+
+    const ksefProcessStatus: InvoiceProcessStatus =
+      ksefIntegrationStatus === 'SUBMISSION_ERROR'
+        ? 'KSEF_SUBMISSION_ERROR'
+        : 'KSEF_STATUS_UNKNOWN';
+
+    this.invoiceProcessService.assertCanTransition('INVOICE_CREATED', ksefProcessStatus);
+
+    await this.invoiceProcessRepository.updateStatus(params.processId, {
+      status: ksefProcessStatus,
+      ksef_status: ksefIntegrationStatus,
+    });
+
+    await this.invoiceEventRepository.insert({
+      invoice_process_id: params.processId,
+      bitrix_deal_id: params.bitrixDealId,
+      event_type: ksefProcessStatus,
+      message:
+        ksefProcessStatus === 'KSEF_SUBMISSION_ERROR'
+          ? 'KSeF submission failed according to Fakturownia.'
+          : 'KSeF submission status is unknown according to Fakturownia.',
+      metadata: ksefMetadata,
+    });
+
+    this.invoiceProcessService.assertCanTransition(
+      ksefProcessStatus,
+      'MANUAL_REVIEW_REQUIRED',
+    );
+
+    const manualReviewMessage =
+      ksefProcessStatus === 'KSEF_SUBMISSION_ERROR'
+        ? 'KSeF submission failed according to Fakturownia. Manual review required.'
+        : 'KSeF submission status is unknown according to Fakturownia. Manual review required.';
+
+    await this.invoiceProcessRepository.updateStatus(params.processId, {
+      status: 'MANUAL_REVIEW_REQUIRED',
+      last_error_message: manualReviewMessage,
+      ksef_status: ksefIntegrationStatus,
+    });
+
+    return {
+      process_id: params.processId,
+      status: 'MANUAL_REVIEW_REQUIRED',
+      bitrix_deal_id: params.bitrixDealId,
+      invoice_type: params.invoiceType,
+      message: manualReviewMessage,
+    };
+  }
+
+  private async syncBitrixAfterKsefConfirmed(params: {
     processId: string;
     bitrixDealId: string;
     invoiceType: InvoiceType;
@@ -376,7 +470,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
           : 'Bitrix24 timeline comment failed after invoice creation.';
 
       this.invoiceProcessService.assertCanTransition(
-        'INVOICE_CREATED',
+        'KSEF_SUBMISSION_CONFIRMED',
         'MANUAL_REVIEW_REQUIRED',
       );
 
@@ -398,7 +492,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
         bitrix_deal_id: params.bitrixDealId,
         invoice_type: params.invoiceType,
         message:
-          'Invoice created in Fakturownia, but Bitrix24 timeline comment failed. Manual review required.',
+          'Invoice and KSeF confirmed in Fakturownia, but Bitrix24 timeline comment failed. Manual review required.',
       };
     }
 
@@ -448,11 +542,11 @@ export class CreateInvoiceFromBitrixDealUseCase {
 
     return {
       process_id: params.processId,
-      status: 'INVOICE_CREATED',
+      status: 'KSEF_SUBMISSION_CONFIRMED',
       bitrix_deal_id: params.bitrixDealId,
       invoice_type: params.invoiceType,
       message:
-        'Invoice created successfully in Fakturownia and synced to Bitrix24.',
+        'Invoice and KSeF confirmed in Fakturownia and synced to Bitrix24.',
     };
   }
 

@@ -44,9 +44,9 @@ Responsibilities:
 5. Record `STALE_TRIGGER_IGNORED` event without process if stale.
 6. Extract/map invoice type.
 7. Atomically claim process by `bitrixDealId + invoiceType`.
-8. Load company and product rows.
+8. Load company, product rows, and deal contact email (`CONTACT_ID` → primary contact `EMAIL[0]`).
 9. Save Bitrix snapshot.
-10. Map buyer/products.
+10. Map buyer/products (buyer email from merged company + contact).
 11. Validate invoice rules.
 12. On validation errors set `VALIDATION_FAILED`, save event, comment Bitrix24.
 13. Build `InvoiceDraft`.
@@ -94,6 +94,7 @@ Separate module because Bitrix24 is a shared CRM integration for future SellGeni
 | `Bitrix24Client` | HTTP/API, auth, base URL, request handling |
 | `Bitrix24DealService` | Load deal and custom fields |
 | `Bitrix24CompanyService` | Load linked company, requisites (NIP) and optional `crm.address.list` per `companyAddressSource` |
+| `Bitrix24ContactService` | Load deal-linked contact primary email (`crm.contact.get` → first `EMAIL[].VALUE`) |
 | `Bitrix24ProductRowService` | Load product rows |
 | `Bitrix24TimelineService` | Add timeline comments |
 | `Bitrix24DealFieldService` | Update invoice link field |

@@ -106,6 +106,8 @@ const fakturowniaCreateResult = () => ({
   totalNet: 7747.97,
   totalGross: 9500,
   currency: 'PLN' as const,
+  ksefStatus: 'SUBMISSION_CONFIRMED' as const,
+  ksefRawStatus: 'ok',
 });
 
 const FAKTUROWNIA_INVOICE_URL = fakturowniaCreateResult().fakturowniaInvoiceUrl;
@@ -550,7 +552,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('INVOICE_CREATED');
+    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
     expect(result.message).toContain('synced to Bitrix24');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledWith(
@@ -583,11 +585,21 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
       'process-uuid-1',
       expect.objectContaining({ status: 'INVOICE_CREATED' }),
     );
+    expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+      'process-uuid-1',
+      expect.objectContaining({
+        status: 'KSEF_SUBMISSION_CONFIRMED',
+        ksef_status: 'SUBMISSION_CONFIRMED',
+      }),
+    );
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'INVOICE_CREATION_IN_PROGRESS' }),
     );
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'INVOICE_CREATED' }),
+    );
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'KSEF_SUBMISSION_CONFIRMED' }),
     );
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'BITRIX_TIMELINE_COMMENT_ADDED' }),
@@ -604,7 +616,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('INVOICE_CREATED');
+    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).toHaveBeenCalledWith(
       expect.objectContaining({
         invoiceProcessId: 'process-uuid-1',
@@ -647,7 +659,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('INVOICE_CREATED');
+    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
     expect(deps.fakturowniaOrderEnsureService.ensureForDeal).toHaveBeenCalled();
     expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -989,7 +1001,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — successful invoice creation pat
   });
 });
 
-describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREATED', () => {
+describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after KSEF_SUBMISSION_CONFIRMED', () => {
   let deps: UseCaseDeps;
   let useCase: CreateInvoiceFromBitrixDealUseCase;
 
@@ -1038,7 +1050,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREAT
 
       const result = await useCase.execute(command());
 
-      expect(result.status).toBe('INVOICE_CREATED');
+      expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
       expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledWith(
         expect.objectContaining({
           dealId: '27000',
@@ -1075,7 +1087,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREAT
     );
   });
 
-  it('keeps INVOICE_CREATED when link field update fails after successful comment', async () => {
+  it('keeps KSEF_SUBMISSION_CONFIRMED when link field update fails after successful comment', async () => {
     const deal = bitrixDealForFull();
     setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
     deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
@@ -1085,7 +1097,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREAT
 
     const result = await useCase.execute(command());
 
-    expect(result.status).toBe('INVOICE_CREATED');
+    expect(result.status).toBe('KSEF_SUBMISSION_CONFIRMED');
     expect(deps.bitrix24TimelineService.addDealComment).toHaveBeenCalledTimes(1);
     expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: 'BITRIX_LINK_FIELD_UPDATE_FAILED' }),
@@ -1115,5 +1127,123 @@ describe('CreateInvoiceFromBitrixDealUseCase — Bitrix sync after INVOICE_CREAT
     await useCase.execute(command());
 
     expect(callOrder).toEqual(['createInvoice', 'addDealComment']);
+  });
+
+  it('does not call Bitrix timeline before KSeF submission is confirmed', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+
+    const callOrder: string[] = [];
+
+    deps.fakturowniaService.createInvoice.mockImplementation(async () => {
+      callOrder.push('createInvoice');
+      return {
+        ...fakturowniaCreateResult(),
+        ksefStatus: 'SUBMISSION_ERROR' as const,
+        ksefRawStatus: 'send_error',
+      };
+    });
+    deps.invoiceProcessRepository.updateStatus.mockImplementation(async (_id, params) => {
+      if (params.status === 'KSEF_SUBMISSION_ERROR') {
+        callOrder.push('updateStatus:KSEF_SUBMISSION_ERROR');
+      }
+      return processRow('FULL', { status: params.status });
+    });
+    deps.bitrix24TimelineService.addDealComment.mockImplementation(async () => {
+      callOrder.push('addDealComment');
+      return undefined;
+    });
+
+    await useCase.execute(command());
+
+    expect(callOrder).toEqual(['createInvoice', 'updateStatus:KSEF_SUBMISSION_ERROR']);
+    expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
+  });
+});
+
+describe('CreateInvoiceFromBitrixDealUseCase — KSeF submission handling', () => {
+  let deps: UseCaseDeps;
+  let useCase: CreateInvoiceFromBitrixDealUseCase;
+
+  beforeEach(() => {
+    deps = createDeps();
+    useCase = createUseCase(deps);
+  });
+
+  it.each([
+    {
+      ksefStatus: 'SUBMISSION_ERROR' as const,
+      ksefRawStatus: 'send_error',
+      expectedKsefProcessStatus: 'KSEF_SUBMISSION_ERROR',
+      expectedEventType: 'KSEF_SUBMISSION_ERROR',
+    },
+    {
+      ksefStatus: 'STATUS_UNKNOWN' as const,
+      ksefRawStatus: 'processing',
+      expectedKsefProcessStatus: 'KSEF_STATUS_UNKNOWN',
+      expectedEventType: 'KSEF_STATUS_UNKNOWN',
+    },
+  ])(
+    'sets MANUAL_REVIEW_REQUIRED and skips Bitrix when ksefStatus is $ksefStatus',
+    async ({ ksefStatus, ksefRawStatus, expectedKsefProcessStatus, expectedEventType }) => {
+      const deal = bitrixDealForFull();
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+      deps.fakturowniaService.createInvoice.mockResolvedValue({
+        ...fakturowniaCreateResult(),
+        ksefStatus,
+        ksefRawStatus,
+      });
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('MANUAL_REVIEW_REQUIRED');
+      expect(deps.invoiceRecordRepository.insert).toHaveBeenCalledTimes(1);
+      expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
+      expect(deps.bitrix24DealFieldService.updateDealField).not.toHaveBeenCalled();
+      expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+        'process-uuid-1',
+        expect.objectContaining({
+          status: expectedKsefProcessStatus,
+          ksef_status: ksefStatus,
+        }),
+      );
+      expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+        'process-uuid-1',
+        expect.objectContaining({ status: 'MANUAL_REVIEW_REQUIRED' }),
+      );
+      expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ event_type: expectedEventType }),
+      );
+    },
+  );
+
+  it('treats missing ksefStatus as STATUS_UNKNOWN and skips Bitrix sync', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.fakturowniaService.createInvoice.mockResolvedValue({
+      fakturowniaInvoiceId: '987654',
+      fakturowniaInvoiceUrl: FAKTUROWNIA_INVOICE_URL,
+      totalNet: 7747.97,
+      totalGross: 9500,
+      currency: 'PLN',
+    });
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('MANUAL_REVIEW_REQUIRED');
+    expect(deps.bitrix24TimelineService.addDealComment).not.toHaveBeenCalled();
+    expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+      'process-uuid-1',
+      expect.objectContaining({
+        status: 'KSEF_STATUS_UNKNOWN',
+        ksef_status: 'STATUS_UNKNOWN',
+      }),
+    );
+    expect(deps.invoiceEventRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: 'KSEF_STATUS_UNKNOWN' }),
+    );
   });
 });
