@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   Bitrix24AddressRaw,
   Bitrix24CompanyRaw,
+  Bitrix24ContactRaw,
   Bitrix24DealRaw,
   Bitrix24ProductRowRaw,
   Bitrix24RequisiteRaw,
@@ -14,7 +15,7 @@ import type {
   BitrixProductRow,
 } from '../types/bitrix24.types';
 
-const DEAL_SYSTEM_KEYS = new Set(['ID', 'STAGE_ID', 'COMPANY_ID']);
+const DEAL_SYSTEM_KEYS = new Set(['ID', 'STAGE_ID', 'COMPANY_ID', 'CONTACT_ID']);
 
 export type Bitrix24MapDealOptions = {
   portalBaseUrl?: string;
@@ -41,12 +42,17 @@ export class Bitrix24Mapper {
       raw.COMPANY_ID !== undefined && raw.COMPANY_ID !== ''
         ? String(raw.COMPANY_ID)
         : undefined;
+    const contactId =
+      raw.CONTACT_ID !== undefined && raw.CONTACT_ID !== ''
+        ? String(raw.CONTACT_ID)
+        : undefined;
 
     return {
       dealId,
       dealUrl: this.buildDealUrl(dealId, options?.portalBaseUrl),
       stageId: String(raw.STAGE_ID),
       companyId,
+      contactId,
       customFields,
     };
   }
@@ -86,6 +92,16 @@ export class Bitrix24Mapper {
     };
   }
 
+  mapContactPrimaryEmail(raw: Bitrix24ContactRaw): string | undefined {
+    const emails = raw.EMAIL;
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return undefined;
+    }
+
+    return this.toOptionalString(emails[0]?.VALUE);
+  }
+
   mapProductRow(raw: Bitrix24ProductRowRaw): BitrixProductRow {
     return {
       id: String(raw.ID),
@@ -101,6 +117,7 @@ export class Bitrix24Mapper {
       dealUrl: core.dealUrl,
       stageId: core.stageId,
       companyId: core.companyId,
+      contactId: core.contactId,
       customFields: core.customFields,
       productRows,
     };

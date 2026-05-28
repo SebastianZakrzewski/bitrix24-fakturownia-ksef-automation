@@ -1,4 +1,5 @@
 import { Bitrix24CompanyService } from '../../bitrix24/services/bitrix24-company.service';
+import { Bitrix24ContactService } from '../../bitrix24/services/bitrix24-contact.service';
 import { Bitrix24DealFieldService } from '../../bitrix24/services/bitrix24-deal-field.service';
 import { Bitrix24DealService } from '../../bitrix24/services/bitrix24-deal.service';
 import { Bitrix24ProductRowService } from '../../bitrix24/services/bitrix24-product-row.service';
@@ -116,6 +117,7 @@ const toDealCore = (deal: BitrixDealData) => ({
   dealUrl: deal.dealUrl,
   stageId: deal.stageId,
   companyId: deal.companyId,
+  contactId: deal.contactId,
   customFields: deal.customFields,
 });
 
@@ -123,6 +125,9 @@ type UseCaseDeps = {
   clientConfigRepository: jest.Mocked<Pick<ClientConfigRepository, 'getActive'>>;
   bitrix24DealService: jest.Mocked<Pick<Bitrix24DealService, 'getDealById'>>;
   bitrix24CompanyService: jest.Mocked<Pick<Bitrix24CompanyService, 'getCompanyById'>>;
+  bitrix24ContactService: jest.Mocked<
+    Pick<Bitrix24ContactService, 'getPrimaryEmailByContactId'>
+  >;
   bitrix24ProductRowService: jest.Mocked<
     Pick<Bitrix24ProductRowService, 'listByDealId'>
   >;
@@ -155,6 +160,9 @@ const createDeps = (): UseCaseDeps => ({
   clientConfigRepository: { getActive: jest.fn() },
   bitrix24DealService: { getDealById: jest.fn() },
   bitrix24CompanyService: { getCompanyById: jest.fn() },
+  bitrix24ContactService: {
+    getPrimaryEmailByContactId: jest.fn().mockResolvedValue(undefined),
+  },
   bitrix24ProductRowService: { listByDealId: jest.fn() },
   bitrix24TimelineService: { addDealComment: jest.fn().mockResolvedValue(undefined) },
   bitrix24DealFieldService: { updateDealField: jest.fn().mockResolvedValue(undefined) },
@@ -185,6 +193,7 @@ const createUseCase = (deps: UseCaseDeps) =>
     deps.clientConfigRepository as unknown as ClientConfigRepository,
     deps.bitrix24DealService as unknown as Bitrix24DealService,
     deps.bitrix24CompanyService as unknown as Bitrix24CompanyService,
+    deps.bitrix24ContactService as unknown as Bitrix24ContactService,
     deps.bitrix24ProductRowService as unknown as Bitrix24ProductRowService,
     deps.bitrix24TimelineService as unknown as Bitrix24TimelineService,
     deps.bitrix24DealFieldService as unknown as Bitrix24DealFieldService,
@@ -423,6 +432,40 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
     await useCase.execute(command());
 
     assertForbiddenSideEffects();
+    expect(deps.bitrix24ContactService.getPrimaryEmailByContactId).not.toHaveBeenCalled();
+  });
+
+  it('uses deal contact email when company has no customerEmail', async () => {
+    const deal = bitrixDealForFull();
+    deal.contactId = '15532';
+    setupBitrixMocks(deps, deal, bitrixCompanyMissingEmail());
+    deps.bitrix24ContactService.getPrimaryEmailByContactId.mockResolvedValue(
+      'devzakrzewski@gmail.com',
+    );
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+    deps.invoiceProcessRepository.updateStatus.mockResolvedValue(
+      processRow('FULL', { status: 'INVOICE_CREATED' }),
+    );
+
+    const result = await useCase.execute(command());
+
+    expect(deps.bitrix24ContactService.getPrimaryEmailByContactId).toHaveBeenCalledWith(
+      '15532',
+    );
+    expect(result.status).not.toBe('VALIDATION_FAILED');
+  });
+
+  it('returns VALIDATION_FAILED when company and deal contact have no email', async () => {
+    const deal = bitrixDealForFull();
+    deal.contactId = '15532';
+    setupBitrixMocks(deps, deal, bitrixCompanyMissingEmail());
+    deps.bitrix24ContactService.getPrimaryEmailByContactId.mockResolvedValue(undefined);
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('VALIDATION_FAILED');
+    assertValidationFailurePersistence('MISSING_CUSTOMER_EMAIL', 'FULL');
   });
 
   it('returns VALIDATION_FAILED when products are missing', async () => {

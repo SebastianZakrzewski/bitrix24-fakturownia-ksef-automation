@@ -12,6 +12,7 @@ export type Bitrix24DealRaw = {
   ID: string;
   STAGE_ID: string;
   COMPANY_ID?: string;
+  CONTACT_ID?: string;
   [key: string]: unknown;
 };
 
@@ -22,6 +23,21 @@ export type Bitrix24CompanyRaw = {
   ADDRESS_CITY?: string;
   ADDRESS_POSTAL_CODE?: string;
   ADDRESS_COUNTRY?: string;
+  [key: string]: unknown;
+};
+
+export type Bitrix24ContactEmailRaw = {
+  VALUE?: string;
+  VALUE_TYPE?: string;
+  TYPE_ID?: string;
+  ID?: string;
+};
+
+export type Bitrix24ContactRaw = {
+  ID: string;
+  NAME?: string;
+  LAST_NAME?: string;
+  EMAIL?: Bitrix24ContactEmailRaw[];
   [key: string]: unknown;
 };
 

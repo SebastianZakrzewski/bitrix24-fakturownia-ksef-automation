@@ -1,6 +1,7 @@
 import {
   bitrixAddressRawFixture,
   bitrixCompanyRawFixture,
+  bitrixContactRawFixture,
   bitrixDealRawFixture,
   bitrixProductRowsRawFixture,
   bitrixRequisiteRawFixture,
@@ -20,6 +21,7 @@ describe('Bitrix24Mapper', () => {
       dealUrl: 'https://portal.bitrix24.pl/crm/deal/details/42/',
       stageId: 'PAID',
       companyId: '7',
+      contactId: '15532',
       customFields: {
         UF_INVOICE_TYPE: 'FULL',
         UF_ADVANCE_AMOUNT: '1000.00',
@@ -112,6 +114,12 @@ describe('Bitrix24Mapper', () => {
       country: 'PL',
     });
     expect(company.nip).toBeUndefined();
+  });
+
+  it('maps contact primary email from first EMAIL entry', () => {
+    expect(mapper.mapContactPrimaryEmail(bitrixContactRawFixture())).toBe(
+      'billing@evapremium.test',
+    );
   });
 
   it('maps product rows with numeric string coercion', () => {

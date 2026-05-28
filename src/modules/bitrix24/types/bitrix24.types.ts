@@ -10,6 +10,7 @@ export type BitrixDealData = {
   dealUrl?: string;
   stageId: string;
   companyId?: string;
+  contactId?: string;
   customFields: Record<string, unknown>;
   productRows: BitrixProductRow[];
 };
@@ -30,6 +31,7 @@ export type BitrixDealCore = {
   dealUrl?: string;
   stageId: string;
   companyId?: string;
+  contactId?: string;
   customFields: Record<string, unknown>;
 };
 

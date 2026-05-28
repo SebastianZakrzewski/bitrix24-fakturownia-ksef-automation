@@ -1,6 +1,7 @@
 import type {
   Bitrix24AddressRaw,
   Bitrix24CompanyRaw,
+  Bitrix24ContactRaw,
   Bitrix24DealRaw,
   Bitrix24ProductRowRaw,
   Bitrix24RequisiteRaw,
@@ -10,6 +11,7 @@ export const bitrixDealRawFixture = (): Bitrix24DealRaw => ({
   ID: '42',
   STAGE_ID: 'PAID',
   COMPANY_ID: '7',
+  CONTACT_ID: '15532',
   UF_INVOICE_TYPE: 'FULL',
   UF_ADVANCE_AMOUNT: '1000.00',
 });
@@ -41,6 +43,20 @@ export const bitrixRequisiteRawFixture = (): Bitrix24RequisiteRaw => ({
   RQ_ZIP: '00-001',
   RQ_CITY: 'Warszawa',
   RQ_COUNTRY: 'PL',
+});
+
+export const bitrixContactRawFixture = (): Bitrix24ContactRaw => ({
+  ID: '15532',
+  NAME: 'Beata',
+  LAST_NAME: 'Rakoczy',
+  EMAIL: [
+    {
+      ID: '18744',
+      VALUE_TYPE: 'WORK',
+      VALUE: 'billing@evapremium.test',
+      TYPE_ID: 'EMAIL',
+    },
+  ],
 });
 
 export const bitrixProductRowsRawFixture = (): Bitrix24ProductRowRaw[] => [

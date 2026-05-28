@@ -2,9 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Bitrix24DealFieldService } from '../../bitrix24/services/bitrix24-deal-field.service';
 import { Bitrix24TimelineService } from '../../bitrix24/services/bitrix24-timeline.service';
 import { Bitrix24CompanyService } from '../../bitrix24/services/bitrix24-company.service';
+import { Bitrix24ContactService } from '../../bitrix24/services/bitrix24-contact.service';
 import { Bitrix24DealService } from '../../bitrix24/services/bitrix24-deal.service';
 import { Bitrix24ProductRowService } from '../../bitrix24/services/bitrix24-product-row.service';
 import type {
+  BitrixCompanyData,
   BitrixDealCore,
   BitrixDealData,
   BitrixProductRow,
@@ -39,6 +41,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly clientConfigRepository: ClientConfigRepository,
     private readonly bitrix24DealService: Bitrix24DealService,
     private readonly bitrix24CompanyService: Bitrix24CompanyService,
+    private readonly bitrix24ContactService: Bitrix24ContactService,
     private readonly bitrix24ProductRowService: Bitrix24ProductRowService,
     private readonly bitrix24TimelineService: Bitrix24TimelineService,
     private readonly bitrix24DealFieldService: Bitrix24DealFieldService,
@@ -115,11 +118,10 @@ export class CreateInvoiceFromBitrixDealUseCase {
       return this.buildExistingProcessResponse(process, command.bitrixDealId);
     }
 
-    const company = deal.companyId
-      ? await this.bitrix24CompanyService.getCompanyById(deal.companyId, {
-          addressSource: config.bitrix_field_mapping.companyAddressSource,
-        })
-      : undefined;
+    const company = await this.resolveCompanyForInvoiceMapping(
+      dealCore,
+      config,
+    );
 
     const mapping = this.bitrixInvoiceMapper.map(deal, company, config);
 
@@ -177,6 +179,36 @@ export class CreateInvoiceFromBitrixDealUseCase {
     };
   }
 
+  private async resolveCompanyForInvoiceMapping(
+    dealCore: BitrixDealCore,
+    config: ClientConfigMappings,
+  ): Promise<BitrixCompanyData | undefined> {
+    const company = dealCore.companyId
+      ? await this.bitrix24CompanyService.getCompanyById(dealCore.companyId, {
+          addressSource: config.bitrix_field_mapping.companyAddressSource,
+        })
+      : undefined;
+
+    if (!company) {
+      return undefined;
+    }
+
+    const contactEmail = dealCore.contactId
+      ? await this.bitrix24ContactService.getPrimaryEmailByContactId(
+          dealCore.contactId,
+        )
+      : undefined;
+
+    if (!contactEmail) {
+      return company;
+    }
+
+    return {
+      ...company,
+      customerEmail: contactEmail,
+    };
+  }
+
   private buildBitrixDealData(
     dealCore: BitrixDealCore,
     productRows: BitrixProductRow[],
@@ -186,6 +218,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
       dealUrl: dealCore.dealUrl,
       stageId: dealCore.stageId,
       companyId: dealCore.companyId,
+      contactId: dealCore.contactId,
       customFields: dealCore.customFields,
       productRows,
     };
