@@ -1,5 +1,7 @@
 import { BitrixInvoiceMapper } from '../mappers/bitrix-invoice.mapper';
 import {
+  bitrixCompanyInvalidEmail,
+  bitrixCompanyMissingEmail,
   bitrixCompanyNoNip,
   bitrixCompanyValidFixture,
   bitrixDealAdvanceNoAmount,
@@ -39,6 +41,7 @@ describe('InvoiceValidationService', () => {
       if (result.ok) {
         expect(result.data.invoiceType).toBe('FULL');
         expect(result.data.advanceAmount).toBeUndefined();
+        expect(result.data.buyer.customerEmail).toBe('billing@evapremium.test');
       }
     });
 
@@ -181,6 +184,54 @@ describe('InvoiceValidationService', () => {
             source: 'INVOICE_RULE',
           }),
         );
+      }
+    });
+
+    it('returns MISSING_CUSTOMER_EMAIL when company has no email', () => {
+      const result = mapAndValidate(
+        bitrixDealForFull(),
+        bitrixCompanyMissingEmail(),
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: 'MISSING_CUSTOMER_EMAIL',
+            field: 'customerEmail',
+            source: 'BITRIX_COMPANY',
+          }),
+        );
+      }
+    });
+
+    it('returns INVALID_CUSTOMER_EMAIL when email format is invalid', () => {
+      const result = mapAndValidate(
+        bitrixDealForFull(),
+        bitrixCompanyInvalidEmail(),
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: 'INVALID_CUSTOMER_EMAIL',
+            field: 'customerEmail',
+            source: 'BITRIX_COMPANY',
+          }),
+        );
+      }
+    });
+
+    it('normalizes customerEmail to lowercase on success', () => {
+      const company = bitrixCompanyValidFixture();
+      company.customerEmail = '  Billing@Evapremium.TEST  ';
+
+      const result = mapAndValidate(bitrixDealForFull(), company);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.buyer.customerEmail).toBe('billing@evapremium.test');
       }
     });
   });

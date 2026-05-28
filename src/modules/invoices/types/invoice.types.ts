@@ -40,6 +40,7 @@ export type InvoiceDraft = {
     postalCode: string;
     city: string;
     country: string;
+    customerEmail: string;
   };
   products: ProductLine[];
   advanceAmount?: number;
@@ -70,7 +71,9 @@ export type ValidationError = {
     | 'INVALID_ADVANCE_AMOUNT'
     | 'MISSING_PREVIOUS_ADVANCE_INVOICE'
     | 'DUPLICATE_INVOICE'
-    | 'DEAL_NOT_IN_PAID_STAGE';
+    | 'DEAL_NOT_IN_PAID_STAGE'
+    | 'MISSING_CUSTOMER_EMAIL'
+    | 'INVALID_CUSTOMER_EMAIL';
   message: string;
   field?: string;
   source?: 'BITRIX_DEAL' | 'BITRIX_COMPANY' | 'PRODUCT_MAPPING' | 'INVOICE_RULE';

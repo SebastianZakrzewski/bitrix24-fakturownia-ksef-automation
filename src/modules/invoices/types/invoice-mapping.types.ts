@@ -13,6 +13,7 @@ export type MappedBuyer = {
   postalCode?: string;
   city?: string;
   country?: string;
+  customerEmail?: string;
 };
 
 export type BitrixInvoiceMappingResult = {

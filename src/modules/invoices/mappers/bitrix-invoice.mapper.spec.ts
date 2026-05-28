@@ -70,7 +70,17 @@ describe('BitrixInvoiceMapper', () => {
       postalCode: '00-001',
       city: 'Warszawa',
       country: 'PL',
+      customerEmail: 'billing@evapremium.test',
     });
+  });
+
+  it('passes through customerEmail from company data', () => {
+    const company = bitrixCompanyValidFixture();
+    company.customerEmail = '  Customer@Example.COM  ';
+
+    const result = mapper.map(bitrixDealForFull(), company, config);
+
+    expect(result.buyer.customerEmail).toBe('  Customer@Example.COM  ');
   });
 
   it('maps main product line as OPPORTUNITY minus product rows', () => {

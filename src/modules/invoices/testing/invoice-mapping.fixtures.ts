@@ -69,6 +69,17 @@ export const bitrixCompanyValidFixture = (): BitrixCompanyData => ({
   postalCode: '00-001',
   city: 'Warszawa',
   country: 'PL',
+  customerEmail: 'billing@evapremium.test',
+});
+
+export const bitrixCompanyMissingEmail = (): BitrixCompanyData => ({
+  ...bitrixCompanyValidFixture(),
+  customerEmail: undefined,
+});
+
+export const bitrixCompanyInvalidEmail = (): BitrixCompanyData => ({
+  ...bitrixCompanyValidFixture(),
+  customerEmail: 'not-an-email',
 });
 
 export const bitrixDealForFull = (

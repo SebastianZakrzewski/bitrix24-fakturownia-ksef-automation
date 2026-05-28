@@ -81,6 +81,7 @@ export class BitrixInvoiceMapper {
       postalCode: company.postalCode,
       city: company.city,
       country: company.country,
+      customerEmail: company.customerEmail,
     };
   }
 

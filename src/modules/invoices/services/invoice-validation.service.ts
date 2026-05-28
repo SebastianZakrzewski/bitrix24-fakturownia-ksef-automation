@@ -9,6 +9,8 @@ import type {
 } from '../types/invoice-mapping.types';
 import type { ProductLine, ValidationError } from '../types/invoice.types';
 
+const CUSTOMER_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 @Injectable()
 export class InvoiceValidationService {
   validate(
@@ -50,6 +52,7 @@ export class InvoiceValidationService {
         postalCode: mapping.buyer.postalCode!.trim(),
         city: mapping.buyer.city!.trim(),
         country: mapping.buyer.country!.trim(),
+        customerEmail: mapping.buyer.customerEmail!.trim().toLowerCase(),
       },
       products: mapping.products,
       ...(mapping.invoiceType === 'ADVANCE' && mapping.advanceAmount !== undefined
@@ -166,6 +169,35 @@ export class InvoiceValidationService {
           ),
         );
       }
+    }
+
+    this.validateCustomerEmail(buyer, errors);
+  }
+
+  private validateCustomerEmail(buyer: MappedBuyer, errors: ValidationError[]): void {
+    const raw = buyer.customerEmail?.trim();
+
+    if (!raw) {
+      errors.push(
+        this.error(
+          'MISSING_CUSTOMER_EMAIL',
+          'Customer email is required for invoice delivery.',
+          'customerEmail',
+          'BITRIX_COMPANY',
+        ),
+      );
+      return;
+    }
+
+    if (!CUSTOMER_EMAIL_PATTERN.test(raw)) {
+      errors.push(
+        this.error(
+          'INVALID_CUSTOMER_EMAIL',
+          'Customer email format is invalid.',
+          'customerEmail',
+          'BITRIX_COMPANY',
+        ),
+      );
     }
   }
 

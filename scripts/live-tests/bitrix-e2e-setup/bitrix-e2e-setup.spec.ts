@@ -31,6 +31,17 @@ const READY_RAW: Record<string, string> = {
 function createMockBitrixClient(): jest.Mocked<BitrixTestSetupClient> {
   return {
     useExistingTestCompany: jest.fn().mockResolvedValue({ companyId: '9001' }),
+    ensureExistingTestCompanyAddress: jest.fn().mockResolvedValue({
+      companyId: '9001',
+      addressAlreadyPresent: true,
+      addressAdded: false,
+    }),
+    ensureExistingTestCompanyRequisite: jest.fn().mockResolvedValue({
+      companyId: '9001',
+      requisiteId: 'req-1',
+      nipAlreadyValid: true,
+      nipUpdated: false,
+    }),
     createTestCompany: jest.fn().mockResolvedValue({ companyId: '9001' }),
     createTestDeal: jest.fn().mockResolvedValue({ dealId: '8001' }),
     updateTestDeal: jest.fn().mockResolvedValue(undefined),

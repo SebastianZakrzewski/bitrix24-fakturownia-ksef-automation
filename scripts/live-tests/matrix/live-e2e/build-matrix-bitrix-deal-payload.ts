@@ -1,6 +1,5 @@
 import type {
   AdvanceLiveTestScenarioContext,
-  FinalLiveTestScenarioContext,
   LiveTestProductLineFixture,
   LiveTestScenarioContext,
 } from '../../fixtures/scenario-context.types';

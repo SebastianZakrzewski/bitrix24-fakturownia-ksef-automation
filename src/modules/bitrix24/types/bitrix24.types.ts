@@ -22,6 +22,7 @@ export type BitrixCompanyData = {
   postalCode?: string;
   city?: string;
   country?: string;
+  customerEmail?: string;
 };
 
 export type BitrixDealCore = {

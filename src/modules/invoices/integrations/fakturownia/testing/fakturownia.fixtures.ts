@@ -12,6 +12,7 @@ const buyerFixture = () => ({
   postalCode: '00-001',
   city: 'Warszawa',
   country: 'PL',
+  customerEmail: 'billing@evapremium.test',
 });
 
 const productsFixture = () => [

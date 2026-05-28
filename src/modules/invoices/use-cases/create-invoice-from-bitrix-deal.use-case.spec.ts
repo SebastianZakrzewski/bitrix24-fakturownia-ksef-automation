@@ -29,6 +29,7 @@ import { InvoiceIdempotencyService } from '../services/invoice-idempotency.servi
 import { InvoiceProcessService } from '../services/invoice-process.service';
 import { InvoiceValidationService } from '../services/invoice-validation.service';
 import {
+  bitrixCompanyMissingEmail,
   bitrixCompanyNoNip,
   bitrixCompanyValidFixture,
   bitrixDealAdvanceWithAmount,
@@ -401,6 +402,27 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
 
     expect(result.status).toBe('VALIDATION_FAILED');
     assertValidationFailurePersistence('MISSING_NIP', 'FULL');
+  });
+
+  it('returns VALIDATION_FAILED when customer email is missing', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyMissingEmail());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+
+    const result = await useCase.execute(command());
+
+    expect(result.status).toBe('VALIDATION_FAILED');
+    assertValidationFailurePersistence('MISSING_CUSTOMER_EMAIL', 'FULL');
+  });
+
+  it('does not create InvoiceRecord when customer email is missing', async () => {
+    const deal = bitrixDealForFull();
+    setupBitrixMocks(deps, deal, bitrixCompanyMissingEmail());
+    deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
+
+    await useCase.execute(command());
+
+    assertForbiddenSideEffects();
   });
 
   it('returns VALIDATION_FAILED when products are missing', async () => {
