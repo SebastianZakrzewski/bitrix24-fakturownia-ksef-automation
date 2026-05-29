@@ -191,7 +191,7 @@ describe('runMatrixLiveE2eCase', () => {
     const rawConfig = {
       ...READY_RAW,
       LIVE_TEST_ALLOW_MATRIX_BACKEND_TRIGGER: 'true',
-      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3004',
       LIVE_TEST_BACKEND_TRIGGER_PATH: '/invoice-processes/bitrix-trigger',
       LIVE_TEST_BACKEND_AUTH_HEADER_NAME: 'x-api-key',
       LIVE_TEST_BACKEND_AUTH_SECRET: 'dummy-secret',
@@ -236,7 +236,7 @@ describe('runMatrixLiveE2eCase', () => {
     const rawConfig = {
       ...READY_RAW,
       LIVE_TEST_ALLOW_MATRIX_BACKEND_TRIGGER: 'true',
-      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3004',
       LIVE_TEST_BACKEND_TRIGGER_PATH: '/invoice-processes/bitrix-trigger',
       LIVE_TEST_BACKEND_AUTH_HEADER_NAME: 'x-api-key',
       LIVE_TEST_BACKEND_AUTH_SECRET: 'dummy-secret',
@@ -280,7 +280,7 @@ describe('matrix backend trigger helpers', () => {
     const rawConfig = {
       ...READY_RAW,
       LIVE_TEST_ALLOW_MATRIX_BACKEND_TRIGGER: 'true',
-      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3004',
       LIVE_TEST_BACKEND_TRIGGER_PATH: '/invoice-processes/bitrix-trigger',
       LIVE_TEST_BACKEND_AUTH_SECRET: 'dummy-secret',
     };

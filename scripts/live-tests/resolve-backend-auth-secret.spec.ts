@@ -21,7 +21,7 @@ describe('resolveBackendAuthSecret', () => {
 
   it('wires fallback into trigger execution config parser', () => {
     const config = parseBackendTriggerExecutionConfig({
-      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+      LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3004',
       N8N_API_KEY: 'n8n-secret',
     });
 

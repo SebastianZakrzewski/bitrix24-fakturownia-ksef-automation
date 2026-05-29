@@ -152,7 +152,7 @@ describe('trigger preflight with live smoke target', () => {
     const result = runBackendTriggerPreflight(
       contract,
       {
-        baseUrl: 'http://localhost:3000',
+        baseUrl: 'http://localhost:3004',
         triggerPath: '/invoice-processes/bitrix-trigger',
         authHeaderName: 'x-api-key',
         authSecret: 'dummy-local-secret',

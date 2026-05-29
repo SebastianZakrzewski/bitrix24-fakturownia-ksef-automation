@@ -43,7 +43,7 @@ const readyRawConfig = {
   ALLOW_DELETE_OR_CANCEL: 'false',
   LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION: 'true',
   TEST_DEAL_PREFIX: '[TEST]',
-  LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3000',
+  LIVE_TEST_BACKEND_BASE_URL: 'http://localhost:3004',
   LIVE_TEST_BACKEND_TRIGGER_PATH: '/invoice-processes/bitrix-trigger',
   LIVE_TEST_BACKEND_AUTH_HEADER_NAME: 'x-api-key',
   LIVE_TEST_BACKEND_AUTH_SECRET: 'dummy-local-secret',
@@ -253,7 +253,7 @@ describe('controlled live trigger smoke report', () => {
     process.env.ALLOW_BULK_LIVE_TESTS = 'false';
     process.env.ALLOW_DELETE_OR_CANCEL = 'false';
     process.env.LIVE_TEST_ALLOW_BACKEND_TRIGGER_EXECUTION = 'true';
-    process.env.LIVE_TEST_BACKEND_BASE_URL = 'http://localhost:3000';
+    process.env.LIVE_TEST_BACKEND_BASE_URL = 'http://localhost:3004';
     process.env.LIVE_TEST_BACKEND_TRIGGER_PATH = '/invoice-processes/bitrix-trigger';
     process.env.LIVE_TEST_BACKEND_AUTH_HEADER_NAME = 'x-api-key';
     process.env.LIVE_TEST_BACKEND_AUTH_SECRET = 'dummy-local-secret';

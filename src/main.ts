@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
     app.enableCors({ origin: panelOrigin });
   }
 
-  const port = configService.get<number>('PORT', 3000);
+  const port = configService.get<number>('PORT', 3004);
   await app.listen(port);
 }
 

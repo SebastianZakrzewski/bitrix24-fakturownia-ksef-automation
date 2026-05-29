@@ -28,7 +28,7 @@ const validEnv: LiveTestEnv = {
 };
 
 const configuredAvailability = {
-  baseUrl: 'http://localhost:3000',
+  baseUrl: 'http://localhost:3004',
   healthPath: '/health',
   timeoutMs: 5000,
 };

@@ -11,7 +11,7 @@ describe('V1 skeleton endpoints', () => {
     process.env.N8N_API_KEY = 'test-n8n-key';
     process.env.ADMIN_API_KEY = 'test-admin-key';
     process.env.PANEL_API_KEY = 'test-panel-key';
-    process.env.PORT = '3000';
+    process.env.PORT = '3004';
 
     const { AppModule } = await import('../src/app.module');
     const moduleRef = await Test.createTestingModule({

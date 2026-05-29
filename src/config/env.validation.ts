@@ -5,7 +5,7 @@ const envSchema = z
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),
-    PORT: z.coerce.number().int().positive().default(3000),
+    PORT: z.coerce.number().int().positive().default(3004),
     N8N_API_KEY: z.string().min(1),
     ADMIN_API_KEY: z.string().min(1),
     PANEL_API_KEY: z.string().min(1),
