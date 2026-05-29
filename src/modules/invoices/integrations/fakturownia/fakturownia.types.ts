@@ -36,10 +36,13 @@ export type FakturowniaInvoiceNumberFields = {
   sell_date: string;
 };
 
-/** Evapremium V1: paid deals — show payment method only, no due date. */
+/** Evapremium V1: paid deals — transfer, no due date, marked paid on issue date. */
 export type FakturowniaInvoicePaymentFields = {
   payment_type: 'transfer';
   payment_to_kind: 'off';
+  status: 'paid';
+  paid_date: string;
+  paid: string;
 };
 
 export type FakturowniaVatInvoicePayload = FakturowniaInvoiceNumberFields &

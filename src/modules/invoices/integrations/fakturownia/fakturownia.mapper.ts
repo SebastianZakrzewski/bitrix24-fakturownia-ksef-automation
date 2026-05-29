@@ -31,7 +31,7 @@ export class FakturowniaMapper {
     orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): FakturowniaInvoicePayload {
     const numberFields = this.mapNumberFields(numberAssignment);
-    const paymentFields = this.mapPaymentFields();
+    const paymentFields = this.mapPaymentFields(draft, numberAssignment);
 
     switch (draft.invoiceType) {
       case 'FULL':
@@ -104,11 +104,35 @@ export class FakturowniaMapper {
     };
   }
 
-  private mapPaymentFields(): FakturowniaInvoicePaymentFields {
+  private mapPaymentFields(
+    draft: InvoiceDraft,
+    numberAssignment: FakturowniaInvoiceNumberAssignment,
+  ): FakturowniaInvoicePaymentFields {
     return {
       payment_type: 'transfer',
       payment_to_kind: 'off',
+      status: 'paid',
+      paid_date: numberAssignment.issueDate,
+      paid: this.formatPaidGrossAmount(this.resolvePaidGrossAmount(draft)),
     };
+  }
+
+  private resolvePaidGrossAmount(draft: InvoiceDraft): number {
+    if (draft.invoiceType === 'ADVANCE') {
+      if (draft.advanceAmount === undefined) {
+        throw new FakturowniaMapperError(
+          'InvoiceDraft advanceAmount is required for ADVANCE invoice paid amount',
+        );
+      }
+
+      return draft.advanceAmount;
+    }
+
+    return draft.products.reduce((sum, line) => sum + line.totalGross, 0);
+  }
+
+  private formatPaidGrossAmount(amount: number): string {
+    return amount.toFixed(2);
   }
 
   private requireOrderLinkage(

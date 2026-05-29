@@ -82,9 +82,21 @@ const invoiceNumberFieldsFixture = () => ({
   sell_date: '2026-05-29',
 });
 
-const invoicePaymentFieldsFixture = () => ({
+const invoicePaymentFieldsFixture = (
+  overrides: Partial<{
+    payment_type: 'transfer';
+    payment_to_kind: 'off';
+    status: 'paid';
+    paid_date: string;
+    paid: string;
+  }> = {},
+) => ({
   payment_type: 'transfer' as const,
   payment_to_kind: 'off' as const,
+  status: 'paid' as const,
+  paid_date: '2026-05-29',
+  paid: '9500.00',
+  ...overrides,
 });
 
 export { invoiceNumberFieldsFixture, invoicePaymentFieldsFixture };

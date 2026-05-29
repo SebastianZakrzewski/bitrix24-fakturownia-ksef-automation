@@ -90,6 +90,7 @@ describe('FakturowniaMapper', () => {
         kind: 'advance',
         ...numberFields,
         ...paymentFields,
+        paid: '3000.00',
         copy_invoice_from: 10042,
         advance_creation_mode: 'amount',
         advance_value: '3000',
@@ -121,6 +122,33 @@ describe('FakturowniaMapper', () => {
         ...paymentFields,
         copy_invoice_from: 10042,
         invoice_ids: [2432393],
+      });
+    });
+
+    it('sets paid_date to issue_date from number assignment for all invoice types', () => {
+      const assignment = fakturowniaInvoiceNumberAssignmentFixture({
+        issueDate: '2026-06-15',
+        sellDate: '2026-06-15',
+      });
+
+      const fullPayload = mapper.toCreatePayload(
+        invoiceDraftFullFixture(),
+        assignment,
+      );
+      expect(fullPayload).toMatchObject({
+        paid_date: '2026-06-15',
+        status: 'paid',
+        issue_date: '2026-06-15',
+      });
+
+      const advancePayload = mapper.toCreatePayload(
+        invoiceDraftAdvanceFixture(),
+        assignment,
+        orderLinkage,
+      );
+      expect(advancePayload).toMatchObject({
+        paid_date: '2026-06-15',
+        status: 'paid',
       });
     });
 

@@ -332,7 +332,7 @@ Located in `modules/invoices/integrations/fakturownia`. Integration types are **
 Rules:
 - Input is only validated `InvoiceDraft` (see `domain-lifecycle.md`). No raw Bitrix payload.
 - `FakturowniaService` must **not** decide whether invoice creation is allowed.
-- Issue/sell dates are set explicitly when custom invoice numbering is enabled (see below). Payment method is always `transfer` (przelew) with `payment_to_kind: off` (no due date) for all V1 invoice types — trigger is on paid Bitrix stage.
+- Issue/sell dates are set explicitly when custom invoice numbering is enabled (see below). Payment method is always `transfer` (przelew) with `payment_to_kind: off` (no due date). Invoices are created as already paid: `status: paid`, `paid_date` = `issue_date`, `paid` = invoice gross amount — trigger is on paid Bitrix stage.
 - API reference: [Fakturownia API](https://github.com/fakturownia/API) (`POST /invoices.json`).
 
 ### Environment (client)
@@ -391,6 +391,9 @@ type FakturowniaInvoicePayload = {
   invoice_ids?: number[];
   payment_type: 'transfer';
   payment_to_kind: 'off';
+  status: 'paid';
+  paid_date: string;
+  paid: string;
 };
 
 type FakturowniaPositionPayload = {
@@ -413,7 +416,7 @@ Mapper: `FakturowniaMapper.toCreatePayload(invoiceDraft, numberAssignment, order
 | `ADVANCE` | `advance` | `advance_creation_mode: 'amount'`, `advance_value: String(advanceAmount)` |
 | `FINAL` | `final` | `invoice_ids: [Number(previousAdvanceInvoiceId)]` |
 
-All types also set `currency: 'PLN'`, `payment_type: 'transfer'`, `payment_to_kind: 'off'` (no payment due date on PDF), and shared buyer + positions (below).
+All types also set `currency: 'PLN'`, `payment_type: 'transfer'`, `payment_to_kind: 'off'`, `status: 'paid'`, `paid_date` (= `issue_date`), `paid` (gross: sum of `products[]` for FULL/FINAL; `advanceAmount` for ADVANCE), and shared buyer + positions (below).
 
 **Buyer fields** (`InvoiceDraft.buyer` → invoice root):
 
