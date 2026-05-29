@@ -267,4 +267,45 @@ describe('FakturowniaService', () => {
       message: 'Unexpected failure',
     } satisfies Partial<FakturowniaApiError>);
   });
+
+  it('maps invoice number allocation HTTP failures and skips create', async () => {
+    const client = {
+      createInvoice: jest.fn(),
+      getInvoiceKsefStatus: jest.fn(),
+    };
+    const invoiceNumberService = {
+      allocate: jest.fn().mockRejectedValue({
+        httpStatus: 503,
+        body: fakturowniaServerErrorBodyFixture(),
+      }),
+    };
+
+    const service = createService(client, defaultPollConfig, invoiceNumberService);
+
+    await expect(service.createInvoice(invoiceDraftFullFixture())).rejects.toMatchObject({
+      name: 'FakturowniaApiError',
+      category: 'SERVER',
+      httpStatus: 503,
+    } satisfies Partial<FakturowniaApiError>);
+    expect(client.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it('maps invoice number allocation timeout and skips create', async () => {
+    const timeoutError = new Error('The operation was aborted');
+    timeoutError.name = 'AbortError';
+    const client = {
+      createInvoice: jest.fn(),
+      getInvoiceKsefStatus: jest.fn(),
+    };
+    const invoiceNumberService = {
+      allocate: jest.fn().mockRejectedValue(timeoutError),
+    };
+
+    const service = createService(client, defaultPollConfig, invoiceNumberService);
+
+    await expect(service.createInvoice(invoiceDraftFullFixture())).rejects.toMatchObject({
+      category: 'TIMEOUT',
+    } satisfies Partial<FakturowniaApiError>);
+    expect(client.createInvoice).not.toHaveBeenCalled();
+  });
 });

@@ -48,16 +48,15 @@ export class FakturowniaService {
     invoiceDraft: InvoiceDraft,
     orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): Promise<FakturowniaCreateInvoiceResult> {
-    const numberAssignment = await this.invoiceNumberService.allocate(
-      invoiceDraft.invoiceType,
-    );
-    const payload = this.mapper.toCreatePayload(
-      invoiceDraft,
-      numberAssignment,
-      orderLinkage,
-    );
-
     try {
+      const numberAssignment = await this.invoiceNumberService.allocate(
+        invoiceDraft.invoiceType,
+      );
+      const payload = this.mapper.toCreatePayload(
+        invoiceDraft,
+        numberAssignment,
+        orderLinkage,
+      );
       const raw = await this.client.createInvoice(payload);
       const finalGovStatus = await this.resolveGovStatusAfterCreate(raw);
       return this.mapper.toCreateResult({
