@@ -59,10 +59,13 @@ export class FakturowniaService {
       );
       const raw = await this.client.createInvoice(payload);
       const finalGovStatus = await this.resolveGovStatusAfterCreate(raw);
-      return this.mapper.toCreateResult({
-        ...raw,
-        gov_status: finalGovStatus,
-      });
+      return {
+        ...this.mapper.toCreateResult({
+          ...raw,
+          gov_status: finalGovStatus,
+        }),
+        fakturowniaInvoiceNumber: numberAssignment.number,
+      };
     } catch (error) {
       throw this.errorMapper.map(error);
     }

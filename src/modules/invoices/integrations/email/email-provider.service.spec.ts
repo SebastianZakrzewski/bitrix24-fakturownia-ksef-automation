@@ -12,6 +12,7 @@ describe('EmailProviderService', () => {
     recipientEmail: 'client@example.com',
     recipientCompanyName: 'Evapremium Sp. z o.o.',
     fakturowniaInvoiceId: '987654',
+    fakturowniaInvoiceNumber: '39/05/2026',
     fakturowniaInvoiceUrl: 'https://evapremium.fakturownia.pl/invoices/987654',
   };
 

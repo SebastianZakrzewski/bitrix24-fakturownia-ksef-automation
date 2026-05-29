@@ -183,6 +183,7 @@ type InvoiceEmailPayload = {
   recipientEmail: string;
   recipientCompanyName: string;
   fakturowniaInvoiceId: string;
+  fakturowniaInvoiceNumber: string;
   fakturowniaInvoiceUrl: string;
   pdfAttachment?: {
     filename: string;
@@ -196,6 +197,31 @@ Rules:
 - Built only after confirmed `FakturowniaCreateInvoiceResult`, required KSeF path for V1 success, and successful Bitrix timeline comment.
 - PDF attachment is optional if provider/template uses link-only delivery; at least one of PDF or link must be present in the email body.
 - PDF bytes come from Fakturownia (download URL/API — provider detail in integration task); not from Bitrix.
+- `fakturowniaInvoiceNumber` matches the `number` sent to Fakturownia at create (from `FakturowniaInvoiceNumberService.allocate()`).
+
+### n8n invoice email webhook request
+
+`POST` to `N8N_INVOICE_EMAIL_WEBHOOK_URL` with header `X-Webhook-Secret: N8N_INVOICE_EMAIL_WEBHOOK_SECRET`.
+
+```ts
+type N8nInvoiceEmailWebhookRequest = {
+  process_id: string;
+  bitrix_deal_id: string;
+  invoice_type: 'FULL' | 'ADVANCE' | 'FINAL';
+  recipient_email: string;
+  recipient_company_name: string;
+  invoice_number: string; // e.g. 39/05/2026
+  fakturownia_invoice_id: string;
+  fakturownia_invoice_url: string;
+  pdf_attachment?: {
+    filename: string;
+    content_base64: string;
+    content_type: 'application/pdf';
+  };
+};
+```
+
+PDF `filename` uses a filesystem-safe form of `invoice_number` (e.g. `faktura-39-05-2026.pdf`).
 
 ### Delivery result
 
@@ -327,14 +353,14 @@ Rules:
 
 Backend assigns explicit Fakturownia `number` before create. Fakturownia account auto-numbering must be disabled by operator.
 
-Format: `{n}/{MM}.{YYYY}` — e.g. `39/05.2026`.
+Format: `{n}/{MM}/{YYYY}` — e.g. `39/05/2026`.
 
 Rules:
 - Separate sequence per `InvoiceType` (`FULL` → `vat`, `ADVANCE` → `advance`, `FINAL` → `final`).
-- Sequence resets each calendar month (Europe/Warsaw): first invoice in a new month starts at `1/{MM}.{YYYY}` unless bootstrap month applies.
+- Sequence resets each calendar month (Europe/Warsaw): first invoice in a new month starts at `1/{MM}/{YYYY}` unless bootstrap month applies.
 - Bootstrap month (ENV): `next = max(apiMaxInMonth + 1, envBootstrapNext)` for matching `YYYY-MM`.
 - Non-bootstrap months: `next = max(apiMaxInMonth + 1, 1)`.
-- `apiMaxInMonth` is read-only from Fakturownia `GET /invoices.json` filtered by `kind` and `issue_date` prefix `YYYY-MM`. Parser accepts `{n}/{MM}.{YYYY}` and `{n}/{MM}/{YYYY}`. For `ADVANCE` / `FINAL`, each additional prefixed invoice in the month adds one slot: `Z*` (advance) or `ZK*` (final) counts as `+1` on top of the highest numeric `{n}` in that month. New invoices are assigned `{n}/{MM}.{YYYY}`.
+- `apiMaxInMonth` is read-only from Fakturownia `GET /invoices.json` filtered by `kind` and `issue_date` prefix `YYYY-MM`. Parser accepts legacy `{n}/{MM}.{YYYY}` and current `{n}/{MM}/{YYYY}` when reading existing invoices. For `ADVANCE` / `FINAL`, each additional prefixed invoice in the month adds one slot: `Z*` (advance) or `ZK*` (final) counts as `+1` on top of the highest numeric `{n}` in that month. New invoices are assigned `{n}/{MM}/{YYYY}`.
 - Payload also sets `issue_date` and `sell_date` (ISO `YYYY-MM-DD`, Europe/Warsaw calendar day).
 
 Implementation: `FakturowniaInvoiceNumberService.allocate()` → `FakturowniaMapper.toCreatePayload(..., numberAssignment)`.
@@ -579,6 +605,7 @@ type FakturowniaInvoiceRaw = {
 ```ts
 type FakturowniaCreateInvoiceResult = {
   fakturowniaInvoiceId: string;
+  fakturowniaInvoiceNumber: string;
   fakturowniaInvoiceUrl: string;
   totalNet: number;
   totalGross: number;
@@ -593,6 +620,7 @@ Mapper: `FakturowniaMapper.toCreateResult(raw)`.
 | Fakturownia raw field | Result field | Rule |
 |---|---|---|
 | `id` | `fakturowniaInvoiceId` | stringified |
+| — | `fakturowniaInvoiceNumber` | from `numberAssignment.number` at create (not from raw response) |
 | `view_url` | `fakturowniaInvoiceUrl` | required on success; mapper error if missing |
 | `price_net` | `totalNet` | parsed number; comma decimals supported |
 | `price_gross` | `totalGross` | parsed number; comma decimals supported |

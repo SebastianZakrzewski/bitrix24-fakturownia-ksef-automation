@@ -1,4 +1,4 @@
-export type FakturowniaCreateInvoiceResult = {
+export type FakturowniaCreateInvoiceMappedResult = {
   fakturowniaInvoiceId: string;
   fakturowniaInvoiceUrl: string;
   totalNet: number;
@@ -6,6 +6,10 @@ export type FakturowniaCreateInvoiceResult = {
   currency: 'PLN';
   ksefStatus?: 'SUBMISSION_CONFIRMED' | 'SUBMISSION_ERROR' | 'STATUS_UNKNOWN';
   ksefRawStatus?: string;
+};
+
+export type FakturowniaCreateInvoiceResult = FakturowniaCreateInvoiceMappedResult & {
+  fakturowniaInvoiceNumber: string;
 };
 
 export type FakturowniaPositionPayload = {

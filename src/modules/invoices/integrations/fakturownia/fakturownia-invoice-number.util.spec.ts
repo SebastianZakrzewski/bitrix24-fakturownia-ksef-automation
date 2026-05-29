@@ -20,8 +20,8 @@ describe('fakturownia-invoice-number.util', () => {
   });
 
   describe('formatInvoiceNumber', () => {
-    it('formats sequence as n/MM.YYYY', () => {
-      expect(formatInvoiceNumber(39, '2026-05')).toBe('39/05.2026');
+    it('formats sequence as n/MM/YYYY', () => {
+      expect(formatInvoiceNumber(39, '2026-05')).toBe('39/05/2026');
     });
   });
 

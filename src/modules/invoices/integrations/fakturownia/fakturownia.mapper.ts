@@ -3,7 +3,7 @@ import type { InvoiceDraft } from '../../types/invoice.types';
 import { normalizeFakturowniaBuyerCountry } from './fakturownia-buyer-country.util';
 import { FakturowniaMapperError } from './fakturownia.errors';
 import type {
-  FakturowniaCreateInvoiceResult,
+  FakturowniaCreateInvoiceMappedResult,
   FakturowniaInvoiceNumberAssignment,
   FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoicePayload,
@@ -65,7 +65,7 @@ export class FakturowniaMapper {
     }
   }
 
-  toCreateResult(raw: FakturowniaInvoiceRaw): FakturowniaCreateInvoiceResult {
+  toCreateResult(raw: FakturowniaInvoiceRaw): FakturowniaCreateInvoiceMappedResult {
     if (!raw.view_url) {
       throw new FakturowniaMapperError(
         'Fakturownia response is missing view_url',
@@ -193,7 +193,7 @@ export class FakturowniaMapper {
     govStatus: string | null | undefined,
   ):
     | {
-        status: NonNullable<FakturowniaCreateInvoiceResult['ksefStatus']>;
+        status: NonNullable<FakturowniaCreateInvoiceMappedResult['ksefStatus']>;
         rawStatus: string;
       }
     | undefined {

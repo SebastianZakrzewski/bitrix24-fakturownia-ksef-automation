@@ -48,6 +48,7 @@ export class InvoiceEmailService {
       params.processId,
       params.bitrixDealId,
       params.fakturowniaResult.fakturowniaInvoiceId,
+      params.fakturowniaResult.fakturowniaInvoiceNumber,
     );
 
     try {
@@ -58,6 +59,7 @@ export class InvoiceEmailService {
         recipientEmail: params.invoiceDraft.buyer.customerEmail,
         recipientCompanyName: params.invoiceDraft.buyer.companyName,
         fakturowniaInvoiceId: params.fakturowniaResult.fakturowniaInvoiceId,
+        fakturowniaInvoiceNumber: params.fakturowniaResult.fakturowniaInvoiceNumber,
         fakturowniaInvoiceUrl: params.fakturowniaResult.fakturowniaInvoiceUrl,
         ...(pdfAttachment ? { pdfAttachment } : {}),
       });
@@ -114,6 +116,7 @@ export class InvoiceEmailService {
     processId: string,
     bitrixDealId: string,
     fakturowniaInvoiceId: string,
+    fakturowniaInvoiceNumber: string,
   ): Promise<
     | {
         filename: string;
@@ -128,7 +131,9 @@ export class InvoiceEmailService {
       );
 
       return {
-        filename: this.invoiceEmailMapper.buildPdfFilename(fakturowniaInvoiceId),
+        filename: this.invoiceEmailMapper.buildPdfFilename(
+          fakturowniaInvoiceNumber,
+        ),
         contentBase64: pdfBytes.toString('base64'),
         contentType: 'application/pdf',
       };

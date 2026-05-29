@@ -88,6 +88,7 @@ describe('FakturowniaService', () => {
     expect(client.getInvoiceKsefStatus).not.toHaveBeenCalled();
     expect(result).toEqual({
       fakturowniaInvoiceId: '987654',
+      fakturowniaInvoiceNumber: '39/05/2026',
       fakturowniaInvoiceUrl:
         'https://evapremium.fakturownia.pl/invoices/987654',
       totalNet: 7747.97,

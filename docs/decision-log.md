@@ -48,7 +48,8 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Fakturownia KSeF via `gov_status` → integration result only | No direct KSeF API in V1; workflow maps result in use case | High |
 | V1 Fakturownia position mapping omits `unit`; provider default applies | `ProductLine.unit` is always `szt.`; not required in provider payload for V1 | Medium |
 | `FAKTUROWNIA_*` env vars for client auth and timeout | Same pattern as Bitrix24 webhook config | Medium |
-| Custom Fakturownia invoice numbering `{n}/{MM}.{YYYY}` via explicit `number` field | Evapremium monthly reset; bootstrap ENV for May 2026; auto-numbering disabled in Fakturownia | High |
+| Custom Fakturownia invoice numbering `{n}/{MM}/{YYYY}` via explicit `number` field | Evapremium monthly reset; slash format; bootstrap ENV for May 2026; auto-numbering disabled in Fakturownia | High |
+| `invoice_number` in n8n email webhook from `fakturowniaInvoiceNumber` at create | Customer-facing number in mail template without extra Fakturownia GET | High |
 | `ADVANCE` and `FINAL` require Fakturownia order linkage | Fakturownia API expects advance/final from order via `copy_invoice_from`; one `fakturownia_orders` row per `bitrix_deal_id` | Critical |
 | V1 uses `fakturownia_orders` + `copy_invoice_from` at invoice creation | Persisted order ID links ADVANCE/FINAL payloads to provider order | High |
 | Fakturownia order via `POST /invoices.json` with `kind: estimate` | Official Fakturownia API for Zamówienie documents | High |

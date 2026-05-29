@@ -30,7 +30,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const service = createService(client);
 
     await expect(service.allocate('FULL', referenceDate)).resolves.toEqual({
-      number: '39/05.2026',
+      number: '39/05/2026',
       issueDate: '2026-05-29',
       sellDate: '2026-05-29',
     });
@@ -49,7 +49,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const service = createService(client);
 
     await expect(service.allocate('ADVANCE', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '28/05.2026' }),
+      expect.objectContaining({ number: '28/05/2026' }),
     );
   });
 
@@ -66,7 +66,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const service = createService(client);
 
     await expect(service.allocate('FINAL', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '35/05.2026' }),
+      expect.objectContaining({ number: '35/05/2026' }),
     );
   });
 
@@ -83,7 +83,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
 
     await expect(service.allocate('FULL', referenceDate)).resolves.toEqual({
-      number: '39/05.2026',
+      number: '39/05/2026',
       issueDate: '2026-05-29',
       sellDate: '2026-05-29',
     });
@@ -97,7 +97,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
-        .mockResolvedValue([{ number: '26/05.2026', issue_date: '2026-05-19' }]),
+        .mockResolvedValue([{ number: '26/05/2026', issue_date: '2026-05-19' }]),
     };
 
     const service = createService(client, {
@@ -106,7 +106,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
 
     await expect(service.allocate('ADVANCE', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '28/05.2026' }),
+      expect.objectContaining({ number: '28/05/2026' }),
     );
   });
 
@@ -114,7 +114,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
-        .mockResolvedValue([{ number: '33/05.2026', issue_date: '2026-05-21' }]),
+        .mockResolvedValue([{ number: '33/05/2026', issue_date: '2026-05-21' }]),
     };
 
     const service = createService(client, {
@@ -123,7 +123,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
 
     await expect(service.allocate('FINAL', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '35/05.2026' }),
+      expect.objectContaining({ number: '35/05/2026' }),
     );
   });
 
@@ -140,7 +140,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const juneDate = new Date('2026-06-01T10:00:00.000Z');
 
     await expect(service.allocate('FULL', juneDate)).resolves.toEqual(
-      expect.objectContaining({ number: '1/06.2026' }),
+      expect.objectContaining({ number: '1/06/2026' }),
     );
   });
 });

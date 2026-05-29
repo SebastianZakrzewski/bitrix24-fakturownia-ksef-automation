@@ -12,9 +12,10 @@ describe('InvoiceEmailMapper', () => {
         recipientEmail: 'client@example.com',
         recipientCompanyName: 'Evapremium Sp. z o.o.',
         fakturowniaInvoiceId: '987654',
+        fakturowniaInvoiceNumber: '39/05/2026',
         fakturowniaInvoiceUrl: 'https://evapremium.fakturownia.pl/invoices/987654',
         pdfAttachment: {
-          filename: 'faktura-987654.pdf',
+          filename: 'faktura-39-05-2026.pdf',
           contentBase64: 'cGRm',
           contentType: 'application/pdf',
         },
@@ -25,17 +26,18 @@ describe('InvoiceEmailMapper', () => {
       invoice_type: 'FULL',
       recipient_email: 'client@example.com',
       recipient_company_name: 'Evapremium Sp. z o.o.',
+      invoice_number: '39/05/2026',
       fakturownia_invoice_id: '987654',
       fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/987654',
       pdf_attachment: {
-        filename: 'faktura-987654.pdf',
+        filename: 'faktura-39-05-2026.pdf',
         content_base64: 'cGRm',
         content_type: 'application/pdf',
       },
     });
   });
 
-  it('builds deterministic pdf filename', () => {
-    expect(mapper.buildPdfFilename('987654')).toBe('faktura-987654.pdf');
+  it('builds deterministic pdf filename from invoice number', () => {
+    expect(mapper.buildPdfFilename('39/05/2026')).toBe('faktura-39-05-2026.pdf');
   });
 });

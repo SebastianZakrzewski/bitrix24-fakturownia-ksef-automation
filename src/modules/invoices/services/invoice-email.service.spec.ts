@@ -29,6 +29,7 @@ describe('InvoiceEmailService', () => {
 
   const fakturowniaResult = {
     fakturowniaInvoiceId: '987654',
+    fakturowniaInvoiceNumber: '39/05/2026',
     fakturowniaInvoiceUrl: 'https://evapremium.fakturownia.pl/invoices/987654',
     totalNet: 100,
     totalGross: 123,
@@ -82,7 +83,7 @@ describe('InvoiceEmailService', () => {
     expect(emailProviderService.sendInvoiceEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         pdfAttachment: expect.objectContaining({
-          filename: 'faktura-987654.pdf',
+          filename: 'faktura-39-05-2026.pdf',
           contentType: 'application/pdf',
         }),
       }),

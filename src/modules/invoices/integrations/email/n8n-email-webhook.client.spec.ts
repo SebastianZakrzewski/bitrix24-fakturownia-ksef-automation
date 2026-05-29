@@ -51,6 +51,7 @@ describe('N8nEmailWebhookClient', () => {
       invoice_type: 'FULL',
       recipient_email: 'client@example.com',
       recipient_company_name: 'Evapremium Sp. z o.o.',
+      invoice_number: '39/05/2026',
       fakturownia_invoice_id: '987654',
       fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/987654',
     });
@@ -85,6 +86,7 @@ describe('N8nEmailWebhookClient', () => {
         invoice_type: 'FULL',
         recipient_email: 'client@example.com',
         recipient_company_name: 'Evapremium Sp. z o.o.',
+        invoice_number: '39/05/2026',
         fakturownia_invoice_id: '987654',
         fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/987654',
       }),
@@ -107,6 +109,7 @@ describe('N8nEmailWebhookClient', () => {
         invoice_type: 'FULL',
         recipient_email: 'client@example.com',
         recipient_company_name: 'Evapremium Sp. z o.o.',
+        invoice_number: '39/05/2026',
         fakturownia_invoice_id: '987654',
         fakturownia_invoice_url: 'https://evapremium.fakturownia.pl/invoices/987654',
       }),

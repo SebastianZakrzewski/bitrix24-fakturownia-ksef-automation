@@ -7,6 +7,7 @@ export type InvoiceEmailPayload = {
   recipientEmail: string;
   recipientCompanyName: string;
   fakturowniaInvoiceId: string;
+  fakturowniaInvoiceNumber: string;
   fakturowniaInvoiceUrl: string;
   pdfAttachment?: {
     filename: string;
@@ -30,6 +31,7 @@ export type N8nInvoiceEmailWebhookRequest = {
   invoice_type: InvoiceType;
   recipient_email: string;
   recipient_company_name: string;
+  invoice_number: string;
   fakturownia_invoice_id: string;
   fakturownia_invoice_url: string;
   pdf_attachment?: {

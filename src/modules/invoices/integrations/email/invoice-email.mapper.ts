@@ -14,6 +14,7 @@ export class InvoiceEmailMapper {
       invoice_type: payload.invoiceType,
       recipient_email: payload.recipientEmail,
       recipient_company_name: payload.recipientCompanyName,
+      invoice_number: payload.fakturowniaInvoiceNumber,
       fakturownia_invoice_id: payload.fakturowniaInvoiceId,
       fakturownia_invoice_url: payload.fakturowniaInvoiceUrl,
       ...(payload.pdfAttachment
@@ -46,7 +47,9 @@ export class InvoiceEmailMapper {
     };
   }
 
-  buildPdfFilename(fakturowniaInvoiceId: string): string {
-    return `faktura-${fakturowniaInvoiceId}.pdf`;
+  buildPdfFilename(invoiceNumber: string): string {
+    const safeName = invoiceNumber.replace(/[/\\.]/g, '-');
+
+    return `faktura-${safeName}.pdf`;
   }
 }

@@ -104,6 +104,7 @@ const orderRow = (
 
 const fakturowniaCreateResult = () => ({
   fakturowniaInvoiceId: '987654',
+  fakturowniaInvoiceNumber: '39/05/2026',
   fakturowniaInvoiceUrl: 'https://evapremium.fakturownia.pl/invoices/987654',
   totalNet: 7747.97,
   totalGross: 9500,
@@ -1279,6 +1280,7 @@ describe('CreateInvoiceFromBitrixDealUseCase — KSeF submission handling', () =
     deps.invoiceIdempotencyService.claim.mockResolvedValue(processRow('FULL'));
     deps.fakturowniaService.createInvoice.mockResolvedValue({
       fakturowniaInvoiceId: '987654',
+      fakturowniaInvoiceNumber: '39/05/2026',
       fakturowniaInvoiceUrl: FAKTUROWNIA_INVOICE_URL,
       totalNet: 7747.97,
       totalGross: 9500,

@@ -33,7 +33,13 @@ export function formatInvoiceNumber(
   sequence: number,
   yearMonth: string,
 ): string {
-  return `${sequence}/${yearMonthToMonthPeriod(yearMonth)}`;
+  const [year, month] = yearMonth.split('-');
+
+  if (!year || !month) {
+    throw new Error(`Invalid year-month value: ${yearMonth}`);
+  }
+
+  return `${sequence}/${month}/${year}`;
 }
 
 export function monthPeriodToSlashForm(monthPeriod: string): string {
