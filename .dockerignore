@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.github
+.cursor
+reports
+**/*.spec.ts
+test
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.md
+!db/migrations/**/*.sql

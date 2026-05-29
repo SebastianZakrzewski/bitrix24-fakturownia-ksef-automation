@@ -1,8 +1,10 @@
 node_modules
 dist
+*.tsbuildinfo
 coverage
 .env
 .env.local
+.env.hetzner
 npm-debug.log*
 reports/live-tests/
 test-db-conn.js
