@@ -82,7 +82,12 @@ const invoiceNumberFieldsFixture = () => ({
   sell_date: '2026-05-29',
 });
 
-export { invoiceNumberFieldsFixture };
+const invoicePaymentFieldsFixture = () => ({
+  payment_type: 'transfer' as const,
+  payment_to_kind: 'off' as const,
+});
+
+export { invoiceNumberFieldsFixture, invoicePaymentFieldsFixture };
 
 export const fakturowniaInvoiceRawSuccessFixture = (
   overrides: Partial<FakturowniaInvoiceRaw> = {},

@@ -36,7 +36,14 @@ export type FakturowniaInvoiceNumberFields = {
   sell_date: string;
 };
 
-export type FakturowniaVatInvoicePayload = FakturowniaInvoiceNumberFields & {
+/** Evapremium V1: paid deals — show payment method only, no due date. */
+export type FakturowniaInvoicePaymentFields = {
+  payment_type: 'transfer';
+  payment_to_kind: 'off';
+};
+
+export type FakturowniaVatInvoicePayload = FakturowniaInvoiceNumberFields &
+  FakturowniaInvoicePaymentFields & {
   kind: 'vat';
   currency: 'PLN';
   buyer_name: string;
@@ -48,7 +55,8 @@ export type FakturowniaVatInvoicePayload = FakturowniaInvoiceNumberFields & {
   positions: FakturowniaPositionPayload[];
 };
 
-export type FakturowniaAdvanceFromOrderPayload = FakturowniaInvoiceNumberFields & {
+export type FakturowniaAdvanceFromOrderPayload = FakturowniaInvoiceNumberFields &
+  FakturowniaInvoicePaymentFields & {
   kind: 'advance';
   copy_invoice_from: number;
   advance_creation_mode: 'amount';
@@ -56,7 +64,8 @@ export type FakturowniaAdvanceFromOrderPayload = FakturowniaInvoiceNumberFields 
   position_name: string;
 };
 
-export type FakturowniaFinalFromOrderPayload = FakturowniaInvoiceNumberFields & {
+export type FakturowniaFinalFromOrderPayload = FakturowniaInvoiceNumberFields &
+  FakturowniaInvoicePaymentFields & {
   kind: 'final';
   copy_invoice_from: number;
   invoice_ids: number[];

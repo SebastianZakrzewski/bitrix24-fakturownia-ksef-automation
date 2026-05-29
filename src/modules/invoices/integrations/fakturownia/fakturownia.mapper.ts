@@ -8,6 +8,7 @@ import type {
   FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoicePayload,
   FakturowniaInvoiceRaw,
+  FakturowniaInvoicePaymentFields,
   FakturowniaPositionPayload,
   FakturowniaVatInvoicePayload,
 } from './fakturownia.types';
@@ -30,6 +31,7 @@ export class FakturowniaMapper {
     orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): FakturowniaInvoicePayload {
     const numberFields = this.mapNumberFields(numberAssignment);
+    const paymentFields = this.mapPaymentFields();
 
     switch (draft.invoiceType) {
       case 'FULL':
@@ -37,6 +39,7 @@ export class FakturowniaMapper {
           kind: 'vat',
           currency: 'PLN',
           ...numberFields,
+          ...paymentFields,
           ...this.mapBuyer(draft),
           positions: this.mapPositions(draft),
         };
@@ -46,6 +49,7 @@ export class FakturowniaMapper {
         return {
           kind: 'advance',
           ...numberFields,
+          ...paymentFields,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           advance_creation_mode: 'amount',
           advance_value: String(draft.advanceAmount),
@@ -58,6 +62,7 @@ export class FakturowniaMapper {
         return {
           kind: 'final',
           ...numberFields,
+          ...paymentFields,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           invoice_ids: [Number(draft.previousAdvanceInvoiceId)],
         };
@@ -96,6 +101,13 @@ export class FakturowniaMapper {
       number: numberAssignment.number,
       issue_date: numberAssignment.issueDate,
       sell_date: numberAssignment.sellDate,
+    };
+  }
+
+  private mapPaymentFields(): FakturowniaInvoicePaymentFields {
+    return {
+      payment_type: 'transfer',
+      payment_to_kind: 'off',
     };
   }
 

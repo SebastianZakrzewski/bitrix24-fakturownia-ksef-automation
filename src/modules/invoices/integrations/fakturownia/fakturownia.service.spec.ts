@@ -15,6 +15,7 @@ import {
   invoiceDraftAdvanceFixture,
   invoiceDraftFullFixture,
   invoiceNumberFieldsFixture,
+  invoicePaymentFieldsFixture,
 } from './testing/fakturownia.fixtures';
 
 describe('FakturowniaService', () => {
@@ -27,6 +28,7 @@ describe('FakturowniaService', () => {
   };
   const numberAssignment = fakturowniaInvoiceNumberAssignmentFixture();
   const numberFields = invoiceNumberFieldsFixture();
+  const paymentFields = invoicePaymentFieldsFixture();
 
   const createInvoiceNumberService = () => ({
     allocate: jest.fn().mockResolvedValue(numberAssignment),
@@ -62,6 +64,7 @@ describe('FakturowniaService', () => {
     expect(client.createInvoice).toHaveBeenCalledWith({
       kind: 'advance',
       ...numberFields,
+      ...paymentFields,
       copy_invoice_from: 10042,
       advance_creation_mode: 'amount',
       advance_value: '3000',
@@ -83,7 +86,7 @@ describe('FakturowniaService', () => {
 
     expect(invoiceNumberService.allocate).toHaveBeenCalledWith('FULL');
     expect(client.createInvoice).toHaveBeenCalledWith(
-      expect.objectContaining(numberFields),
+      expect.objectContaining({ ...numberFields, ...paymentFields }),
     );
     expect(client.getInvoiceKsefStatus).not.toHaveBeenCalled();
     expect(result).toEqual({

@@ -8,6 +8,7 @@ import {
   invoiceDraftFinalFixture,
   invoiceDraftFullFixture,
   invoiceNumberFieldsFixture,
+  invoicePaymentFieldsFixture,
 } from './testing/fakturownia.fixtures';
 
 const sharedBuyerAndPositions = {
@@ -38,6 +39,7 @@ describe('FakturowniaMapper', () => {
   const orderLinkage = fakturowniaInvoiceOrderLinkageFixture();
   const numberAssignment = fakturowniaInvoiceNumberAssignmentFixture();
   const numberFields = invoiceNumberFieldsFixture();
+  const paymentFields = invoicePaymentFieldsFixture();
 
   describe('toCreatePayload', () => {
     it('maps FULL draft to vat invoice payload without order linkage', () => {
@@ -47,6 +49,7 @@ describe('FakturowniaMapper', () => {
         kind: 'vat',
         currency: 'PLN',
         ...numberFields,
+        ...paymentFields,
         ...sharedBuyerAndPositions,
       });
     });
@@ -86,6 +89,7 @@ describe('FakturowniaMapper', () => {
       expect(mapper.toCreatePayload(draft, numberAssignment, orderLinkage)).toEqual({
         kind: 'advance',
         ...numberFields,
+        ...paymentFields,
         copy_invoice_from: 10042,
         advance_creation_mode: 'amount',
         advance_value: '3000',
@@ -114,6 +118,7 @@ describe('FakturowniaMapper', () => {
       expect(mapper.toCreatePayload(draft, numberAssignment, orderLinkage)).toEqual({
         kind: 'final',
         ...numberFields,
+        ...paymentFields,
         copy_invoice_from: 10042,
         invoice_ids: [2432393],
       });
