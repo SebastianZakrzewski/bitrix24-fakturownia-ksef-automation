@@ -1,11 +1,13 @@
 import { FakturowniaMapper } from './fakturownia.mapper';
 import { FakturowniaMapperError } from './fakturownia.errors';
 import {
+  fakturowniaInvoiceNumberAssignmentFixture,
   fakturowniaInvoiceOrderLinkageFixture,
   fakturowniaInvoiceRawSuccessFixture,
   invoiceDraftAdvanceFixture,
   invoiceDraftFinalFixture,
   invoiceDraftFullFixture,
+  invoiceNumberFieldsFixture,
 } from './testing/fakturownia.fixtures';
 
 const sharedBuyerAndPositions = {
@@ -34,14 +36,17 @@ const sharedBuyerAndPositions = {
 describe('FakturowniaMapper', () => {
   const mapper = new FakturowniaMapper();
   const orderLinkage = fakturowniaInvoiceOrderLinkageFixture();
+  const numberAssignment = fakturowniaInvoiceNumberAssignmentFixture();
+  const numberFields = invoiceNumberFieldsFixture();
 
   describe('toCreatePayload', () => {
     it('maps FULL draft to vat invoice payload without order linkage', () => {
       const draft = invoiceDraftFullFixture();
 
-      expect(mapper.toCreatePayload(draft)).toEqual({
+      expect(mapper.toCreatePayload(draft, numberAssignment)).toEqual({
         kind: 'vat',
         currency: 'PLN',
+        ...numberFields,
         ...sharedBuyerAndPositions,
       });
     });
@@ -61,7 +66,7 @@ describe('FakturowniaMapper', () => {
         },
       ];
 
-      const payload = mapper.toCreatePayload(draft);
+      const payload = mapper.toCreatePayload(draft, numberAssignment);
       expect(payload.kind).toBe('vat');
       if (payload.kind !== 'vat') {
         throw new Error('expected vat payload');
@@ -78,8 +83,9 @@ describe('FakturowniaMapper', () => {
     it('maps ADVANCE draft to minimal order-linked payload without buyer or positions', () => {
       const draft = invoiceDraftAdvanceFixture();
 
-      expect(mapper.toCreatePayload(draft, orderLinkage)).toEqual({
+      expect(mapper.toCreatePayload(draft, numberAssignment, orderLinkage)).toEqual({
         kind: 'advance',
+        ...numberFields,
         copy_invoice_from: 10042,
         advance_creation_mode: 'amount',
         advance_value: '3000',
@@ -91,7 +97,7 @@ describe('FakturowniaMapper', () => {
       const draft = invoiceDraftAdvanceFixture();
 
       expect(
-        mapper.toCreatePayload(draft, {
+        mapper.toCreatePayload(draft, numberAssignment, {
           fakturowniaOrderId: '10042',
           fakturowniaOrderNumber: null,
         }),
@@ -105,15 +111,16 @@ describe('FakturowniaMapper', () => {
     it('maps FINAL draft to minimal order-linked payload without buyer or positions', () => {
       const draft = invoiceDraftFinalFixture();
 
-      expect(mapper.toCreatePayload(draft, orderLinkage)).toEqual({
+      expect(mapper.toCreatePayload(draft, numberAssignment, orderLinkage)).toEqual({
         kind: 'final',
+        ...numberFields,
         copy_invoice_from: 10042,
         invoice_ids: [2432393],
       });
     });
 
     it('throws when ADVANCE draft is mapped without order linkage', () => {
-      expect(() => mapper.toCreatePayload(invoiceDraftAdvanceFixture())).toThrow(
+      expect(() => mapper.toCreatePayload(invoiceDraftAdvanceFixture(), numberAssignment)).toThrow(
         new FakturowniaMapperError(
           'Fakturownia order linkage is required for ADVANCE invoice payload',
         ),
@@ -121,7 +128,7 @@ describe('FakturowniaMapper', () => {
     });
 
     it('throws when FINAL draft is mapped without order linkage', () => {
-      expect(() => mapper.toCreatePayload(invoiceDraftFinalFixture())).toThrow(
+      expect(() => mapper.toCreatePayload(invoiceDraftFinalFixture(), numberAssignment)).toThrow(
         new FakturowniaMapperError(
           'Fakturownia order linkage is required for FINAL invoice payload',
         ),
@@ -130,7 +137,7 @@ describe('FakturowniaMapper', () => {
 
     it('throws when order linkage fakturowniaOrderId is empty', () => {
       expect(() =>
-        mapper.toCreatePayload(invoiceDraftAdvanceFixture(), {
+        mapper.toCreatePayload(invoiceDraftAdvanceFixture(), numberAssignment, {
           fakturowniaOrderId: '   ',
         }),
       ).toThrow(
@@ -147,7 +154,7 @@ describe('FakturowniaMapper', () => {
         buyer: { ...base.buyer, country: 'Poland' },
       };
 
-      const payload = mapper.toCreatePayload(draft);
+      const payload = mapper.toCreatePayload(draft, numberAssignment);
       expect(payload.kind).toBe('vat');
       if (payload.kind !== 'vat') {
         throw new Error('expected vat payload');
@@ -158,7 +165,7 @@ describe('FakturowniaMapper', () => {
 
     it('throws when order linkage fakturowniaOrderId is not numeric', () => {
       expect(() =>
-        mapper.toCreatePayload(invoiceDraftFinalFixture(), {
+        mapper.toCreatePayload(invoiceDraftFinalFixture(), numberAssignment, {
           fakturowniaOrderId: 'not-a-number',
         }),
       ).toThrow(

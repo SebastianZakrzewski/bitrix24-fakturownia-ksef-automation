@@ -9,6 +9,7 @@ import {
 } from './fakturownia-http-client.token';
 import {
   fakturowniaClientErrorBodyFixture,
+  fakturowniaInvoiceNumberAssignmentFixture,
   fakturowniaInvoiceRawSuccessFixture,
   fakturowniaOrderRawSuccessFixture,
   invoiceDraftAdvanceFixture,
@@ -20,6 +21,7 @@ import { FakturowniaOrderMapper } from './fakturownia-order.mapper';
 describe('FakturowniaClient', () => {
   const baseUrl = 'https://evapremium.fakturownia.pl';
   const apiToken = 'test-api-token';
+  const numberAssignment = fakturowniaInvoiceNumberAssignmentFixture();
 
   const createClient = async (
     fetchFn: FakturowniaFetchFn,
@@ -60,7 +62,10 @@ describe('FakturowniaClient', () => {
 
     const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
-    const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
+    const payload = mapper.toCreatePayload(
+      invoiceDraftFullFixture(),
+      numberAssignment,
+    );
 
     const result = await client.createInvoice(payload);
 
@@ -90,7 +95,10 @@ describe('FakturowniaClient', () => {
 
     const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
-    const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
+    const payload = mapper.toCreatePayload(
+      invoiceDraftFullFixture(),
+      numberAssignment,
+    );
 
     await expect(client.createInvoice(payload)).rejects.toEqual({
       httpStatus: 422,
@@ -104,7 +112,10 @@ describe('FakturowniaClient', () => {
       FAKTUROWNIA_REQUEST_TIMEOUT_MS: 30000,
     });
     const mapper = new FakturowniaMapper();
-    const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
+    const payload = mapper.toCreatePayload(
+      invoiceDraftFullFixture(),
+      numberAssignment,
+    );
 
     await expect(client.createInvoice(payload)).rejects.toMatchObject({
       name: 'FakturowniaApiError',
@@ -120,7 +131,10 @@ describe('FakturowniaClient', () => {
 
     const client = await createClient(fetchFn);
     const mapper = new FakturowniaMapper();
-    const payload = mapper.toCreatePayload(invoiceDraftFullFixture());
+    const payload = mapper.toCreatePayload(
+      invoiceDraftFullFixture(),
+      numberAssignment,
+    );
 
     await expect(client.createInvoice(payload)).rejects.toThrow('The operation was aborted');
   });
@@ -194,6 +208,63 @@ describe('FakturowniaClient', () => {
     const payload = orderMapper.toCreatePayload(invoiceDraftAdvanceFixture());
 
     await expect(client.createOrder(payload)).rejects.toThrow('The operation was aborted');
+  });
+
+  it('lists invoices for issue month and filters by issue_date prefix', async () => {
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [
+          { number: '38/05.2026', issue_date: '2026-05-29', kind: 'vat' },
+          { number: '1/04.2026', issue_date: '2026-04-30', kind: 'vat' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      });
+
+    const client = await createClient(fetchFn);
+    const result = await client.listInvoicesForIssueMonth('vat', '2026-05');
+
+    expect(result).toEqual([
+      { number: '38/05.2026', issue_date: '2026-05-29', kind: 'vat' },
+    ]);
+    expect(fetchFn).toHaveBeenCalledWith(
+      `${baseUrl}/invoices.json?api_token=${apiToken}&kind=vat&per_page=100&page=1`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('gets invoice KSeF status from Fakturownia API', async () => {
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        gov_status: 'ok',
+        gov_id: '5252445767-20260201-ABC123',
+      }),
+    });
+
+    const client = await createClient(fetchFn);
+    const result = await client.getInvoiceKsefStatus('987654');
+
+    expect(result).toEqual({
+      gov_status: 'ok',
+      gov_id: '5252445767-20260201-ABC123',
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      `${baseUrl}/invoices/987654.json?api_token=${apiToken}&fields%5Binvoice%5D=gov_status%2Cgov_id`,
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      }),
+    );
   });
 
   it('downloads invoice PDF from Fakturownia API', async () => {

@@ -15,6 +15,7 @@ import { FakturowniaErrorMapper } from './integrations/fakturownia/fakturownia-e
 import { FakturowniaMapper } from './integrations/fakturownia/fakturownia.mapper';
 import { FakturowniaOrderMapper } from './integrations/fakturownia/fakturownia-order.mapper';
 import { FakturowniaOrderService } from './integrations/fakturownia/fakturownia-order.service';
+import { FakturowniaInvoiceNumberService } from './integrations/fakturownia/fakturownia-invoice-number.service';
 import { FakturowniaService } from './integrations/fakturownia/fakturownia.service';
 import { BitrixInvoiceMapper } from './mappers/bitrix-invoice.mapper';
 import { BitrixDealSnapshotRepository } from './repositories/bitrix-deal-snapshot.repository';
@@ -67,6 +68,7 @@ import { CreateInvoiceFromBitrixDealUseCase } from './use-cases/create-invoice-f
     },
     FakturowniaClient,
     FakturowniaService,
+    FakturowniaInvoiceNumberService,
     FakturowniaOrderService,
     FakturowniaMapper,
     FakturowniaOrderMapper,

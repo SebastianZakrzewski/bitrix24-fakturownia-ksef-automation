@@ -1,5 +1,6 @@
 import type { InvoiceDraft } from '../../../types/invoice.types';
 import type {
+  FakturowniaInvoiceNumberAssignment,
   FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoiceRaw,
   FakturowniaOrderRaw,
@@ -65,6 +66,23 @@ export const fakturowniaInvoiceOrderLinkageFixture = (
   fakturowniaOrderNumber: 'ZAM/100/2026',
   ...overrides,
 });
+
+export const fakturowniaInvoiceNumberAssignmentFixture = (
+  overrides: Partial<FakturowniaInvoiceNumberAssignment> = {},
+): FakturowniaInvoiceNumberAssignment => ({
+  number: '39/05.2026',
+  issueDate: '2026-05-29',
+  sellDate: '2026-05-29',
+  ...overrides,
+});
+
+const invoiceNumberFieldsFixture = () => ({
+  number: '39/05.2026',
+  issue_date: '2026-05-29',
+  sell_date: '2026-05-29',
+});
+
+export { invoiceNumberFieldsFixture };
 
 export const fakturowniaInvoiceRawSuccessFixture = (
   overrides: Partial<FakturowniaInvoiceRaw> = {},

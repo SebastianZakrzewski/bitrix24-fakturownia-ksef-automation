@@ -21,6 +21,35 @@ const envSchema = z
       .int()
       .positive()
       .default(30000),
+    FAKTUROWNIA_KSEF_STATUS_POLL_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(60000),
+    FAKTUROWNIA_KSEF_STATUS_POLL_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(5000),
+    FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_MONTH: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
+    FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FULL: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
+    FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_ADVANCE: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
+    FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FINAL: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
     N8N_INVOICE_EMAIL_WEBHOOK_URL: z.string().url().optional(),
     N8N_INVOICE_EMAIL_WEBHOOK_SECRET: z.string().min(1).optional(),
     N8N_INVOICE_EMAIL_WEBHOOK_TIMEOUT_MS: z.coerce
@@ -78,6 +107,24 @@ const envSchema = z
           'N8N_INVOICE_EMAIL_WEBHOOK_SECRET is required when NODE_ENV is not test',
         path: ['N8N_INVOICE_EMAIL_WEBHOOK_SECRET'],
       });
+    }
+
+    if (env.FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_MONTH) {
+      const bootstrapFields = [
+        ['FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FULL', env.FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FULL],
+        ['FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_ADVANCE', env.FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_ADVANCE],
+        ['FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FINAL', env.FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FINAL],
+      ] as const;
+
+      for (const [field, value] of bootstrapFields) {
+        if (value === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${field} is required when FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_MONTH is set`,
+            path: [field],
+          });
+        }
+      }
     }
   });
 

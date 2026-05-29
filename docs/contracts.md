@@ -306,7 +306,7 @@ Located in `modules/invoices/integrations/fakturownia`. Integration types are **
 Rules:
 - Input is only validated `InvoiceDraft` (see `domain-lifecycle.md`). No raw Bitrix payload.
 - `FakturowniaService` must **not** decide whether invoice creation is allowed.
-- Issue/payment dates are omitted in V1; Fakturownia account defaults apply.
+- Issue/payment dates are set explicitly when custom invoice numbering is enabled (see below); otherwise Fakturownia account defaults apply.
 - API reference: [Fakturownia API](https://github.com/fakturownia/API) (`POST /invoices.json`).
 
 ### Environment (client)
@@ -315,7 +315,29 @@ Rules:
 |---|---|---|
 | `FAKTUROWNIA_BASE_URL` | yes (except `NODE_ENV=test`) | Account base URL, e.g. `https://evapremium.fakturownia.pl` |
 | `FAKTUROWNIA_API_TOKEN` | yes (except `NODE_ENV=test`) | API token sent as `api_token` in request body |
-| `FAKTUROWNIA_REQUEST_TIMEOUT_MS` | no (default `30000`) | HTTP timeout for create-invoice call |
+| `FAKTUROWNIA_REQUEST_TIMEOUT_MS` | no (default `30000`) | HTTP timeout per Fakturownia request |
+| `FAKTUROWNIA_KSEF_STATUS_POLL_TIMEOUT_MS` | no (default `60000`) | Max wait while polling `gov_status` after create |
+| `FAKTUROWNIA_KSEF_STATUS_POLL_INTERVAL_MS` | no (default `5000`) | Delay between KSeF status GET polls |
+| `FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_MONTH` | no | When set (`YYYY-MM`), forces minimum next sequence per type in that month only |
+| `FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FULL` | required if bootstrap month set | Next FULL (`vat`) sequence floor, e.g. `39` |
+| `FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_ADVANCE` | required if bootstrap month set | Next ADVANCE sequence floor, e.g. `28` |
+| `FAKTUROWNIA_INVOICE_NUMBER_BOOTSTRAP_FINAL` | required if bootstrap month set | Next FINAL sequence floor, e.g. `35` |
+
+### Invoice numbering (V1)
+
+Backend assigns explicit Fakturownia `number` before create. Fakturownia account auto-numbering must be disabled by operator.
+
+Format: `{n}/{MM}.{YYYY}` — e.g. `39/05.2026`.
+
+Rules:
+- Separate sequence per `InvoiceType` (`FULL` → `vat`, `ADVANCE` → `advance`, `FINAL` → `final`).
+- Sequence resets each calendar month (Europe/Warsaw): first invoice in a new month starts at `1/{MM}.{YYYY}` unless bootstrap month applies.
+- Bootstrap month (ENV): `next = max(apiMaxInMonth + 1, envBootstrapNext)` for matching `YYYY-MM`.
+- Non-bootstrap months: `next = max(apiMaxInMonth + 1, 1)`.
+- `apiMaxInMonth` is read-only from Fakturownia `GET /invoices.json` filtered by `kind` and `issue_date` prefix `YYYY-MM`. Parser accepts `{n}/{MM}.{YYYY}` and `{n}/{MM}/{YYYY}`. For `ADVANCE` / `FINAL`, each additional prefixed invoice in the month adds one slot: `Z*` (advance) or `ZK*` (final) counts as `+1` on top of the highest numeric `{n}` in that month. New invoices are assigned `{n}/{MM}.{YYYY}`.
+- Payload also sets `issue_date` and `sell_date` (ISO `YYYY-MM-DD`, Europe/Warsaw calendar day).
+
+Implementation: `FakturowniaInvoiceNumberService.allocate()` → `FakturowniaMapper.toCreatePayload(..., numberAssignment)`.
 
 ### Create-invoice request (integration payload)
 
@@ -327,6 +349,9 @@ type FakturowniaCreateInvoiceRequest = {
 
 type FakturowniaInvoicePayload = {
   kind: 'vat' | 'advance' | 'final';
+  number: string;
+  issue_date: string;
+  sell_date: string;
   currency: 'PLN';
   buyer_name: string;
   buyer_tax_no: string;
@@ -352,7 +377,7 @@ Implementation: `src/modules/invoices/integrations/fakturownia/fakturownia.types
 
 ### InvoiceDraft → Fakturownia payload mapping
 
-Mapper: `FakturowniaMapper.toCreatePayload(invoiceDraft)`.
+Mapper: `FakturowniaMapper.toCreatePayload(invoiceDraft, numberAssignment, orderLinkage?)`.
 
 | `InvoiceDraft.invoiceType` | Fakturownia `kind` | Additional invoice fields |
 |---|---|---|
@@ -573,6 +598,8 @@ Mapper: `FakturowniaMapper.toCreateResult(raw)`.
 | `price_gross` | `totalGross` | parsed number; comma decimals supported |
 | — | `currency` | always `'PLN'` |
 | `gov_status` | `ksefStatus`, `ksefRawStatus` | see KSeF table below; omitted when `gov_status` is `undefined` |
+
+**KSeF status polling (V1):** After `POST /invoices.json`, when `gov_status` is `null`, `processing`, or `demo_processing`, `FakturowniaService` polls `GET /invoices/{id}.json?fields[invoice]=gov_status,gov_id` until a non-pending status or budget expiry. Env: `FAKTUROWNIA_KSEF_STATUS_POLL_TIMEOUT_MS` (default `60000`), `FAKTUROWNIA_KSEF_STATUS_POLL_INTERVAL_MS` (default `5000`). No re-send to KSeF; GET status only. Omitted `gov_status` (`undefined`) is not polled.
 
 **KSeF status mapping** (`gov_status` → `ksefStatus`; V1 indirect KSeF via Fakturownia only):
 

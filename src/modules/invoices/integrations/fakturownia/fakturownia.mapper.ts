@@ -4,6 +4,7 @@ import { normalizeFakturowniaBuyerCountry } from './fakturownia-buyer-country.ut
 import { FakturowniaMapperError } from './fakturownia.errors';
 import type {
   FakturowniaCreateInvoiceResult,
+  FakturowniaInvoiceNumberAssignment,
   FakturowniaInvoiceOrderLinkage,
   FakturowniaInvoicePayload,
   FakturowniaInvoiceRaw,
@@ -25,13 +26,17 @@ const KSEF_SUBMISSION_ERROR = new Set([
 export class FakturowniaMapper {
   toCreatePayload(
     draft: InvoiceDraft,
+    numberAssignment: FakturowniaInvoiceNumberAssignment,
     orderLinkage?: FakturowniaInvoiceOrderLinkage,
   ): FakturowniaInvoicePayload {
+    const numberFields = this.mapNumberFields(numberAssignment);
+
     switch (draft.invoiceType) {
       case 'FULL':
         return {
           kind: 'vat',
           currency: 'PLN',
+          ...numberFields,
           ...this.mapBuyer(draft),
           positions: this.mapPositions(draft),
         };
@@ -40,6 +45,7 @@ export class FakturowniaMapper {
 
         return {
           kind: 'advance',
+          ...numberFields,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           advance_creation_mode: 'amount',
           advance_value: String(draft.advanceAmount),
@@ -51,6 +57,7 @@ export class FakturowniaMapper {
 
         return {
           kind: 'final',
+          ...numberFields,
           copy_invoice_from: this.mapCopyInvoiceFrom(linkage),
           invoice_ids: [Number(draft.previousAdvanceInvoiceId)],
         };
@@ -79,6 +86,16 @@ export class FakturowniaMapper {
             ksefRawStatus: ksefStatus.rawStatus,
           }
         : {}),
+    };
+  }
+
+  private mapNumberFields(
+    numberAssignment: FakturowniaInvoiceNumberAssignment,
+  ): Pick<FakturowniaVatInvoicePayload, 'number' | 'issue_date' | 'sell_date'> {
+    return {
+      number: numberAssignment.number,
+      issue_date: numberAssignment.issueDate,
+      sell_date: numberAssignment.sellDate,
     };
   }
 

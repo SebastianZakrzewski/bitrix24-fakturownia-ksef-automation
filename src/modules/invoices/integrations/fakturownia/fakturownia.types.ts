@@ -20,7 +20,19 @@ export type FakturowniaInvoiceOrderLinkage = {
   fakturowniaOrderNumber?: string | null;
 };
 
-export type FakturowniaVatInvoicePayload = {
+export type FakturowniaInvoiceNumberAssignment = {
+  number: string;
+  issueDate: string;
+  sellDate: string;
+};
+
+export type FakturowniaInvoiceNumberFields = {
+  number: string;
+  issue_date: string;
+  sell_date: string;
+};
+
+export type FakturowniaVatInvoicePayload = FakturowniaInvoiceNumberFields & {
   kind: 'vat';
   currency: 'PLN';
   buyer_name: string;
@@ -32,7 +44,7 @@ export type FakturowniaVatInvoicePayload = {
   positions: FakturowniaPositionPayload[];
 };
 
-export type FakturowniaAdvanceFromOrderPayload = {
+export type FakturowniaAdvanceFromOrderPayload = FakturowniaInvoiceNumberFields & {
   kind: 'advance';
   copy_invoice_from: number;
   advance_creation_mode: 'amount';
@@ -40,7 +52,7 @@ export type FakturowniaAdvanceFromOrderPayload = {
   position_name: string;
 };
 
-export type FakturowniaFinalFromOrderPayload = {
+export type FakturowniaFinalFromOrderPayload = FakturowniaInvoiceNumberFields & {
   kind: 'final';
   copy_invoice_from: number;
   invoice_ids: number[];
@@ -63,6 +75,11 @@ export type FakturowniaInvoiceRaw = {
   price_gross?: number | string;
   currency?: string;
   gov_status?: string | null;
+};
+
+export type FakturowniaInvoiceKsefStatusRaw = {
+  gov_status?: string | null;
+  gov_id?: string | null;
 };
 
 export type FakturowniaHttpFailure = {
@@ -94,6 +111,12 @@ export type FakturowniaOrderRaw = {
   id?: number | string;
   number?: string | null;
   oid?: string;
+};
+
+export type FakturowniaInvoiceListItemRaw = {
+  number?: string | null;
+  issue_date?: string | null;
+  kind?: string | null;
 };
 
 export type FakturowniaCreateOrderResult = {

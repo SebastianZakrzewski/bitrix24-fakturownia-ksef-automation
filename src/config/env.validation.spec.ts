@@ -18,6 +18,8 @@ describe('validateEnv', () => {
       PANEL_API_KEY: 'panel-secret',
       DATABASE_SCHEMA: 'fakturownia-ksef-invoices',
       FAKTUROWNIA_REQUEST_TIMEOUT_MS: 30000,
+      FAKTUROWNIA_KSEF_STATUS_POLL_TIMEOUT_MS: 60000,
+      FAKTUROWNIA_KSEF_STATUS_POLL_INTERVAL_MS: 5000,
       N8N_INVOICE_EMAIL_WEBHOOK_TIMEOUT_MS: 30000,
     });
   });

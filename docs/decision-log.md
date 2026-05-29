@@ -48,6 +48,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Fakturownia KSeF via `gov_status` → integration result only | No direct KSeF API in V1; workflow maps result in use case | High |
 | V1 Fakturownia position mapping omits `unit`; provider default applies | `ProductLine.unit` is always `szt.`; not required in provider payload for V1 | Medium |
 | `FAKTUROWNIA_*` env vars for client auth and timeout | Same pattern as Bitrix24 webhook config | Medium |
+| Custom Fakturownia invoice numbering `{n}/{MM}.{YYYY}` via explicit `number` field | Evapremium monthly reset; bootstrap ENV for May 2026; auto-numbering disabled in Fakturownia | High |
 | `ADVANCE` and `FINAL` require Fakturownia order linkage | Fakturownia API expects advance/final from order via `copy_invoice_from`; one `fakturownia_orders` row per `bitrix_deal_id` | Critical |
 | V1 uses `fakturownia_orders` + `copy_invoice_from` at invoice creation | Persisted order ID links ADVANCE/FINAL payloads to provider order | High |
 | Fakturownia order via `POST /invoices.json` with `kind: estimate` | Official Fakturownia API for Zamówienie documents | High |
@@ -65,6 +66,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | `OPEN_DECISION_FAKTUROWNIA_POSITION_UNIT` | Whether Fakturownia requires explicit position unit (`szt.`) on create-invoice/order | **Deferred** — V1 omits unit field; verify if documents show wrong unit | Low; adjust mapper only if provider rejects or displays incorrect unit |
 | `OPEN_DECISION_FAKTUROWNIA_ACCOUNT_SMOKE_TEST` | Verify create-order + ADVANCE/FINAL invoice with `copy_invoice_from` on Evapremium Fakturownia account | **Not verified** | Task 9 production wiring; may require payload adjustments |
 | `OPEN_DECISION_FAKTUROWNIA_OID_UNIQUE` | Whether to send `oid_unique: yes` on order create to prevent duplicate provider orders on retry | **Deferred** — V1 uses `oid` only; DB unique on `bitrix_deal_id` prevents duplicate persistence | Medium; Task 9 retry/idempotency design |
+| `OPEN_DECISION_FAKTUROWNIA_INVOICE_NUMBER_RACE` | Concurrent invoice creates may allocate same number without DB sequence lock | **Deferred** — V1 uses read-only API max + ENV bootstrap; acceptable for low parallel volume | Medium; add DB sequence table if parallel volume increases |
 
 Context for `OPEN_DECISION_FAKTUROWNIA_ACCOUNT_SMOKE_TEST`:
 - Create-order integration implemented (`FakturowniaOrderMapper`, `FakturowniaOrderService`, `FakturowniaClient.createOrder`).
