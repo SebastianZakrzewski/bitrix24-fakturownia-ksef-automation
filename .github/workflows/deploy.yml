@@ -56,6 +56,17 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync docker-compose.prod.yml
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /opt/fakturownia-ksef-api/
+
       - name: Deploy on Hetzner
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -68,5 +79,16 @@ jobs:
             cd /opt/fakturownia-ksef-api
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml run --rm api npm run db:migrate:prod
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml ps
+            echo "Waiting for API health on host port 3004..."
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3004/health >/dev/null; then
+                echo "API health OK"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "API health check failed; recent logs:"
+            docker compose -f docker-compose.prod.yml logs api --tail 100
+            exit 1

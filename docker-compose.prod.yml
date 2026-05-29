@@ -1,5 +1,6 @@
 # Production compose for Hetzner. Copy to /opt/fakturownia-ksef-api/ with a local .env (chmod 600).
 # Image is built and pushed by GitHub Actions to GHCR.
+# Requires external network docker-caddy_default (Caddy reverse_proxy fakturownia-ksef-api:3004).
 
 services:
   api:
@@ -13,6 +14,9 @@ services:
       PORT: "3004"
     ports:
       - "127.0.0.1:3004:3004"
+    networks:
+      - default
+      - caddy
     healthcheck:
       test:
         [
@@ -25,3 +29,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+networks:
+  default:
+    name: fakturownia-ksef-api_default
+  caddy:
+    external: true
+    name: docker-caddy_default
