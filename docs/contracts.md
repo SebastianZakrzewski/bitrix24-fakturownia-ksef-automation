@@ -324,6 +324,12 @@ Product rules:
 - Main line gross = `OPPORTUNITY` minus sum of product row gross amounts minus shipping cost; if no rows, main line = `OPPORTUNITY` minus shipping cost.
 - Shipping is **not** a dedicated Fakturownia API field — it is sent as a normal `positions[]` item (`name`, `quantity`, `tax`, `total_price_gross`).
 - Zero or missing shipping cost omits the shipping line (no validation error).
+- Product line `unitGrossPrice` / `totalGross` may be `0` (gratis lines); negative values → `INVALID_PRODUCT_LINE`.
+- For `FULL` and `FINAL`, sum of mapped `products[].totalGross` must be `> 0` → otherwise `INVALID_PRODUCT_LINE` on field `products`.
+
+Buyer address rules (`InvoiceValidationService`):
+- Required: `companyName`, `nip`, `street`, `postalCode`, `city`, `customerEmail`.
+- Optional: `country` (empty string in validated `InvoiceDraft.buyer.country` when missing in Bitrix).
 
 ## Fakturownia integration contract
 

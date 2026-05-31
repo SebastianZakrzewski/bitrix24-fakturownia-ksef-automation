@@ -28,7 +28,7 @@ export class InvoiceValidationService {
       errors,
     );
     this.validateBuyer(mapping.buyer, errors);
-    this.validateProducts(mapping.products, errors);
+    this.validateProducts(mapping.products, mapping.invoiceType, errors);
 
     if (mapping.invoiceType === 'ADVANCE') {
       this.validateAdvanceAmount(mapping.advanceAmount, errors);
@@ -51,7 +51,7 @@ export class InvoiceValidationService {
         street: mapping.buyer.street!.trim(),
         postalCode: mapping.buyer.postalCode!.trim(),
         city: mapping.buyer.city!.trim(),
-        country: mapping.buyer.country!.trim(),
+        country: mapping.buyer.country?.trim() ?? '',
         customerEmail: mapping.buyer.customerEmail!.trim().toLowerCase(),
       },
       products: mapping.products,
@@ -149,13 +149,12 @@ export class InvoiceValidationService {
     }
 
     const addressFields: Array<{
-      key: keyof Pick<MappedBuyer, 'street' | 'postalCode' | 'city' | 'country'>;
+      key: keyof Pick<MappedBuyer, 'street' | 'postalCode' | 'city'>;
       label: string;
     }> = [
       { key: 'street', label: 'street' },
       { key: 'postalCode', label: 'postalCode' },
       { key: 'city', label: 'city' },
-      { key: 'country', label: 'country' },
     ];
 
     for (const { key, label } of addressFields) {
@@ -201,7 +200,11 @@ export class InvoiceValidationService {
     }
   }
 
-  private validateProducts(products: ProductLine[], errors: ValidationError[]): void {
+  private validateProducts(
+    products: ProductLine[],
+    invoiceType: BitrixInvoiceMappingResult['invoiceType'],
+    errors: ValidationError[],
+  ): void {
     if (products.length === 0) {
       errors.push(
         this.error(
@@ -237,23 +240,38 @@ export class InvoiceValidationService {
         );
       }
 
-      if (line.unitGrossPrice <= 0) {
+      if (line.unitGrossPrice < 0) {
         errors.push(
           this.error(
             'INVALID_PRODUCT_LINE',
-            'Product line unit gross price must be greater than zero.',
+            'Product line unit gross price must not be negative.',
             line.sourceId ?? 'unitGrossPrice',
             'PRODUCT_MAPPING',
           ),
         );
       }
 
-      if (line.totalGross <= 0) {
+      if (line.totalGross < 0) {
         errors.push(
           this.error(
             'INVALID_PRODUCT_LINE',
-            'Product line total gross must be greater than zero.',
+            'Product line total gross must not be negative.',
             line.sourceId ?? 'totalGross',
+            'PRODUCT_MAPPING',
+          ),
+        );
+      }
+    }
+
+    if (invoiceType === 'FULL' || invoiceType === 'FINAL') {
+      const totalGross = products.reduce((sum, line) => sum + line.totalGross, 0);
+
+      if (totalGross <= 0) {
+        errors.push(
+          this.error(
+            'INVALID_PRODUCT_LINE',
+            'Invoice total gross must be greater than zero.',
+            'products',
             'PRODUCT_MAPPING',
           ),
         );

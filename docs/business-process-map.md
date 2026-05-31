@@ -18,8 +18,8 @@ Given a Bitrix24 deal changes to paid stage `Opłacone`, when Bitrix24 automatio
 ## Required start conditions
 - Deal has invoice type.
 - Deal has linked `Company`.
-- `Company` has NIP, name, street, postal code, city, country.
-- Deal can produce a non-empty valid `products[]` list.
+- `Company` has NIP, name, street, postal code, city (`country` optional).
+- Deal can produce a non-empty valid `products[]` list with total gross `> 0` for `FULL`/`FINAL`.
 - Invoice type-specific conditions are satisfied.
 
 ## Invoice types
@@ -43,6 +43,7 @@ Rules:
 - Shipping line is optional; omitted when cost is zero or missing.
 - Empty final `products[]` blocks invoice creation.
 - One invalid product line blocks the whole invoice.
+- Gratis product lines (`0` PLN) are allowed when invoice total gross remains `> 0` for `FULL`/`FINAL`.
 - The system never silently drops invalid lines and invoices only the remaining products.
 
 ## Validation failures
@@ -114,7 +115,7 @@ Given invoice creation and KSeF submission are confirmed (or manual review clear
 | Missing company | Given deal has no `Company`, when process starts, then no invoice |
 | Missing NIP | Given `Company` lacks NIP, when buyer validation runs, then no invoice |
 | Missing products | Given no valid `ProductLine`, when mapping finishes, then no invoice |
-| Invalid product line | Given one line has missing price/quantity/name, when validating products, then whole invoice is blocked |
+| Invalid product line | Given one line has missing/negative price, invalid quantity/name, or FULL/FINAL total gross is zero, when validating products, then whole invoice is blocked |
 | Duplicate | Given successful same type invoice exists for deal, when trigger repeats, then no second invoice |
 | Fakturownia timeout | Given timeout after create request, then `UNKNOWN_AFTER_TIMEOUT` and manual verification required |
 | KSeF error/unknown | Given invoice exists but KSeF is error/unknown, then invoice remains and manual review is required |

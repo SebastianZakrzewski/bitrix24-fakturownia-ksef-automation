@@ -95,8 +95,10 @@ type ProductLine = {
 Validation:
 - Empty `name` -> block invoice.
 - `quantity <= 0` -> block invoice.
-- `unitGrossPrice <= 0` -> block invoice.
-- `totalGross <= 0` -> block invoice.
+- `unitGrossPrice < 0` -> block invoice.
+- `totalGross < 0` -> block invoice.
+- Zero `unitGrossPrice` / `totalGross` on a line is allowed (gratis lines).
+- For `FULL` and `FINAL`, sum of `products[].totalGross` must be `> 0`.
 - One invalid line blocks whole invoice.
 
 ## InvoiceDraft
@@ -119,5 +121,7 @@ type InvoiceDraft = {
   vatRate: 23;
 };
 ```
+
+`buyer.country` may be an empty string when Bitrix company has no country; street, postal code and city remain required.
 
 `InvoiceDraft` is an internal validated model. Fakturownia receives only a payload mapped from this draft, not raw Bitrix data.

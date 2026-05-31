@@ -183,6 +183,44 @@ export const bitrixCompanyNoNip = (): BitrixCompanyData => ({
   nip: undefined,
 });
 
+export const bitrixCompanyNoCountry = (): BitrixCompanyData => ({
+  ...bitrixCompanyValidFixture(),
+  country: undefined,
+});
+
+export const bitrixProductRowsWithFreeLineFixture = (): BitrixProductRow[] => [
+  {
+    id: '301',
+    productName: 'Gratis dodatek',
+    quantity: 1,
+    grossPrice: 0,
+  },
+  {
+    id: '302',
+    productName: 'Panel premium',
+    quantity: 1,
+    grossPrice: 5000,
+  },
+];
+
+export const bitrixProductRowsAllFreeFixture = (): BitrixProductRow[] => [
+  {
+    id: '401',
+    productName: 'Gratis dodatek',
+    quantity: 1,
+    grossPrice: 0,
+  },
+];
+
+export const bitrixProductRowNegativePriceFixture = (): BitrixProductRow[] => [
+  {
+    id: '501',
+    productName: 'Invalid line',
+    quantity: 1,
+    grossPrice: -100,
+  },
+];
+
 export const bitrixProductRowInvalidFixture = (): BitrixProductRow[] => [
   {
     id: '201',

@@ -2,6 +2,7 @@ import { BitrixInvoiceMapper } from '../mappers/bitrix-invoice.mapper';
 import {
   bitrixCompanyInvalidEmail,
   bitrixCompanyMissingEmail,
+  bitrixCompanyNoCountry,
   bitrixCompanyNoNip,
   bitrixCompanyValidFixture,
   bitrixDealAdvanceNoAmount,
@@ -12,7 +13,11 @@ import {
   bitrixDealForFull,
   bitrixDealMissingInvoiceType,
   bitrixDealNoCompany,
+  bitrixDealWithOpportunity,
   bitrixProductRowInvalidFixture,
+  bitrixProductRowNegativePriceFixture,
+  bitrixProductRowsAllFreeFixture,
+  bitrixProductRowsWithFreeLineFixture,
   evapremiumClientConfigFixture,
 } from '../testing/invoice-mapping.fixtures';
 import { InvoiceDraftBuilderService } from './invoice-draft-builder.service';
@@ -65,6 +70,24 @@ describe('InvoiceValidationService', () => {
         expect(result.data.invoiceType).toBe('FINAL');
         expect(result.data.previousAdvanceInvoiceId).toBe('rec-advance-1');
       }
+    });
+    it('validates FULL mapping without buyer country', () => {
+      const result = mapAndValidate(bitrixDealForFull(), bitrixCompanyNoCountry());
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.buyer.country).toBe('');
+      }
+    });
+
+    it('validates FULL mapping with free product lines when total gross is positive', () => {
+      const deal = bitrixDealForFull({
+        productRows: bitrixProductRowsWithFreeLineFixture(),
+      });
+
+      const result = mapAndValidate(deal, bitrixCompanyValidFixture());
+
+      expect(result.ok).toBe(true);
     });
   });
 
@@ -126,6 +149,61 @@ describe('InvoiceValidationService', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors.some((e) => e.code === 'INVALID_PRODUCT_LINE')).toBe(true);
+      }
+    });
+
+    it('returns INVALID_PRODUCT_LINE when all product lines are free for FULL', () => {
+      const deal = bitrixDealWithOpportunity(0, bitrixProductRowsAllFreeFixture());
+
+      const result = mapAndValidate(deal, bitrixCompanyValidFixture());
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: 'INVALID_PRODUCT_LINE',
+            field: 'products',
+            source: 'PRODUCT_MAPPING',
+          }),
+        );
+      }
+    });
+
+    it('returns INVALID_PRODUCT_LINE for negative product gross price', () => {
+      const deal = bitrixDealForFull({
+        productRows: bitrixProductRowNegativePriceFixture(),
+      });
+
+      const result = mapAndValidate(deal, bitrixCompanyValidFixture());
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: 'INVALID_PRODUCT_LINE',
+            field: '501',
+            source: 'PRODUCT_MAPPING',
+          }),
+        );
+      }
+    });
+
+    it('returns MISSING_COMPANY_ADDRESS when street is missing but country is optional', () => {
+      const company = bitrixCompanyNoCountry();
+      company.street = undefined;
+
+      const result = mapAndValidate(bitrixDealForFull(), company);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({
+            code: 'MISSING_COMPANY_ADDRESS',
+            field: 'street',
+            source: 'BITRIX_COMPANY',
+          }),
+        );
+        expect(result.errors.some((e) => e.field === 'country')).toBe(false);
       }
     });
 
