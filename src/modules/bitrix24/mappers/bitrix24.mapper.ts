@@ -146,11 +146,23 @@ export class Bitrix24Mapper {
     }
 
     return {
-      street: streetParts.join(' '),
+      street: this.joinCrmAddressStreetParts(streetParts),
       postalCode: this.toOptionalString(addressRaw.POSTAL_CODE)?.trim(),
       city: this.toOptionalString(addressRaw.CITY),
       country: this.toOptionalString(addressRaw.COUNTRY),
     };
+  }
+
+  private joinCrmAddressStreetParts(parts: string[]): string {
+    if (parts.length === 1) {
+      return parts[0]!;
+    }
+
+    const [address1, address2] = parts;
+    const housePart = address1.replace(/\/+$/, '');
+    const unitPart = address2.replace(/^\/+/, '');
+
+    return `${housePart}/${unitPart}`;
   }
 
   private buildDealUrl(dealId: string, portalBaseUrl?: string): string | undefined {

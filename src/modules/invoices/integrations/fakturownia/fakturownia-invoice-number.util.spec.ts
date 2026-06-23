@@ -1,9 +1,12 @@
 import {
   formatInvoiceNumber,
   getWarsawDateParts,
+  invoiceNumberFormatsAreDistinct,
   mapInvoiceTypeToFakturowniaKind,
   maxInvoiceNumberSequence,
+  parseAdvanceDatedSequence,
   parseAdvancePrefixedSequence,
+  parseFinalDatedSequence,
   parseFinalPrefixedSequence,
   parseInvoiceNumberSequence,
   resolveNextInvoiceSequence,
@@ -20,8 +23,34 @@ describe('fakturownia-invoice-number.util', () => {
   });
 
   describe('formatInvoiceNumber', () => {
-    it('formats sequence as n/MM/YYYY', () => {
-      expect(formatInvoiceNumber(39, '2026-05')).toBe('39/05/2026');
+    it('formats FULL as n/MM/YYYY', () => {
+      expect(formatInvoiceNumber(39, '2026-05', 'FULL')).toBe('39/05/2026');
+    });
+
+    it('formats ADVANCE with Z prefix', () => {
+      expect(formatInvoiceNumber(28, '2026-05', 'ADVANCE')).toBe('Z28/05/2026');
+    });
+
+    it('formats FINAL with ZK prefix', () => {
+      expect(formatInvoiceNumber(35, '2026-05', 'FINAL')).toBe('ZK35/05/2026');
+    });
+  });
+
+  describe('invoiceNumberFormatsAreDistinct', () => {
+    it('never produces identical numbers across FULL, ADVANCE and FINAL', () => {
+      for (const sequence of [1, 28, 39, 100]) {
+        expect(invoiceNumberFormatsAreDistinct(sequence, '2026-06')).toBe(true);
+
+        const numbers = (['FULL', 'ADVANCE', 'FINAL'] as const).map(
+          (invoiceType) => formatInvoiceNumber(sequence, '2026-06', invoiceType),
+        );
+
+        expect(new Set(numbers).size).toBe(3);
+      }
+
+      expect(formatInvoiceNumber(1, '2026-06', 'FULL')).toBe('1/06/2026');
+      expect(formatInvoiceNumber(1, '2026-06', 'ADVANCE')).toBe('Z1/06/2026');
+      expect(formatInvoiceNumber(1, '2026-06', 'FINAL')).toBe('ZK1/06/2026');
     });
   });
 
@@ -39,32 +68,59 @@ describe('fakturownia-invoice-number.util', () => {
       expect(parseInvoiceNumberSequence('29/04/2026', '05.2026')).toBeNull();
     });
 
-    it('ignores invalid formats', () => {
+    it('ignores prefixed formats', () => {
+      expect(parseInvoiceNumberSequence('Z38/05/2026', '05.2026')).toBeNull();
+      expect(parseInvoiceNumberSequence('ZK38/05/2026', '05.2026')).toBeNull();
       expect(parseInvoiceNumberSequence('FV/1/2026', '05.2026')).toBeNull();
       expect(parseInvoiceNumberSequence(undefined, '05.2026')).toBeNull();
     });
   });
 
+  describe('parseAdvanceDatedSequence', () => {
+    it('parses Z-prefixed dated advance numbers', () => {
+      expect(parseAdvanceDatedSequence('Z28/05/2026', '05.2026')).toBe(28);
+      expect(parseAdvanceDatedSequence('Z28/05.2026', '05.2026')).toBe(28);
+    });
+
+    it('ignores other formats', () => {
+      expect(parseAdvanceDatedSequence('28/05/2026', '05.2026')).toBeNull();
+      expect(parseAdvanceDatedSequence('Z1', '05.2026')).toBeNull();
+    });
+  });
+
+  describe('parseFinalDatedSequence', () => {
+    it('parses ZK-prefixed dated final numbers', () => {
+      expect(parseFinalDatedSequence('ZK35/05/2026', '05.2026')).toBe(35);
+    });
+
+    it('ignores other formats', () => {
+      expect(parseFinalDatedSequence('35/05/2026', '05.2026')).toBeNull();
+      expect(parseFinalDatedSequence('ZK1', '05.2026')).toBeNull();
+    });
+  });
+
   describe('parseAdvancePrefixedSequence', () => {
-    it('parses Z-prefixed advance numbers', () => {
+    it('parses legacy Z-prefixed advance numbers', () => {
       expect(parseAdvancePrefixedSequence('Z1')).toBe(1);
       expect(parseAdvancePrefixedSequence('Z26')).toBe(26);
     });
 
-    it('ignores non-Z formats', () => {
+    it('ignores non-legacy formats', () => {
       expect(parseAdvancePrefixedSequence('ZK1')).toBeNull();
+      expect(parseAdvancePrefixedSequence('Z26/05/2026')).toBeNull();
       expect(parseAdvancePrefixedSequence('26/05/2026')).toBeNull();
     });
   });
 
   describe('parseFinalPrefixedSequence', () => {
-    it('parses ZK-prefixed final numbers', () => {
+    it('parses legacy ZK-prefixed final numbers', () => {
       expect(parseFinalPrefixedSequence('ZK1')).toBe(1);
       expect(parseFinalPrefixedSequence('ZK33')).toBe(33);
     });
 
-    it('ignores non-ZK formats', () => {
+    it('ignores non-legacy formats', () => {
       expect(parseFinalPrefixedSequence('Z1')).toBeNull();
+      expect(parseFinalPrefixedSequence('ZK33/05/2026')).toBeNull();
       expect(parseFinalPrefixedSequence('33/05/2026')).toBeNull();
     });
   });
@@ -80,7 +136,17 @@ describe('fakturownia-invoice-number.util', () => {
       ).toBe(38);
     });
 
-    it('adds one sequence slot per Z-prefixed ADVANCE invoice', () => {
+    it('uses dated Z-prefixed ADVANCE numbers for max sequence', () => {
+      expect(
+        maxInvoiceNumberSequence(
+          ['Z26/05/2026', 'Z27/05/2026'],
+          '2026-05',
+          'ADVANCE',
+        ),
+      ).toBe(27);
+    });
+
+    it('adds one sequence slot per legacy Z-prefixed ADVANCE invoice', () => {
       expect(
         maxInvoiceNumberSequence(
           ['26/05/2026', 'Z1', '24/05/2026'],
@@ -90,7 +156,17 @@ describe('fakturownia-invoice-number.util', () => {
       ).toBe(27);
     });
 
-    it('adds one sequence slot per ZK-prefixed FINAL invoice', () => {
+    it('uses dated ZK-prefixed FINAL numbers for max sequence', () => {
+      expect(
+        maxInvoiceNumberSequence(
+          ['ZK33/05/2026', 'ZK34/05/2026'],
+          '2026-05',
+          'FINAL',
+        ),
+      ).toBe(34);
+    });
+
+    it('adds one sequence slot per legacy ZK-prefixed FINAL invoice', () => {
       expect(
         maxInvoiceNumberSequence(
           ['33/05/2026', 'ZK1', '32/05/2026'],
@@ -100,7 +176,7 @@ describe('fakturownia-invoice-number.util', () => {
       ).toBe(34);
     });
 
-    it('counts only prefixed ADVANCE invoices when no numeric numbers exist', () => {
+    it('counts only legacy prefixed ADVANCE invoices when no dated numbers exist', () => {
       expect(maxInvoiceNumberSequence(['Z1', 'Z2'], '2026-05', 'ADVANCE')).toBe(
         2,
       );

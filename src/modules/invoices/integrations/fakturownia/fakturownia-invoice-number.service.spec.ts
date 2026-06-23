@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AppEnv } from '../../../../config/env.validation';
 import { FakturowniaClient } from './fakturownia.client';
 import { FakturowniaInvoiceNumberService } from './fakturownia-invoice-number.service';
+import { invoiceNumberFormatsAreDistinct } from './fakturownia-invoice-number.util';
 
 describe('FakturowniaInvoiceNumberService', () => {
   const referenceDate = new Date('2026-05-29T12:00:00.000Z');
@@ -36,7 +37,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
   });
 
-  it('allocates next ADVANCE number including Z-prefixed invoices', async () => {
+  it('allocates next ADVANCE number with Z prefix including legacy invoices', async () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
@@ -49,11 +50,11 @@ describe('FakturowniaInvoiceNumberService', () => {
     const service = createService(client);
 
     await expect(service.allocate('ADVANCE', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '28/05/2026' }),
+      expect.objectContaining({ number: 'Z28/05/2026' }),
     );
   });
 
-  it('allocates next FINAL number including ZK-prefixed invoices', async () => {
+  it('allocates next FINAL number with ZK prefix including legacy invoices', async () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
@@ -66,7 +67,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     const service = createService(client);
 
     await expect(service.allocate('FINAL', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '35/05/2026' }),
+      expect.objectContaining({ number: 'ZK35/05/2026' }),
     );
   });
 
@@ -93,7 +94,7 @@ describe('FakturowniaInvoiceNumberService', () => {
     );
   });
 
-  it('allocates bootstrap ADVANCE number above API max', async () => {
+  it('allocates bootstrap ADVANCE number above API max with Z prefix', async () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
@@ -106,11 +107,11 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
 
     await expect(service.allocate('ADVANCE', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '28/05/2026' }),
+      expect.objectContaining({ number: 'Z28/05/2026' }),
     );
   });
 
-  it('allocates bootstrap FINAL number above API max', async () => {
+  it('allocates bootstrap FINAL number above API max with ZK prefix', async () => {
     const client = {
       listInvoicesForIssueMonth: jest
         .fn()
@@ -123,11 +124,11 @@ describe('FakturowniaInvoiceNumberService', () => {
     });
 
     await expect(service.allocate('FINAL', referenceDate)).resolves.toEqual(
-      expect.objectContaining({ number: '35/05/2026' }),
+      expect.objectContaining({ number: 'ZK35/05/2026' }),
     );
   });
 
-  it('resets to 1 outside bootstrap month', async () => {
+  it('resets to prefixed 1 outside bootstrap month', async () => {
     const client = {
       listInvoicesForIssueMonth: jest.fn().mockResolvedValue([]),
     };
@@ -142,5 +143,38 @@ describe('FakturowniaInvoiceNumberService', () => {
     await expect(service.allocate('FULL', juneDate)).resolves.toEqual(
       expect.objectContaining({ number: '1/06/2026' }),
     );
+    await expect(service.allocate('ADVANCE', juneDate)).resolves.toEqual(
+      expect.objectContaining({ number: 'Z1/06/2026' }),
+    );
+    await expect(service.allocate('FINAL', juneDate)).resolves.toEqual(
+      expect.objectContaining({ number: 'ZK1/06/2026' }),
+    );
+  });
+
+  it('never allocates identical numbers across invoice types in the same month', async () => {
+    const juneDate = new Date('2026-06-08T23:19:34.000+02:00');
+    const responses: Record<'vat' | 'advance' | 'final', Array<{ number: string; issue_date: string }>> = {
+      vat: [],
+      advance: [{ number: '1/06/2026', issue_date: '2026-06-01' }],
+      final: [],
+    };
+
+    const client = {
+      listInvoicesForIssueMonth: jest.fn(
+        async (kind: 'vat' | 'advance' | 'final') => responses[kind],
+      ),
+    };
+
+    const service = createService(client);
+    const allocated: string[] = [];
+
+    for (const invoiceType of ['FULL', 'ADVANCE', 'FINAL'] as const) {
+      const assignment = await service.allocate(invoiceType, juneDate);
+      allocated.push(assignment.number);
+      expect(invoiceNumberFormatsAreDistinct(1, '2026-06')).toBe(true);
+    }
+
+    expect(new Set(allocated).size).toBe(allocated.length);
+    expect(allocated).toEqual(['1/06/2026', 'Z2/06/2026', 'ZK1/06/2026']);
   });
 });

@@ -44,7 +44,7 @@ export class FakturowniaInvoiceNumberService {
     });
 
     return {
-      number: formatInvoiceNumber(nextSequence, yearMonth),
+      number: formatInvoiceNumber(nextSequence, yearMonth, invoiceType),
       issueDate: isoDate,
       sellDate: isoDate,
     };

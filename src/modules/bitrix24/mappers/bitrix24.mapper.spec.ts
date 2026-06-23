@@ -66,11 +66,80 @@ describe('Bitrix24Mapper', () => {
       companyId: '7',
       name: 'Evapremium Sp. z o.o.',
       nip: '1234567890',
-      street: 'Filtrowa 34 LA1',
+      street: 'Filtrowa 34/LA1',
       postalCode: '85-467',
       city: 'Bydgoszcz',
       country: 'Poland',
     });
+  });
+
+  it('joins ADDRESS_1 and ADDRESS_2 with slash for Polish house and unit format', () => {
+    const company = mapper.mapCompany(
+      bitrixCompanyRawFixture(),
+      bitrixRequisiteRawFixture(),
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: {
+          ...bitrixAddressRawFixture(),
+          ADDRESS_1: 'Towarowa 10',
+          ADDRESS_2: '8',
+        },
+      },
+    );
+
+    expect(company.street).toBe('Towarowa 10/8');
+  });
+
+  it('uses ADDRESS_1 only when ADDRESS_2 is missing', () => {
+    const company = mapper.mapCompany(
+      bitrixCompanyRawFixture(),
+      bitrixRequisiteRawFixture(),
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: {
+          ...bitrixAddressRawFixture(),
+          ADDRESS_1: 'Towarowa 10',
+          ADDRESS_2: undefined,
+        },
+      },
+    );
+
+    expect(company.street).toBe('Towarowa 10');
+  });
+
+  it('leaves street undefined when crm address lines are empty and no fallback source', () => {
+    const company = mapper.mapCompany(
+      bitrixCompanyRawFixture(),
+      undefined,
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: {
+          ...bitrixAddressRawFixture(),
+          ADDRESS_1: undefined,
+          ADDRESS_2: undefined,
+        },
+      },
+    );
+
+    expect(company.street).toBeUndefined();
+    expect(company.postalCode).toBe('85-467');
+  });
+
+  it('normalizes duplicate slashes when crm address parts already contain slash', () => {
+    const company = mapper.mapCompany(
+      bitrixCompanyRawFixture(),
+      bitrixRequisiteRawFixture(),
+      {
+        addressSource: 'CRM_ADDRESS_LIST',
+        addressRaw: {
+          ...bitrixAddressRawFixture(),
+          ADDRESS_1: 'Towarowa 10/',
+          ADDRESS_2: '/8',
+        },
+      },
+    );
+
+    expect(company.street).toBe('Towarowa 10/8');
   });
 
   it('prefers crm.address.list over requisite address fields for CRM_ADDRESS_LIST', () => {
@@ -89,7 +158,7 @@ describe('Bitrix24Mapper', () => {
       },
     );
 
-    expect(company.street).toBe('Filtrowa 34 LA1');
+    expect(company.street).toBe('Filtrowa 34/LA1');
     expect(company.postalCode).toBe('85-467');
     expect(company.city).toBe('Bydgoszcz');
     expect(company.country).toBe('Poland');

@@ -16,6 +16,7 @@
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
     "db:migrate": "ts-node -r tsconfig-paths/register scripts/db-migrate.ts",
     "db:migrate:prod": "node scripts/db-migrate.prod.cjs",
+    "db:clear": "ts-node -r tsconfig-paths/register scripts/db-clear.ts",
     "live-test:full": "ts-node scripts/live-tests/run-live-test.ts full",
     "live-test:advance": "ts-node scripts/live-tests/run-live-test.ts advance",
     "live-test:final": "ts-node scripts/live-tests/run-live-test.ts final",

@@ -359,14 +359,17 @@ Rules:
 
 Backend assigns explicit Fakturownia `number` before create. Fakturownia account auto-numbering must be disabled by operator.
 
-Format: `{n}/{MM}/{YYYY}` — e.g. `39/05/2026`.
+Formats (must be globally unique across `InvoiceType`):
+- `FULL`: `{n}/{MM}/{YYYY}` — e.g. `39/05/2026`
+- `ADVANCE`: `Z{n}/{MM}/{YYYY}` — e.g. `Z28/05/2026`
+- `FINAL`: `ZK{n}/{MM}/{YYYY}` — e.g. `ZK35/05/2026`
 
 Rules:
 - Separate sequence per `InvoiceType` (`FULL` → `vat`, `ADVANCE` → `advance`, `FINAL` → `final`).
-- Sequence resets each calendar month (Europe/Warsaw): first invoice in a new month starts at `1/{MM}/{YYYY}` unless bootstrap month applies.
+- Sequence resets each calendar month (Europe/Warsaw): first invoice in a new month starts at sequence `1` with the type prefix unless bootstrap month applies.
 - Bootstrap month (ENV): `next = max(apiMaxInMonth + 1, envBootstrapNext)` for matching `YYYY-MM`.
 - Non-bootstrap months: `next = max(apiMaxInMonth + 1, 1)`.
-- `apiMaxInMonth` is read-only from Fakturownia `GET /invoices.json` filtered by `kind` and `issue_date` prefix `YYYY-MM`. Parser accepts legacy `{n}/{MM}.{YYYY}` and current `{n}/{MM}/{YYYY}` when reading existing invoices. For `ADVANCE` / `FINAL`, each additional prefixed invoice in the month adds one slot: `Z*` (advance) or `ZK*` (final) counts as `+1` on top of the highest numeric `{n}` in that month. New invoices are assigned `{n}/{MM}/{YYYY}`.
+- `apiMaxInMonth` is read-only from Fakturownia `GET /invoices.json` filtered by `kind` and `issue_date` prefix `YYYY-MM`. Parser accepts legacy `{n}/{MM}.{YYYY}` and current `{n}/{MM}/{YYYY}` when reading existing FULL invoices. For `ADVANCE` / `FINAL`, parser also accepts legacy `Z*` / `ZK*` (no date suffix) and current `Z{n}/{MM}/{YYYY}` / `ZK{n}/{MM}/{YYYY}`. Each legacy prefixed invoice in the month adds one slot on top of the highest parsed sequence in that month.
 - Payload also sets `issue_date` and `sell_date` (ISO `YYYY-MM-DD`, Europe/Warsaw calendar day).
 
 Implementation: `FakturowniaInvoiceNumberService.allocate()` → `FakturowniaMapper.toCreatePayload(..., numberAssignment)`.

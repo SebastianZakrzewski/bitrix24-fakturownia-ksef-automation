@@ -2,9 +2,11 @@ import type { InvoiceType } from '../../types/invoice.types';
 
 export type FakturowniaInvoiceKind = 'vat' | 'advance' | 'final';
 
-const INVOICE_NUMBER_PATTERN = /^(\d+)\/(\d{2})[./](\d{4})$/;
-const ADVANCE_PREFIX_NUMBER_PATTERN = /^Z(\d+)$/i;
-const FINAL_PREFIX_NUMBER_PATTERN = /^ZK(\d+)$/i;
+const FULL_INVOICE_NUMBER_PATTERN = /^(\d+)\/(\d{2})[./](\d{4})$/;
+const ADVANCE_DATED_NUMBER_PATTERN = /^Z(\d+)\/(\d{2})[./](\d{4})$/i;
+const FINAL_DATED_NUMBER_PATTERN = /^ZK(\d+)\/(\d{2})[./](\d{4})$/i;
+const ADVANCE_LEGACY_PREFIX_NUMBER_PATTERN = /^Z(\d+)$/i;
+const FINAL_LEGACY_PREFIX_NUMBER_PATTERN = /^ZK(\d+)$/i;
 
 export function mapInvoiceTypeToFakturowniaKind(
   invoiceType: InvoiceType,
@@ -32,6 +34,7 @@ export function yearMonthToMonthPeriod(yearMonth: string): string {
 export function formatInvoiceNumber(
   sequence: number,
   yearMonth: string,
+  invoiceType: InvoiceType,
 ): string {
   const [year, month] = yearMonth.split('-');
 
@@ -39,11 +42,35 @@ export function formatInvoiceNumber(
     throw new Error(`Invalid year-month value: ${yearMonth}`);
   }
 
-  return `${sequence}/${month}/${year}`;
+  const datedSuffix = `${sequence}/${month}/${year}`;
+
+  switch (invoiceType) {
+    case 'FULL':
+      return datedSuffix;
+    case 'ADVANCE':
+      return `Z${datedSuffix}`;
+    case 'FINAL':
+      return `ZK${datedSuffix}`;
+  }
 }
 
 export function monthPeriodToSlashForm(monthPeriod: string): string {
   return monthPeriod.replace('.', '/');
+}
+
+function matchesMonthPeriod(
+  month: string,
+  year: string,
+  expectedMonthPeriod: string,
+): boolean {
+  const actualDotPeriod = `${month}.${year}`;
+  const actualSlashPeriod = `${month}/${year}`;
+  const expectedSlashPeriod = monthPeriodToSlashForm(expectedMonthPeriod);
+
+  return (
+    actualDotPeriod === expectedMonthPeriod ||
+    actualSlashPeriod === expectedSlashPeriod
+  );
 }
 
 export function parseInvoiceNumberSequence(
@@ -54,7 +81,7 @@ export function parseInvoiceNumberSequence(
     return null;
   }
 
-  const match = INVOICE_NUMBER_PATTERN.exec(number.trim());
+  const match = FULL_INVOICE_NUMBER_PATTERN.exec(number.trim());
 
   if (!match) {
     return null;
@@ -62,14 +89,60 @@ export function parseInvoiceNumberSequence(
 
   const month = match[2]!;
   const year = match[3]!;
-  const actualDotPeriod = `${month}.${year}`;
-  const actualSlashPeriod = `${month}/${year}`;
-  const expectedSlashPeriod = monthPeriodToSlashForm(expectedMonthPeriod);
 
-  if (
-    actualDotPeriod !== expectedMonthPeriod &&
-    actualSlashPeriod !== expectedSlashPeriod
-  ) {
+  if (!matchesMonthPeriod(month, year, expectedMonthPeriod)) {
+    return null;
+  }
+
+  const sequence = Number.parseInt(match[1]!, 10);
+
+  return Number.isNaN(sequence) ? null : sequence;
+}
+
+export function parseAdvanceDatedSequence(
+  number: string | null | undefined,
+  expectedMonthPeriod: string,
+): number | null {
+  if (!number) {
+    return null;
+  }
+
+  const match = ADVANCE_DATED_NUMBER_PATTERN.exec(number.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const month = match[2]!;
+  const year = match[3]!;
+
+  if (!matchesMonthPeriod(month, year, expectedMonthPeriod)) {
+    return null;
+  }
+
+  const sequence = Number.parseInt(match[1]!, 10);
+
+  return Number.isNaN(sequence) ? null : sequence;
+}
+
+export function parseFinalDatedSequence(
+  number: string | null | undefined,
+  expectedMonthPeriod: string,
+): number | null {
+  if (!number) {
+    return null;
+  }
+
+  const match = FINAL_DATED_NUMBER_PATTERN.exec(number.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const month = match[2]!;
+  const year = match[3]!;
+
+  if (!matchesMonthPeriod(month, year, expectedMonthPeriod)) {
     return null;
   }
 
@@ -85,7 +158,7 @@ export function parseAdvancePrefixedSequence(
     return null;
   }
 
-  const match = ADVANCE_PREFIX_NUMBER_PATTERN.exec(number.trim());
+  const match = ADVANCE_LEGACY_PREFIX_NUMBER_PATTERN.exec(number.trim());
 
   if (!match) {
     return null;
@@ -103,7 +176,7 @@ export function parseFinalPrefixedSequence(
     return null;
   }
 
-  const match = FINAL_PREFIX_NUMBER_PATTERN.exec(number.trim());
+  const match = FINAL_LEGACY_PREFIX_NUMBER_PATTERN.exec(number.trim());
 
   if (!match) {
     return null;
@@ -114,11 +187,15 @@ export function parseFinalPrefixedSequence(
   return Number.isNaN(sequence) ? null : sequence;
 }
 
-function extractInvoiceNumberSequence(
-  number: string | null | undefined,
-  monthPeriod: string,
-): number | null {
-  return parseInvoiceNumberSequence(number, monthPeriod);
+export function invoiceNumberFormatsAreDistinct(
+  sequence: number,
+  yearMonth: string,
+): boolean {
+  const numbers = (['FULL', 'ADVANCE', 'FINAL'] as const).map((invoiceType) =>
+    formatInvoiceNumber(sequence, yearMonth, invoiceType),
+  );
+
+  return new Set(numbers).size === numbers.length;
 }
 
 export function maxInvoiceNumberSequence(
@@ -130,7 +207,7 @@ export function maxInvoiceNumberSequence(
 
   if (invoiceType === 'FULL') {
     return numbers.reduce((max, number) => {
-      const sequence = extractInvoiceNumberSequence(number, monthPeriod);
+      const sequence = parseInvoiceNumberSequence(number, monthPeriod);
 
       if (sequence === null) {
         return max;
@@ -141,27 +218,51 @@ export function maxInvoiceNumberSequence(
   }
 
   let numericMax = 0;
-  let prefixedCount = 0;
+  let legacyPrefixedCount = 0;
 
   for (const number of numbers) {
-    const standardSequence = extractInvoiceNumberSequence(number, monthPeriod);
+    if (invoiceType === 'ADVANCE') {
+      const advanceDatedSequence = parseAdvanceDatedSequence(number, monthPeriod);
 
-    if (standardSequence !== null) {
-      numericMax = Math.max(numericMax, standardSequence);
+      if (advanceDatedSequence !== null) {
+        numericMax = Math.max(numericMax, advanceDatedSequence);
+        continue;
+      }
+
+      const legacyPlainSequence = parseInvoiceNumberSequence(number, monthPeriod);
+
+      if (legacyPlainSequence !== null) {
+        numericMax = Math.max(numericMax, legacyPlainSequence);
+        continue;
+      }
+
+      if (parseAdvancePrefixedSequence(number) !== null) {
+        legacyPrefixedCount += 1;
+      }
+
       continue;
     }
 
-    if (invoiceType === 'ADVANCE' && parseAdvancePrefixedSequence(number) !== null) {
-      prefixedCount += 1;
+    const finalDatedSequence = parseFinalDatedSequence(number, monthPeriod);
+
+    if (finalDatedSequence !== null) {
+      numericMax = Math.max(numericMax, finalDatedSequence);
       continue;
     }
 
-    if (invoiceType === 'FINAL' && parseFinalPrefixedSequence(number) !== null) {
-      prefixedCount += 1;
+    const legacyPlainSequence = parseInvoiceNumberSequence(number, monthPeriod);
+
+    if (legacyPlainSequence !== null) {
+      numericMax = Math.max(numericMax, legacyPlainSequence);
+      continue;
+    }
+
+    if (parseFinalPrefixedSequence(number) !== null) {
+      legacyPrefixedCount += 1;
     }
   }
 
-  return numericMax + prefixedCount;
+  return numericMax + legacyPrefixedCount;
 }
 
 export function resolveNextInvoiceSequence(options: {

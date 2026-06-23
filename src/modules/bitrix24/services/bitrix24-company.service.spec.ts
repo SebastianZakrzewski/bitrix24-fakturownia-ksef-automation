@@ -69,7 +69,7 @@ describe('Bitrix24CompanyService', () => {
     expect(company).toMatchObject({
       companyId: '7',
       nip: '1234567890',
-      street: 'Filtrowa 34 LA1',
+      street: 'Filtrowa 34/LA1',
       postalCode: '85-467',
       city: 'Bydgoszcz',
       country: 'Poland',
