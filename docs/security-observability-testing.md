@@ -50,16 +50,16 @@ AI may be considered in V2/V3 for explanations, diagnostics or helper text, not 
 | API tests | Trigger endpoint, retry endpoint, mark-reviewed endpoint |
 | Mocked external tests | Bitrix24 service mock, Fakturownia service mock, email provider mock |
 | Business behavior tests | Stage 6 accepted scenarios |
-| Forbidden side effects tests | No Fakturownia before validation, no email before validated invoice, no repeated `createInvoice`, no duplicate customer email, no retry after unknown |
+| Forbidden side effects tests | No Fakturownia before validation, no automatic customer invoice email, no repeated `createInvoice`, no retry after unknown |
 | Security tests basic | No public trigger/admin endpoints without secret |
 | Build checks | Type-check, lint, tests before deploy |
 
 ## Required business tests
 | Area | Test |
 |---|---|
-| Happy path `FULL` | Paid deal + valid data -> FULL invoice -> KSeF confirmed -> Bitrix comment -> customer email -> `COMPLETED` |
-| Happy path `ADVANCE` | Valid advance amount -> advance invoice -> customer email -> `COMPLETED` |
-| Happy path `FINAL` | Previous successful `ADVANCE` exists -> final invoice -> customer email -> `COMPLETED` |
+| Happy path `FULL` | Paid deal + valid data -> FULL invoice -> KSeF confirmed -> Bitrix comment -> `COMPLETED` (no customer invoice email) |
+| Happy path `ADVANCE` | Valid advance amount -> advance invoice -> `COMPLETED` (no customer invoice email) |
+| Happy path `FINAL` | Previous successful `ADVANCE` exists -> final invoice -> `COMPLETED` (no customer invoice email) |
 | Missing invoice type | `VALIDATION_FAILED`, no Fakturownia call |
 | Missing company | `VALIDATION_FAILED`, no Fakturownia call |
 | Missing NIP | `VALIDATION_FAILED`, no Fakturownia call |
@@ -75,8 +75,7 @@ AI may be considered in V2/V3 for explanations, diagnostics or helper text, not 
 | Bitrix comment failure | `MANUAL_REVIEW_REQUIRED`, retry only Bitrix sync |
 | Bitrix link field failure | `COMPLETED`, warning in audit |
 | Missing customer email | `VALIDATION_FAILED`, no Fakturownia call |
-| Customer email failure | `MANUAL_REVIEW_REQUIRED`, retry only invoice email |
-| Duplicate customer email on retry | Second email not sent |
+| No automatic customer invoice email | Happy path `COMPLETED` without `CUSTOMER_INVOICE_EMAIL_SENT` |
 
 ## Test completion rule
 A task is incomplete if:

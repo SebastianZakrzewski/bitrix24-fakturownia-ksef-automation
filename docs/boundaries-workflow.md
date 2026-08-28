@@ -5,10 +5,10 @@
 |---|---|
 | Bitrix24 | Source of deal, company, products, invoice type, advance amount, paid stage; destination for comment and invoice link field |
 | n8n | Receives Bitrix24 automation trigger and forwards minimal payload to backend |
-| Backend NestJS | Validation, idempotency, mapping, business decisions, Fakturownia call, process statuses, audit, Bitrix sync, invoice email orchestration |
+| Backend NestJS | Validation, idempotency, mapping, business decisions, Fakturownia call, process statuses, audit, Bitrix sync |
 | Supabase/PostgreSQL | Process state, created invoices, audit, idempotency, configuration, retry attempts |
 | Fakturownia | Invoice creation, automatic KSeF handling, invoice PDF/link source |
-| Email provider | Outbound delivery of customer invoice email (integration only; backend decides when to send) |
+| Email provider | Integration exists but is **not** invoked on V1 happy path |
 | KSeF | Indirectly handled through Fakturownia in V1 |
 
 ## Source of truth
@@ -22,7 +22,7 @@
 | Invoice link | Fakturownia, stored in our DB and Bitrix24 |
 | KSeF status | Fakturownia, stored as process result |
 | Audit | Our DB |
-| Customer invoice email | Backend orchestration + email provider; content from Fakturownia link/PDF |
+| Customer invoice email | Disabled on happy path; module retained, not called |
 
 ## Main workflow
 1. Deal moves to `Opłacone` in Bitrix24.
@@ -45,8 +45,7 @@
 18. Backend saves `InvoiceRecord` and Fakturownia/KSeF status.
 19. Backend adds Bitrix24 timeline comment with invoice link.
 20. Backend tries to update Bitrix24 invoice link field.
-21. Backend sends customer invoice email with Fakturownia PDF and/or link.
-22. Backend sets `COMPLETED` only after required success conditions (Bitrix comment + customer email).
+21. Backend sets `COMPLETED` after Bitrix comment (no automatic customer invoice email).
 
 ## Endpoint contracts at boundary level
 ### n8n -> Backend
@@ -74,8 +73,8 @@ These are outside client panel and protected by admin secret/API key.
 | Create Fakturownia invoice | Automated |
 | KSeF through Fakturownia | Automated by Fakturownia |
 | Bitrix comment/link | Automated |
-| Customer invoice email | Automated after confirmed invoice, KSeF path, and Bitrix comment |
-| Retry validation/Fakturownia/Bitrix sync/invoice email | Manual technical endpoint |
+| Customer invoice email | Disabled; contact email still validated |
+| Retry validation/Fakturownia/Bitrix sync | Manual technical endpoint |
 | Retry after unknown timeout | Manual only after review |
 | KSeF error handling | Manual in Fakturownia/accounting |
 | Delete/cancel invoice | Not allowed in V1 |

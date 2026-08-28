@@ -15,7 +15,7 @@
 | DB audit and process statuses | MVP_REQUIRED |
 | Bitrix24 timeline comment with invoice link | MVP_REQUIRED |
 | Bitrix24 separate link field update | MVP_REQUIRED, warning-only |
-| Customer invoice email delivery (Fakturownia PDF and/or link) | MVP_REQUIRED |
+| Customer invoice email delivery (Fakturownia PDF and/or link) | Disabled — contact email still validated; no automatic send |
 | Technical manual retry outside client panel | MVP_REQUIRED |
 
 ## V2

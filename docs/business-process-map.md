@@ -6,10 +6,10 @@
 | Sales/CRM user | Moves deal to `Opłacone` and maintains correct deal/company/product data |
 | Bitrix24 | Source of deal, company, product rows, invoice type, advance amount and paid stage |
 | n8n | Receives Bitrix24 trigger and forwards minimal payload to backend |
-| Backend NestJS | Validates, maps, creates process, controls idempotency, calls Fakturownia, syncs Bitrix24, orchestrates customer invoice email |
-| Fakturownia | Creates invoice and handles KSeF submission automatically; provides invoice PDF/link for email |
+| Backend NestJS | Validates, maps, creates process, controls idempotency, calls Fakturownia, syncs Bitrix24 |
+| Fakturownia | Creates invoice and handles KSeF submission automatically |
 | KSeF | Indirectly handled by Fakturownia in V1 |
-| Email provider | Outbound integration used by backend to deliver invoice email to customer |
+| Email provider | Present in codebase; **not** called on the V1 happy path (no automatic customer invoice email) |
 | Operator/Admin | Can use technical retry outside any client UI (V2) |
 
 ## Trigger
@@ -69,26 +69,20 @@ V1 does not integrate directly with KSeF. Fakturownia handles KSeF submission. V
 ## Bitrix24 sync results
 | Situation | Behavior |
 |---|---|
-| Comment with invoice link added | Required before customer email and `COMPLETED` |
-| Link field update failed | Warning-only; process can be `COMPLETED` after email sent |
+| Comment with invoice link added | Required before `COMPLETED` |
+| Link field update failed | Warning-only; process can be `COMPLETED` after comment |
 | Comment failed after invoice/KSeF success | `MANUAL_REVIEW_REQUIRED`, retry only Bitrix sync |
 
-## Customer invoice email delivery
-Given invoice creation and KSeF submission are confirmed (or manual review cleared KSeF unknown/error per operator workflow), and Bitrix24 timeline comment with invoice link was added, when backend sends the customer-facing invoice email, then:
+## Customer contact email (validation only)
+Given a paid deal, when backend validates, then the deal-linked contact must have a valid email (`MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL` otherwise). This email is **not** used to send the invoice automatically.
 
-- Email includes Fakturownia invoice link and/or PDF attachment from Fakturownia.
-- Recipient address is `InvoiceDraft.buyer.customerEmail` loaded at validation from deal contact (`CONTACT_ID` → `crm.contact.get` → first `EMAIL[].VALUE`; see `/docs/contracts.md`).
-- Send attempt is audited in DB (`invoice_events` and/or dedicated email audit fields when implemented).
-- `COMPLETED` is set only after successful email delivery.
+Automatic customer invoice email delivery is disabled. After Bitrix24 timeline comment with invoice link, backend sets `COMPLETED` without calling the email provider / n8n Gmail webhook.
 
 | Situation | Behavior |
 |---|---|
 | Customer email missing/invalid at validation | `VALIDATION_FAILED`, no Fakturownia call |
-| Email provider success | Audit event recorded; process can reach `COMPLETED` if Bitrix comment succeeded |
-| Email provider 4xx/validation error | `MANUAL_REVIEW_REQUIRED`, retry only invoice email |
-| Email provider 5xx/timeout/unknown | `MANUAL_REVIEW_REQUIRED`, no automatic retry; manual verification required |
-| Email failed after invoice/KSeF/Bitrix comment success | `MANUAL_REVIEW_REQUIRED`, retry only invoice email; invoice remains in Fakturownia |
-| Duplicate trigger/retry after email already sent | Idempotency must not send duplicate customer email for same process |
+| Happy path after Bitrix comment | `COMPLETED`; no customer invoice email send |
+| Duplicate trigger/retry | Idempotency must not send a customer invoice email |
 
 ## Forbidden outcomes
 | Code | Meaning |
@@ -103,9 +97,9 @@ Given invoice creation and KSeF submission are confirmed (or manual review clear
 | `NO_RETRY_AFTER_UNKNOWN_WITHOUT_MANUAL_REVIEW` | Timeout/unknown blocks unsafe retry |
 | `NO_CRITICAL_LOGIC_IN_N8N` | n8n only orchestrates trigger |
 | `NO_COMPLETED_WITHOUT_BITRIX_COMMENT` | Comment with link required for `COMPLETED` |
-| `NO_COMPLETED_WITHOUT_CUSTOMER_EMAIL` | Customer invoice email required for `COMPLETED` |
-| `NO_EMAIL_BEFORE_VALIDATED_INVOICE` | No customer email before validation, idempotency check, and confirmed Fakturownia invoice |
-| `NO_DUPLICATE_CUSTOMER_EMAIL` | No second customer email for same completed process |
+| `NO_AUTOMATIC_CUSTOMER_INVOICE_EMAIL` | Backend must not send customer invoice email on happy path |
+| `NO_EMAIL_BEFORE_VALIDATED_INVOICE` | If email send is ever re-enabled, no send before validation, idempotency check, and confirmed Fakturownia invoice |
+| `NO_DUPLICATE_CUSTOMER_EMAIL` | No second customer email for same process if send is re-enabled |
 | `NO_AUTO_DELETE_OR_CANCEL_INVOICE` | No automatic invoice deletion/cancellation in V1 |
 
 ## Given/When/Then validation scenarios
@@ -121,5 +115,4 @@ Given invoice creation and KSeF submission are confirmed (or manual review clear
 | KSeF error/unknown | Given invoice exists but KSeF is error/unknown, then invoice remains and manual review is required |
 | Bitrix comment failure | Given invoice/KSeF OK but Bitrix comment fails, then no `COMPLETED`; retry only Bitrix sync |
 | Missing customer email | Given paid deal whose linked contact has no valid email (or deal has no `CONTACT_ID`), when validated, then no invoice and `VALIDATION_FAILED` |
-| Customer email failure | Given invoice/KSeF/Bitrix comment OK but email fails, then no `COMPLETED`; retry only invoice email |
-| Duplicate email retry | Given email already sent for process, when retry runs, then no second email |
+| No automatic invoice email | Given invoice/KSeF/Bitrix comment OK, when process completes, then `COMPLETED` and no customer invoice email send |

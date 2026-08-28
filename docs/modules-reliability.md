@@ -55,8 +55,7 @@ Responsibilities:
 16. Save `InvoiceRecord` and statuses.
 17. Add Bitrix timeline comment with link.
 18. Try to update Bitrix link field.
-19. Send customer invoice email via `InvoiceEmailService`.
-20. Set `COMPLETED` or error status.
+19. Set `COMPLETED` or error status. Do not send customer invoice email.
 
 ### Services
 | Service | Responsibility |
@@ -66,7 +65,7 @@ Responsibilities:
 | `InvoiceDraftBuilderService` | Build `InvoiceDraft` |
 | `InvoiceIdempotencyService` | Claim/find process for `dealId + invoiceType` |
 | `InvoiceCommentService` | Build deterministic Bitrix comments |
-| `InvoiceEmailService` | Build email payload, orchestrate send after invoice/KSeF/Bitrix comment, record delivery result |
+| `InvoiceEmailService` | Unused on happy path; kept for possible later re-enable |
 | `TechnicalRetryService` | Evaluate and execute allowed technical retries |
 
 ### Mappers
@@ -125,12 +124,12 @@ Located in `modules/invoices/integrations/email`.
 | `InvoiceEmailMapper` | Map internal payload to provider request; map provider response to result |
 | `EmailProviderErrorMapper` | Map 4xx/5xx/timeout/unknown to controlled errors |
 
-Email integration must not decide whether an email is allowed or when lifecycle transitions occur. `InvoiceEmailService` in the invoices module owns orchestration and idempotency guards.
+Email integration must not decide lifecycle. V1 happy path must not call `InvoiceEmailService`.
 
 Rules:
-- No email before validation, process claim, confirmed Fakturownia invoice, and required Bitrix timeline comment.
-- One successful customer email per `InvoiceProcess` in V1.
-- Email failure after invoice creation does not delete or cancel the Fakturownia invoice.
+- Contact email is still validated before Fakturownia.
+- No automatic customer invoice email after Bitrix comment.
+- If send is re-enabled: no email before validation, process claim, confirmed Fakturownia invoice, and required Bitrix timeline comment.
 
 ## Reliability rules
 ### Idempotency and race condition
@@ -154,7 +153,7 @@ Rules:
 - Timeout becomes `UNKNOWN_AFTER_TIMEOUT`.
 - KSeF unknown becomes `KSEF_STATUS_UNKNOWN`.
 - Bitrix sync failure after invoice creation allows only Bitrix sync retry.
-- Email failure after invoice/KSeF/Bitrix comment allows only invoice email retry.
+- Automatic customer invoice email is not sent; email provider failures are not part of the happy path.
 
 ### Error handling
 | Area | Rule |
@@ -166,6 +165,4 @@ Rules:
 | Deal not paid anymore | `STALE_TRIGGER_IGNORED` event only |
 | Missing company/products/customer email after deal load | `VALIDATION_FAILED` |
 | Bitrix comment failure after invoice/KSeF | `MANUAL_REVIEW_REQUIRED`, retry only Bitrix sync |
-| Bitrix link field failure | Warning event only, `COMPLETED` allowed if comment and email succeeded |
-| Email provider 4xx | `MANUAL_REVIEW_REQUIRED`, retry only invoice email |
-| Email provider 5xx/timeout/unknown | `MANUAL_REVIEW_REQUIRED`, no auto retry |
+| Bitrix link field failure | Warning event only, `COMPLETED` allowed if comment succeeded |

@@ -3,7 +3,7 @@
 ## System
 Automation for invoices in the flow:
 
-`Bitrix24 -> n8n -> Backend NestJS -> Fakturownia -> KSeF via Fakturownia -> Bitrix24 sync -> Customer invoice email`
+`Bitrix24 -> n8n -> Backend NestJS -> Fakturownia -> KSeF via Fakturownia -> Bitrix24 sync`
 
 ## Business goal
 The system automates invoice creation after a Bitrix24 deal reaches the paid stage. It reduces manual invoice work, decreases data-entry errors, ensures KSeF submission is handled through Fakturownia, accelerates post-payment processing, and provides auditable process history.
@@ -17,9 +17,10 @@ A process is considered business-successful when:
 1. An invoice is created in Fakturownia.
 2. Fakturownia confirms KSeF submission status.
 3. A Bitrix24 timeline comment with the Fakturownia invoice link is added.
-4. The customer receives an email with the Fakturownia invoice PDF and/or link.
 
-The invoice link is also written to a separate Bitrix24 deal field when possible. Failure to update that field is warning-only and does not block `COMPLETED` if the timeline comment was added and the customer email was sent.
+The invoice link is also written to a separate Bitrix24 deal field when possible. Failure to update that field is warning-only and does not block `COMPLETED` if the timeline comment was added.
+
+Automatic sending of the invoice PDF/message to the customer is disabled. Contact email is still validated.
 
 ## Must never happen
 - Duplicate invoice for the same `bitrix_deal_id + invoice_type`.
@@ -30,8 +31,7 @@ The invoice link is also written to a separate Bitrix24 deal field when possible
 - KSeF processing before confirmed invoice creation in Fakturownia.
 - Critical business logic hidden in n8n.
 - `COMPLETED` without Bitrix24 timeline comment with invoice link.
-- `COMPLETED` without customer invoice email sent.
-- Customer invoice email before validation, idempotency check, or confirmed Fakturownia invoice.
+- Automatic customer invoice email send (n8n Gmail / email webhook) on the invoice happy path.
 - Automatic deletion/cancellation of invoices in V1.
 
 ## Mode

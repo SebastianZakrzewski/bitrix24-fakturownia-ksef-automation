@@ -140,8 +140,7 @@ Validation:
 - KSeF unknown,
 - Bitrix comment failure,
 - Bitrix link field warning,
-- customer email failure,
-- duplicate email idempotency.
+- no automatic customer invoice email on COMPLETED.
 
 ### Task 10 — API endpoints
 Implement:
@@ -164,7 +163,7 @@ Validation:
 Implement invoice email orchestration and provider integration skeleton:
 - `InvoiceEmailService` in invoices module
 - `modules/invoices/integrations/email` provider client/service/mapper/types
-- wire into `CreateInvoiceFromBitrixDealUseCase` after Bitrix comment success
+- wire into `CreateInvoiceFromBitrixDealUseCase` after Bitrix comment success — **superseded: send disabled**
 - load customer email from validated `InvoiceDraft.buyer.customerEmail` (populated at validation from deal contact per `/docs/contracts.md`)
 - send Fakturownia invoice link and/or PDF attachment
 - audit every send attempt
@@ -174,12 +173,12 @@ Rules:
 - no email before validation and confirmed Fakturownia invoice,
 - no duplicate email for same process,
 - email failure does not cancel Fakturownia invoice,
-- `COMPLETED` only after successful email delivery.
+- `COMPLETED` after Bitrix comment; automatic customer email send disabled.
 
 Validation:
 - mocked provider tests for success, 4xx, 5xx, timeout,
 - forbidden side effect tests (no email before validation/invoice),
-- happy path includes email step,
+- happy path does not send customer invoice email,
 - no full email addresses in logs.
 
 ### Task 12 — Technical retry
@@ -227,7 +226,7 @@ V1 is done only when:
 - validation blocks bad invoices,
 - Fakturownia/KSeF/Bitrix/email errors produce correct statuses,
 - audit exists,
-- customer invoice email delivery works,
+- customer invoice email is not sent on happy path,
 - technical retry is controlled,
 - no V2/V3 scope is implemented accidentally,
 - all checks pass.

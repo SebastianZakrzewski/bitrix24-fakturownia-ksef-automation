@@ -55,11 +55,10 @@ type InvoiceProcessStatus =
 | `INVOICE_CREATED` | `KSEF_SUBMISSION_CONFIRMED` |
 | `INVOICE_CREATED` | `KSEF_SUBMISSION_ERROR` |
 | `INVOICE_CREATED` | `KSEF_STATUS_UNKNOWN` |
-| `KSEF_SUBMISSION_CONFIRMED` | Bitrix24 timeline comment with link, then customer invoice email, then `COMPLETED` |
+| `KSEF_SUBMISSION_CONFIRMED` | Bitrix24 timeline comment with link, then `COMPLETED` |
 | `KSEF_SUBMISSION_ERROR` | `MANUAL_REVIEW_REQUIRED` |
 | `KSEF_STATUS_UNKNOWN` | `MANUAL_REVIEW_REQUIRED` |
-| After Bitrix comment + email success | `COMPLETED` |
-| Email failure after invoice/KSeF/Bitrix comment | `MANUAL_REVIEW_REQUIRED`; retry only invoice email |
+| After Bitrix comment success | `COMPLETED` (no automatic customer invoice email) |
 | `COMPLETED` | Terminal in V1 |
 
 ## Idempotency

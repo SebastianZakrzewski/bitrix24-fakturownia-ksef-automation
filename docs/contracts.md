@@ -167,11 +167,11 @@ Rules:
 - Email is normalized (`trim`, lowercase) in validated buyer before `InvoiceDraft` build.
 - Verified on Evapremium portal: deal `29134`, contact `15532` (company `120` had no email value).
 
-Task 11 (`InvoiceEmailService`) reuses validated `InvoiceDraft.buyer.customerEmail` as `recipientEmail`; no second Bitrix lookup at send time unless process is reloaded from snapshot.
+Task 11 (`InvoiceEmailService`) exists but is **not** called from `CreateInvoiceFromBitrixDealUseCase`. Contact email is validated only.
 
 ## Invoice email delivery contract
 
-Located in `modules/invoices/integrations/email` (provider) and `InvoiceEmailService` (orchestration). Types are **not** domain types.
+Located in `modules/invoices/integrations/email` (provider) and `InvoiceEmailService` (orchestration). Types are **not** domain types. **V1 happy path does not send this payload.**
 
 ### Internal send payload
 

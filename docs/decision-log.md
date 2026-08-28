@@ -25,15 +25,14 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | One invalid product line blocks whole invoice | Avoid incorrect invoice amount | Critical |
 | VAT fixed at 23% | V1 simplification | High |
 | Fakturownia handles KSeF | Avoid direct KSeF integration V1 | Critical |
-| Success requires Fakturownia invoice + KSeF submission confirmed + Bitrix comment with link + customer invoice email | Complete business process | Critical |
+| Success requires Fakturownia invoice + KSeF submission confirmed + Bitrix comment with link | Complete business process | Critical |
 | Invoice number is not stored in Bitrix24 | Business requirement | Medium |
 | Invoice link is stored in comment and separate deal field | Operational convenience | High |
-| Link field failure is warning-only | Comment link and email are minimum result | Medium |
-| V1 defers simple client panel to V2 | Customer delivery via email replaces panel visibility for MVP | High |
-| V1 sends customer invoice by email with Fakturownia PDF and/or link | Customer-facing delivery without panel | Critical |
-| Customer email required before Fakturownia side effects | Avoid invoice without delivery path | High |
-| One customer email per process; no duplicate on retry | Idempotency for outbound side effect | Critical |
-| Email failure after invoice creation -> `MANUAL_REVIEW_REQUIRED`, retry only email | Same recovery pattern as Bitrix sync | High |
+| Link field failure is warning-only | Comment with invoice link is the minimum Bitrix result | Medium |
+| V1 defers simple client panel to V2 | Operator uses Bitrix + Fakturownia | High |
+| Automatic customer invoice email send is disabled | Operators do not want invoices emailed to customers | Critical |
+| Customer contact email still required before Fakturownia side effects | Keep CRM recipient data quality; codes `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL` | High |
+| Email provider module remains unused on happy path | Integration kept; use case must not POST n8n `/webhook/email` | High |
 | Idempotency key = `bitrix_deal_id + invoice_type` | Blocks duplicates but allows advance/final | Critical |
 | `STALE_TRIGGER_IGNORED` is event only | Does not block future real process | Critical |
 | `VALIDATION_FAILED` audit event uses same string as process status | Persisted in `invoice_events.event_type` when validation fails after process claim; not an `InvoiceProcessStatus` alias in code | Medium |
@@ -58,7 +57,7 @@ This file summarizes accepted/deferred decisions. Detailed context is distribute
 | Order payload from validated `InvoiceDraft` with `oid` = `bitrixDealId` | Traceability; buyer + positions same as invoice mapping | High |
 | `FakturowniaOrderService.createOrder` returns integration result only | DB insert via use case Task 9 | Medium |
 | Customer email from deal-linked Bitrix24 contact (`CONTACT_ID` → `crm.contact.get` → first `EMAIL[].VALUE`) | Evapremium stores recipient on deal contact, not company UF; verified on deal 29134 | High |
-| `customerEmail` validated before Fakturownia; normalized trim + lowercase in `InvoiceValidationService` | Blocks invoice without delivery path; codes `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL` | High |
+| `customerEmail` validated before Fakturownia; normalized trim + lowercase in `InvoiceValidationService` | Blocks invoice without contact email on file; codes `MISSING_CUSTOMER_EMAIL` / `INVALID_CUSTOMER_EMAIL` | High |
 
 ## Open decisions
 
