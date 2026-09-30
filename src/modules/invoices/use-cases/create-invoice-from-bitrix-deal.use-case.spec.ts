@@ -358,7 +358,6 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
   describe('existing process short-circuit', () => {
     it.each<InvoiceProcessStatus>([
       'INVOICE_CREATION_IN_PROGRESS',
-      'FAKTUROWNIA_ERROR',
       'UNKNOWN_AFTER_TIMEOUT',
       'INVOICE_CREATED',
       'MANUAL_REVIEW_REQUIRED',
@@ -469,6 +468,116 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
         bitrix_deal_id: '27000',
         invoice_type: 'FULL',
         message: 'Invoice process already exists with status VALIDATION_FAILED.',
+      });
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: false,
+        blocked_reason: 'Invoice record already exists.',
+      });
+      expect(deps.invoiceProcessRepository.updateStatus).not.toHaveBeenCalled();
+      expect(deps.bitrixDealSnapshotRepository.insert).not.toHaveBeenCalled();
+      expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
+      expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('fakturownia error retry', () => {
+    const retryAttempt = {
+      invoice_process_id: 'process-uuid-1',
+      requested_by: 'BITRIX24_TRIGGER',
+      reason: 'Bitrix trigger after FAKTUROWNIA_ERROR.',
+      from_status: 'FAKTUROWNIA_ERROR',
+      target_action: 'RETRY_FAKTUROWNIA_CREATION',
+    };
+
+    const mockStatusUpdate = (deps: UseCaseDeps) => {
+      deps.invoiceProcessRepository.updateStatus.mockImplementation(async (_id, params) =>
+        processRow('FULL', { status: params.status }),
+      );
+    };
+
+    it('re-runs validation and creates the invoice after a later Bitrix trigger', async () => {
+      const deal = bitrixDealForFull();
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(
+        processRow('FULL', { status: 'FAKTUROWNIA_ERROR' }),
+      );
+      mockStatusUpdate(deps);
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('COMPLETED');
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: true,
+      });
+      expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+        'process-uuid-1',
+        expect.objectContaining({
+          status: 'INVOICE_CREATION_IN_PROGRESS',
+        }),
+      );
+      expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledTimes(1);
+      expect(deps.invoiceRecordRepository.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps FAKTUROWNIA_ERROR and does not call Fakturownia when data is still invalid', async () => {
+      const deal = bitrixDealNoCompany();
+      setupBitrixMocks(deps, deal, undefined);
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(
+        processRow('FULL', { status: 'FAKTUROWNIA_ERROR' }),
+      );
+      mockStatusUpdate(deps);
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('FAKTUROWNIA_ERROR');
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: true,
+      });
+      expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+        'process-uuid-1',
+        expect.objectContaining({
+          status: 'FAKTUROWNIA_ERROR',
+          validation_errors: expect.arrayContaining([
+            expect.objectContaining({ code: 'MISSING_COMPANY' }),
+          ]),
+        }),
+      );
+      expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
+      expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
+      expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        label: 'an invoice record already exists',
+        process: processRow('FULL', { status: 'FAKTUROWNIA_ERROR' }),
+        record: { id: 'record-uuid-1' } as InvoiceRecordRow,
+      },
+      {
+        label: 'fakturownia_invoice_id is already set',
+        process: processRow('FULL', {
+          status: 'FAKTUROWNIA_ERROR',
+          fakturownia_invoice_id: '987654',
+        }),
+        record: null,
+      },
+    ])('blocks Fakturownia when $label', async ({ process, record }) => {
+      const deal = bitrixDealForFull();
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(process);
+      deps.invoiceRecordRepository.findByInvoiceProcessId.mockResolvedValue(record);
+
+      const result = await useCase.execute(command());
+
+      expect(result).toEqual({
+        process_id: 'process-uuid-1',
+        status: 'FAKTUROWNIA_ERROR',
+        bitrix_deal_id: '27000',
+        invoice_type: 'FULL',
+        message: 'Invoice process already exists with status FAKTUROWNIA_ERROR.',
       });
       expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
         ...retryAttempt,

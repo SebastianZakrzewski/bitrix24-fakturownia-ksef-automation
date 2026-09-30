@@ -131,7 +131,18 @@ export class CreateInvoiceFromBitrixDealUseCase {
       process = resumed;
     }
 
-    if (process.status !== 'TRIGGER_RECEIVED') {
+    let resumeFakturowniaCreation = false;
+
+    if (process.status === 'FAKTUROWNIA_ERROR') {
+      const resumed = await this.resumeAfterFakturowniaError(process);
+      if (!resumed) {
+        return this.buildExistingProcessResponse(process, command.bitrixDealId);
+      }
+      process = resumed;
+      resumeFakturowniaCreation = true;
+    }
+
+    if (!resumeFakturowniaCreation && process.status !== 'TRIGGER_RECEIVED') {
       return this.buildExistingProcessResponse(process, command.bitrixDealId);
     }
 
@@ -171,6 +182,15 @@ export class CreateInvoiceFromBitrixDealUseCase {
     );
 
     if (!validationResult.ok) {
+      if (process.status === 'FAKTUROWNIA_ERROR') {
+        return this.persistFakturowniaErrorValidationFailure(
+          process,
+          validationResult.errors,
+          invoiceType,
+          command.bitrixDealId,
+        );
+      }
+
       return this.handleValidationFailure(
         process,
         validationResult.errors,
@@ -681,6 +701,73 @@ export class CreateInvoiceFromBitrixDealUseCase {
     });
 
     return resumed;
+  }
+
+  private async resumeAfterFakturowniaError(
+    process: InvoiceProcessRow,
+  ): Promise<InvoiceProcessRow | null> {
+    const invoiceRecord = await this.invoiceRecordRepository.findByInvoiceProcessId(
+      process.id,
+    );
+    const invoiceAlreadyCreated =
+      invoiceRecord !== null || process.fakturownia_invoice_id !== null;
+
+    if (invoiceAlreadyCreated) {
+      await this.technicalRetryAttemptRepository.create({
+        invoice_process_id: process.id,
+        requested_by: 'BITRIX24_TRIGGER',
+        reason: 'Bitrix trigger after FAKTUROWNIA_ERROR.',
+        from_status: 'FAKTUROWNIA_ERROR',
+        target_action: 'RETRY_FAKTUROWNIA_CREATION',
+        allowed: false,
+        blocked_reason: 'Invoice record already exists.',
+      });
+      return null;
+    }
+
+    await this.technicalRetryAttemptRepository.create({
+      invoice_process_id: process.id,
+      requested_by: 'BITRIX24_TRIGGER',
+      reason: 'Bitrix trigger after FAKTUROWNIA_ERROR.',
+      from_status: 'FAKTUROWNIA_ERROR',
+      target_action: 'RETRY_FAKTUROWNIA_CREATION',
+      allowed: true,
+    });
+
+    return process;
+  }
+
+  private async persistFakturowniaErrorValidationFailure(
+    process: InvoiceProcessRow,
+    errors: ValidationError[],
+    invoiceType: InvoiceType,
+    bitrixDealId: string,
+  ): Promise<InvoiceProcessTriggerResponseDto> {
+    const message = this.buildValidationFailureMessage(errors);
+
+    await this.invoiceProcessRepository.updateStatus(process.id, {
+      status: 'FAKTUROWNIA_ERROR',
+      validation_errors: errors,
+      last_error_message: message,
+    });
+
+    await this.invoiceEventRepository.insert({
+      invoice_process_id: process.id,
+      bitrix_deal_id: bitrixDealId,
+      event_type: 'VALIDATION_FAILED',
+      message,
+      metadata: { errors },
+    });
+
+    await this.tryAddValidationFailureComment(process.id, bitrixDealId, errors);
+
+    return {
+      process_id: process.id,
+      status: 'FAKTUROWNIA_ERROR',
+      bitrix_deal_id: bitrixDealId,
+      invoice_type: invoiceType,
+      message,
+    };
   }
 
   private async handleValidationFailure(
