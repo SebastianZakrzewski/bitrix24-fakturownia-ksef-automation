@@ -28,6 +28,7 @@ import { ClientConfigRepository } from '../repositories/client-config.repository
 import { InvoiceEventRepository } from '../repositories/invoice-event.repository';
 import { InvoiceProcessRepository } from '../repositories/invoice-process.repository';
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
+import { TechnicalRetryAttemptRepository } from '../repositories/technical-retry-attempt.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from '../services/invoice-comment.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
@@ -60,6 +61,7 @@ export class CreateInvoiceFromBitrixDealUseCase {
     private readonly invoiceEventRepository: InvoiceEventRepository,
     private readonly bitrixDealSnapshotRepository: BitrixDealSnapshotRepository,
     private readonly invoiceRecordRepository: InvoiceRecordRepository,
+    private readonly technicalRetryAttemptRepository: TechnicalRetryAttemptRepository,
     private readonly invoiceDraftBuilderService: InvoiceDraftBuilderService,
     private readonly fakturowniaOrderEnsureService: FakturowniaOrderEnsureService,
     private readonly fakturowniaService: FakturowniaService,
@@ -116,10 +118,18 @@ export class CreateInvoiceFromBitrixDealUseCase {
       };
     }
 
-    const process = await this.invoiceIdempotencyService.claim(
+    let process = await this.invoiceIdempotencyService.claim(
       command.bitrixDealId,
       invoiceType,
     );
+
+    if (process.status === 'VALIDATION_FAILED') {
+      const resumed = await this.resumeAfterValidationFailure(process);
+      if (!resumed) {
+        return this.buildExistingProcessResponse(process, command.bitrixDealId);
+      }
+      process = resumed;
+    }
 
     if (process.status !== 'TRIGGER_RECEIVED') {
       return this.buildExistingProcessResponse(process, command.bitrixDealId);
@@ -620,6 +630,57 @@ export class CreateInvoiceFromBitrixDealUseCase {
     }
 
     return 'UNKNOWN_AFTER_TIMEOUT';
+  }
+
+  private async resumeAfterValidationFailure(
+    process: InvoiceProcessRow,
+  ): Promise<InvoiceProcessRow | null> {
+    const invoiceRecord = await this.invoiceRecordRepository.findByInvoiceProcessId(
+      process.id,
+    );
+    const invoiceAlreadyCreated =
+      invoiceRecord !== null || process.fakturownia_invoice_id !== null;
+
+    if (invoiceAlreadyCreated) {
+      await this.technicalRetryAttemptRepository.create({
+        invoice_process_id: process.id,
+        requested_by: 'BITRIX24_TRIGGER',
+        reason: 'Bitrix trigger after VALIDATION_FAILED.',
+        from_status: 'VALIDATION_FAILED',
+        target_action: 'RETRY_VALIDATION_AND_PROCESS',
+        allowed: false,
+        blocked_reason: 'Invoice record already exists.',
+      });
+      return null;
+    }
+
+    this.invoiceProcessService.assertCanTransition(
+      'VALIDATION_FAILED',
+      'TRIGGER_RECEIVED',
+    );
+
+    const resumed = await this.invoiceProcessRepository.updateStatus(process.id, {
+      status: 'TRIGGER_RECEIVED',
+      last_error_message: null,
+      validation_errors: null,
+    });
+
+    if (!resumed) {
+      throw new NotFoundException(
+        `Invoice process ${process.id} was not found for validation retry.`,
+      );
+    }
+
+    await this.technicalRetryAttemptRepository.create({
+      invoice_process_id: process.id,
+      requested_by: 'BITRIX24_TRIGGER',
+      reason: 'Bitrix trigger after VALIDATION_FAILED.',
+      from_status: 'VALIDATION_FAILED',
+      target_action: 'RETRY_VALIDATION_AND_PROCESS',
+      allowed: true,
+    });
+
+    return resumed;
   }
 
   private async handleValidationFailure(

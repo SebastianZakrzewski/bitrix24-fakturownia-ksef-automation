@@ -23,6 +23,7 @@ import { ClientConfigRepository } from '../repositories/client-config.repository
 import { InvoiceEventRepository } from '../repositories/invoice-event.repository';
 import { InvoiceProcessRepository } from '../repositories/invoice-process.repository';
 import { InvoiceRecordRepository } from '../repositories/invoice-record.repository';
+import { TechnicalRetryAttemptRepository } from '../repositories/technical-retry-attempt.repository';
 import { FakturowniaOrderEnsureService } from '../services/fakturownia-order-ensure.service';
 import { InvoiceCommentService } from '../services/invoice-comment.service';
 import { InvoiceDraftBuilderService } from '../services/invoice-draft-builder.service';
@@ -153,6 +154,9 @@ type UseCaseDeps = {
   invoiceRecordRepository: jest.Mocked<
     Pick<InvoiceRecordRepository, 'findByInvoiceProcessId' | 'insert'>
   >;
+  technicalRetryAttemptRepository: jest.Mocked<
+    Pick<TechnicalRetryAttemptRepository, 'create'>
+  >;
   fakturowniaOrderEnsureService: jest.Mocked<
     Pick<FakturowniaOrderEnsureService, 'ensureForDeal'>
   >;
@@ -183,6 +187,9 @@ const createDeps = (): UseCaseDeps => ({
     findByInvoiceProcessId: jest.fn().mockResolvedValue(null),
     insert: jest.fn(),
   },
+  technicalRetryAttemptRepository: {
+    create: jest.fn().mockResolvedValue({ id: 'retry-attempt-uuid-1' }),
+  },
   fakturowniaOrderEnsureService: {
     ensureForDeal: jest.fn().mockResolvedValue(orderRow()),
   },
@@ -208,6 +215,7 @@ const createUseCase = (deps: UseCaseDeps) =>
     deps.invoiceEventRepository as unknown as InvoiceEventRepository,
     deps.bitrixDealSnapshotRepository as unknown as BitrixDealSnapshotRepository,
     deps.invoiceRecordRepository as unknown as InvoiceRecordRepository,
+    deps.technicalRetryAttemptRepository as unknown as TechnicalRetryAttemptRepository,
     new InvoiceDraftBuilderService(),
     deps.fakturowniaOrderEnsureService as unknown as FakturowniaOrderEnsureService,
     deps.fakturowniaService as unknown as FakturowniaService,
@@ -349,8 +357,11 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
 
   describe('existing process short-circuit', () => {
     it.each<InvoiceProcessStatus>([
-      'VALIDATION_FAILED',
+      'INVOICE_CREATION_IN_PROGRESS',
+      'FAKTUROWNIA_ERROR',
       'UNKNOWN_AFTER_TIMEOUT',
+      'INVOICE_CREATED',
+      'MANUAL_REVIEW_REQUIRED',
       'COMPLETED',
     ])(
       'returns existing status without persistence side effects when process is %s',
@@ -376,6 +387,99 @@ describe('CreateInvoiceFromBitrixDealUseCase — validation failure path', () =>
         assertForbiddenSideEffects();
       },
     );
+  });
+
+  describe('validation failure retry', () => {
+    const retryAttempt = {
+      invoice_process_id: 'process-uuid-1',
+      requested_by: 'BITRIX24_TRIGGER',
+      reason: 'Bitrix trigger after VALIDATION_FAILED.',
+      from_status: 'VALIDATION_FAILED',
+      target_action: 'RETRY_VALIDATION_AND_PROCESS',
+    };
+
+    const mockStatusUpdate = (deps: UseCaseDeps) => {
+      deps.invoiceProcessRepository.updateStatus.mockImplementation(async (_id, params) =>
+        processRow('FULL', { status: params.status }),
+      );
+    };
+
+    it('re-runs validation and creates the invoice after corrected Bitrix data', async () => {
+      const deal = bitrixDealForFull();
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(
+        processRow('FULL', { status: 'VALIDATION_FAILED' }),
+      );
+      mockStatusUpdate(deps);
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('COMPLETED');
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: true,
+      });
+      expect(deps.invoiceProcessRepository.updateStatus).toHaveBeenCalledWith(
+        'process-uuid-1',
+        expect.objectContaining({
+          status: 'TRIGGER_RECEIVED',
+          last_error_message: null,
+          validation_errors: null,
+        }),
+      );
+      expect(deps.fakturowniaService.createInvoice).toHaveBeenCalledTimes(1);
+      expect(deps.invoiceRecordRepository.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns VALIDATION_FAILED again and does not call Fakturownia when data is still invalid', async () => {
+      const deal = bitrixDealNoCompany();
+      setupBitrixMocks(deps, deal, undefined);
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(
+        processRow('FULL', { status: 'VALIDATION_FAILED' }),
+      );
+      mockStatusUpdate(deps);
+
+      const result = await useCase.execute(command());
+
+      expect(result.status).toBe('VALIDATION_FAILED');
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: true,
+      });
+      expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
+      expect(deps.fakturowniaOrderEnsureService.ensureForDeal).not.toHaveBeenCalled();
+      expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
+    });
+
+    it('blocks Fakturownia when an invoice record already exists', async () => {
+      const deal = bitrixDealForFull();
+      setupBitrixMocks(deps, deal, bitrixCompanyValidFixture());
+      deps.invoiceIdempotencyService.claim.mockResolvedValue(
+        processRow('FULL', { status: 'VALIDATION_FAILED' }),
+      );
+      deps.invoiceRecordRepository.findByInvoiceProcessId.mockResolvedValue({
+        id: 'record-uuid-1',
+      } as InvoiceRecordRow);
+
+      const result = await useCase.execute(command());
+
+      expect(result).toEqual({
+        process_id: 'process-uuid-1',
+        status: 'VALIDATION_FAILED',
+        bitrix_deal_id: '27000',
+        invoice_type: 'FULL',
+        message: 'Invoice process already exists with status VALIDATION_FAILED.',
+      });
+      expect(deps.technicalRetryAttemptRepository.create).toHaveBeenCalledWith({
+        ...retryAttempt,
+        allowed: false,
+        blocked_reason: 'Invoice record already exists.',
+      });
+      expect(deps.invoiceProcessRepository.updateStatus).not.toHaveBeenCalled();
+      expect(deps.bitrixDealSnapshotRepository.insert).not.toHaveBeenCalled();
+      expect(deps.fakturowniaService.createInvoice).not.toHaveBeenCalled();
+      expect(deps.invoiceRecordRepository.insert).not.toHaveBeenCalled();
+    });
   });
 
   it('returns VALIDATION_FAILED without process when invoice type cannot be resolved', async () => {
